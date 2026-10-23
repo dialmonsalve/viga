@@ -1,0 +1,92 @@
+{
+  "name": "viga",
+  "version": "0.1.0",
+  "description": "Framework HTTP para Node.js con módulos, inyección de dependencias y decoradores estándar de JavaScript, sin reflect-metadata",
+  "type": "module",
+  "license": "UNLICENSED",
+  "author": "Diego Monsalve",
+  "keywords": [
+    "framework",
+    "express",
+    "decorators",
+    "dependency-injection",
+    "standard-schema",
+    "drizzle"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./validation": {
+      "types": "./dist/validation/index.d.ts",
+      "default": "./dist/validation/index.js"
+    },
+    "./i18n": {
+      "types": "./dist/i18n/index.d.ts",
+      "default": "./dist/i18n/index.js"
+    },
+    "./drizzle": {
+      "types": "./dist/drizzle/index.d.ts",
+      "default": "./dist/drizzle/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": [
+    "./dist/polyfills.js"
+  ],
+  "engines": {
+    "node": ">=24.13.0"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.11.2",
+      "onFail": "download"
+    }
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "check-types": "tsc --noEmit",
+    "test": "node --import tsx --import ./test/setup.ts --test \"test/**/*.test.ts\"",
+    "test:db": "VIGA_TEST_DATABASE_URL=postgresql://viga:viga@127.0.0.1:55432/viga_test pnpm test",
+    "test:watch": "node --import tsx --import ./test/setup.ts --test --watch \"test/**/*.test.ts\"",
+    "test:coverage": "node --import tsx --import ./test/setup.ts --test --experimental-test-coverage \"test/**/*.test.ts\"",
+    "prepublishOnly": "pnpm check-types && pnpm test:db && pnpm build",
+    "db:test:up": "docker compose -f docker-compose.test.yml up -d --wait",
+    "db:test:down": "docker compose -f docker-compose.test.yml down"
+  },
+  "peerDependencies": {
+    "@types/express": "^5.0.0",
+    "drizzle-orm": ">=0.45.0 <1.0.0",
+    "express": "^5.1.0",
+    "pg": "^8.13.0"
+  },
+  "peerDependenciesMeta": {
+    "@types/express": {
+      "optional": true
+    },
+    "drizzle-orm": {
+      "optional": true
+    },
+    "pg": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6",
+    "@types/node": "24.13.3",
+    "@types/pg": "8.23.1",
+    "drizzle-orm": "0.45.4",
+    "express": "5.3.0",
+    "pg": "8.23.1",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "zod": "4.6.5"
+  }
+}

@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:17.2-bookworm
+    container_name: viga-test-postgres
+    environment:
+      POSTGRES_USER: viga
+      POSTGRES_PASSWORD: viga
+      POSTGRES_DB: viga_test
+    ports:
+      - '55432:5432'
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U viga -d viga_test']
+      interval: 1s
+      timeout: 3s
+      retries: 30

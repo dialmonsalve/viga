@@ -1,0 +1,60 @@
+import { interpolate, type MessageParams } from './http/messages.ts';
+
+export const DIAGNOSTICS = {
+  'di.injectOutsideContainer':
+    'inject({token}) can only be called while the container is constructing a class',
+  'di.notCreatedByContainer': '{name} was not created by the container',
+  'di.notInjectable': '{name} must be decorated with @Injectable()',
+  'di.cannotResolve':
+    '{injector} cannot resolve {token}: it is missing from providers or from the exports of an imported module',
+  'di.circularDependency': 'Circular dependency in {injector}: {chain}',
+  'module.circularImport': 'Circular import: {chain}',
+  'module.notModule': '{name} must be decorated with @Module()',
+  'router.notController': '{name} must be decorated with @Controller()',
+  'router.notMethod': '{controller}.{method} is not a method',
+  'interceptor.nextCalledTwice': 'next() can only be called once',
+  'lifecycle.destroyFailed': 'One or more providers failed to shut down',
+  'app.getBeforeInit': 'get() can only be called after init() or listen()',
+  'app.alreadyListening': 'The server is already listening',
+  'app.configureAfterStart': '{method}() must be called before init() or listen()',
+  'app.listening': 'Server listening on port {port}{prefix}',
+  'app.signalReceived': '{signal} received, shutting down',
+  'app.closeFailed': 'Error while shutting down',
+  'http.unhandledException': 'Unhandled exception',
+  'context.missingValue': 'There is no value for "{key}" in the current context',
+  'context.setOutsideScope':
+    'set("{key}") can only be called inside a request or inside runInNewContext()',
+  'i18n.unknownDefaultLocale':
+    'The default locale "{locale}" is not among the catalogs: {locales}',
+  'drizzle.idleClientError': 'Unexpected error on an idle PostgreSQL connection',
+  'drizzle.nestedTransactionConfig':
+    'A nested transaction cannot change the configuration of the outer transaction',
+} as const;
+
+export type DiagnosticKey = keyof typeof DIAGNOSTICS;
+export type DiagnosticDictionary = Partial<Record<DiagnosticKey, string>>;
+
+const PREFIXES: Record<string, string> = {
+  di: 'DI',
+  module: 'Module',
+  router: 'Router',
+  interceptor: 'Interceptor',
+  lifecycle: 'Lifecycle',
+  app: 'App',
+  http: 'HTTP',
+  context: 'Context',
+  i18n: 'I18n',
+  drizzle: 'Drizzle',
+};
+
+let overrides: DiagnosticDictionary = {};
+
+export function setDiagnostics(dictionary: DiagnosticDictionary) {
+  overrides = { ...dictionary };
+}
+
+export function diagnostic(key: DiagnosticKey, params?: MessageParams): string {
+  const [namespace = ''] = key.split('.');
+  const template = overrides[key] ?? DIAGNOSTICS[key];
+  return `[${PREFIXES[namespace] ?? namespace}] ${interpolate(template, params)}`;
+}
