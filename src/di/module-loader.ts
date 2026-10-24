@@ -30,6 +30,7 @@ export function loadApplication(
   const loading: AnyConstructor[] = [];
   const controllers: LoadedController[] = [];
   const globals: Injector[] = [];
+  const rootImports = readModuleOptions(RootModule)?.imports ?? [];
 
   const platform = new Injector(platformProviders, {
     name: 'Platform',
@@ -50,6 +51,16 @@ export function loadApplication(
     const options = readModuleOptions(ModuleClass);
     if (!options) {
       throw new Error(diagnostic('module.notModule', { name: ModuleClass.name }));
+    }
+
+    if (options.global && ModuleClass !== RootModule && !rootImports.includes(ModuleClass)) {
+      throw new Error(
+        diagnostic('module.globalOutsideRoot', {
+          name: ModuleClass.name,
+          importer: loading.at(-1)!.name,
+          root: RootModule.name,
+        })
+      );
     }
 
     loading.push(ModuleClass);

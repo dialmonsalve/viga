@@ -10,6 +10,8 @@ export const diagnosticsEs = {
   'di.circularDependency': 'Dependencia circular en {injector}: {chain}',
   'module.circularImport': 'Importación circular: {chain}',
   'module.notModule': '{name} debe estar decorada con @Module()',
+  'module.globalOutsideRoot':
+    '{name} es global y se importa desde {importer}, pero no desde el módulo raíz; muévelo a los imports de {root}',
   'router.notController': '{name} debe estar decorada con @Controller()',
   'router.notMethod': '{controller}.{method} no es un método',
   'router.missingBodyValidation':

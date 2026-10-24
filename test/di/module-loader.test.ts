@@ -169,6 +169,53 @@ describe('loadModules', () => {
     assert.ok(reports.clock instanceof Clock);
   });
 
+  it('exige que un módulo global se importe en el módulo raíz', () => {
+    @Module({ global: true })
+    class ClockModule {}
+
+    @Module({ imports: [ClockModule] })
+    class ReportsModule {}
+
+    @Module({ imports: [ReportsModule] })
+    class RootModule {}
+
+    assert.throws(
+      () => loadModules(RootModule),
+      /\[Module\] ClockModule is global and is imported from ReportsModule, but not from the root module; move it to the imports of RootModule/
+    );
+  });
+
+  it('permite importar un módulo global también fuera del raíz si el raíz lo importa', () => {
+    @Injectable()
+    class Clock {}
+
+    @Module({ global: true, providers: [Clock], exports: [Clock] })
+    class ClockModule {}
+
+    @Controller()
+    class ReportsController {
+      readonly clock = inject(Clock);
+    }
+
+    @Module({ imports: [ClockModule], controllers: [ReportsController] })
+    class ReportsModule {}
+
+    @Module({ imports: [ReportsModule, ClockModule] })
+    class RootModule {}
+
+    const [reports] = instantiateControllers(RootModule);
+
+    assert.ok(reports instanceof ReportsController);
+    assert.ok(reports.clock instanceof Clock);
+  });
+
+  it('acepta un módulo global como módulo raíz', () => {
+    @Module({ global: true })
+    class RootModule {}
+
+    assert.deepEqual(loadModules(RootModule), []);
+  });
+
   it('no expone lo que un módulo global no exporta', () => {
     @Injectable()
     class Hidden {}

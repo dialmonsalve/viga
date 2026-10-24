@@ -54,7 +54,7 @@
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "check-types": "tsc --noEmit",
     "test": "node --import tsx --import ./test/setup.ts --test \"test/**/*.test.ts\"",
-    "test:db": "VIGA_TEST_DATABASE_URL=postgresql://viga:viga@127.0.0.1:55432/viga_test pnpm test",
+    "test:db": "VIGA_TEST_DATABASE_URL=postgresql://viga@127.0.0.1:55432/viga_test pnpm test",
     "test:watch": "node --import tsx --import ./test/setup.ts --test --watch \"test/**/*.test.ts\"",
     "test:coverage": "node --import tsx --import ./test/setup.ts --test --experimental-test-coverage \"test/**/*.test.ts\"",
     "prepublishOnly": "pnpm check-types && pnpm test:db && pnpm build",

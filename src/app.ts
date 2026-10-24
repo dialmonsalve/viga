@@ -81,7 +81,8 @@ export class App {
     this.securityHeaders =
       options.securityHeaders === false
         ? false
-        : options.securityHeaders === true || options.securityHeaders === undefined
+        : options.securityHeaders === true ||
+            options.securityHeaders === undefined
           ? {}
           : options.securityHeaders;
     this.requestId =
@@ -95,7 +96,8 @@ export class App {
     this.concealRoutes = options.concealRoutes ?? false;
     this.resolveMessage = options.resolveMessage;
     this.express.disable('x-powered-by');
-    if (options.trustProxy !== undefined) this.express.set('trust proxy', options.trustProxy);
+    if (options.trustProxy !== undefined)
+      this.express.set('trust proxy', options.trustProxy);
     if (options.globalPrefix) this.setGlobalPrefix(options.globalPrefix);
   }
 
@@ -154,7 +156,12 @@ export class App {
     this.server = server;
 
     const { port: actualPort } = server.address() as AddressInfo;
-    this.logger.info(diagnostic('app.listening', { port: actualPort, prefix: this.globalPrefix }));
+    this.logger.info(
+      diagnostic('app.listening', {
+        port: actualPort,
+        prefix: this.globalPrefix,
+      })
+    );
     return server;
   }
 
@@ -163,12 +170,16 @@ export class App {
     return this.closing;
   }
 
-  enableShutdownHooks(signals: readonly NodeJS.Signals[] = ['SIGTERM', 'SIGINT']) {
+  enableShutdownHooks(
+    signals: readonly NodeJS.Signals[] = ['SIGTERM', 'SIGINT']
+  ) {
     for (const signal of signals) {
       process.once(signal, () => {
         this.logger.info(diagnostic('app.signalReceived', { signal }));
         this.close()
-          .catch((error: unknown) => this.logger.error(diagnostic('app.closeFailed'), error))
+          .catch((error: unknown) =>
+            this.logger.error(diagnostic('app.closeFailed'), error)
+          )
           .finally(() => process.kill(process.pid, signal));
       });
     }
@@ -186,12 +197,16 @@ export class App {
       platformProviders: [{ provide: LOGGER, useValue: this.logger }],
     });
 
-    const instances = [...new Set(injectors.flatMap((injector) => injector.resolveAll()))];
+    const instances = [
+      ...new Set(injectors.flatMap((injector) => injector.resolveAll())),
+    ];
     await runInitHooks(instances);
 
     const pipeline: RoutePipeline = {
       authGuard: this.authGuard && resolveGuard(this.authGuard, root),
-      interceptors: this.interceptors.map((ref) => resolveInterceptor(ref, root)),
+      interceptors: this.interceptors.map((ref) =>
+        resolveInterceptor(ref, root)
+      ),
       requireValidation: this.requireValidation,
     };
 
@@ -202,15 +217,20 @@ export class App {
 
     this.express.use(contextMiddleware);
     if (this.requestId) this.express.use(requestId(this.requestId));
-    if (this.securityHeaders) this.express.use(securityHeaders(this.securityHeaders));
+    if (this.securityHeaders)
+      this.express.use(securityHeaders(this.securityHeaders));
     if (this.middlewares.length > 0) this.express.use(...this.middlewares);
     if (this.bodyParser) {
       this.express.use(express.json({ limit: this.bodyLimit }));
-      this.express.use(express.urlencoded({ extended: false, limit: this.bodyLimit }));
+      this.express.use(
+        express.urlencoded({ extended: false, limit: this.bodyLimit })
+      );
     }
     this.express.use(this.globalPrefix || '/', apiRouter);
     this.express.use(
-      this.concealRoutes ? concealedNotFoundHandler(pipeline.authGuard) : notFoundHandler
+      this.concealRoutes
+        ? concealedNotFoundHandler(pipeline.authGuard)
+        : notFoundHandler
     );
     this.express.use(createErrorHandler(this.logger, this.resolveMessage));
 

@@ -10,6 +10,8 @@ export const DIAGNOSTICS = {
   'di.circularDependency': 'Circular dependency in {injector}: {chain}',
   'module.circularImport': 'Circular import: {chain}',
   'module.notModule': '{name} must be decorated with @Module()',
+  'module.globalOutsideRoot':
+    '{name} is global and is imported from {importer}, but not from the root module; move it to the imports of {root}',
   'router.notController': '{name} must be decorated with @Controller()',
   'router.notMethod': '{controller}.{method} is not a method',
   'router.missingBodyValidation':
