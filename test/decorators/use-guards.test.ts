@@ -7,6 +7,7 @@ import {
   InjectionToken,
   Injector,
   UseGuards,
+  UseInterceptors,
   inject,
   type CanActivate,
   type HttpContext,
@@ -59,7 +60,30 @@ class AdminController {
     this.calls++;
     return 'ok';
   }
+
+  @Validate({ body: z.object({ title: z.string() }) })
+  @UseGuards(deny)
+  async validatedAndGuarded(_ctx: HttpContext) {
+    this.calls++;
+    return 'ok';
+  }
+
+  @Validate({ body: z.object({ title: z.string() }) })
+  @UseInterceptors(async (_ctx, next) => {
+    order.push('interceptor');
+    return next();
+  })
+  @UseGuards(() => {
+    order.push('guard');
+    return true;
+  })
+  async everything({ body }: HttpContext) {
+    order.push('handler');
+    return body;
+  }
 }
+
+const order: string[] = [];
 
 function createController() {
   const injector = new Injector([{ provide: REQUIRED_ROLE, useValue: 'admin' }]);
@@ -121,6 +145,28 @@ describe('@UseGuards', () => {
       controller.guardedAndValidated(createTestContext({ body: {} })),
       ForbiddenException
     );
+  });
+
+  it('evalúa los guards antes que la validación aunque @Validate esté arriba', async () => {
+    const controller = createController();
+
+    await assert.rejects(
+      controller.validatedAndGuarded(createTestContext({ body: {} })),
+      ForbiddenException
+    );
+    assert.equal(controller.calls, 0);
+  });
+
+  it('ejecuta guards, interceptores, validación y handler en ese orden', async () => {
+    const controller = createController();
+    order.length = 0;
+
+    const result = await controller.everything(
+      createTestContext({ body: { title: 'Dune', extra: true } })
+    );
+
+    assert.deepEqual(order, ['guard', 'interceptor', 'handler']);
+    assert.deepEqual(result, { title: 'Dune' });
   });
 
   it('exige que el controlador haya sido creado por el contenedor', async () => {

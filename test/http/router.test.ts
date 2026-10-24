@@ -185,7 +185,7 @@ describe('mountController', () => {
 
     assert.equal(status, 404);
     assert.equal(body.code, 'errors.routeNotFound');
-    assert.equal(body.message, 'The route /nope does not exist');
+    assert.equal(body.message, 'The requested route does not exist');
   });
 
   it('asigna el código del estado HTTP cuando el mensaje es texto libre', async () => {
@@ -230,6 +230,6 @@ describe('resolveMessage', () => {
   it('usa el mensaje por defecto cuando la app no resuelve el código', async () => {
     const { body } = await server.request<ApiErrorBody>('/nope');
 
-    assert.equal(body.message, 'The route /nope does not exist');
+    assert.equal(body.message, 'The requested route does not exist');
   });
 });

@@ -88,7 +88,9 @@ Los providers pueden implementar `OnModuleInit` y `OnModuleDestroy`:
 
 ### Orden de una petición
 
-Middlewares de la app (`app.use`) → body parser → autenticación (salvo `@Public`) → interceptores globales → del controlador → decoradores del método de arriba abajo (`@UseGuards`, `@UseInterceptors`, `@Validate`) → handler, y de vuelta en orden inverso.
+Request id → cabeceras de seguridad → middlewares de la app (`app.use`) → body parser → autenticación (salvo `@Public`) → guards del controlador → interceptores globales → del controlador → `@UseGuards` → `@UseInterceptors` → `@Validate` → handler, y de vuelta en orden inverso.
+
+Los decoradores del método siguen ese orden aunque los escribas en otro: un usuario sin permiso recibe 403 antes de que se valide su body. Entre varios del mismo tipo, se ejecuta primero el de arriba.
 
 El handler devuelve el resultado: el router responde 200, 201 en POST o 204 si no devuelve nada. `@HttpCode` lo cambia. Si el handler ya respondió con `ctx.res`, el router no toca la respuesta.
 
@@ -109,6 +111,7 @@ app.useGlobalInterceptors(TimingInterceptor);
 ```
 
 - Guards e interceptores pueden ser clases (con `inject()`) o funciones.
+- `@UseGuards` va en el método o en el controlador. En el controlador protege todas sus rutas, incluidas las `@Public`: `@Public` solo omite la autenticación. Un guard que devuelve `false` responde 403.
 - `@UseInterceptors` va en el método o en el controlador. `next()` solo puede llamarse una vez.
 - Los globales se resuelven con el injector del módulo raíz.
 
@@ -152,14 +155,68 @@ class ItemsService {
 
 ### Middlewares de Express
 
-El framework no impone ninguno. Agrégalos con `app.use()` antes de `listen()`:
+Agrégalos con `app.use()` antes de `listen()`. Se ejecutan después de las cabeceras de seguridad, así que pueden sobrescribirlas:
 
 ```ts
 import cors from 'cors';
-import helmet from 'helmet';
 
-app.use(helmet(), cors({ origin: 'https://mi-front.com', credentials: true }));
+app.use(cors({ origin: 'https://mi-front.com', credentials: true }));
 ```
+
+### Seguridad por defecto
+
+| Opción de `createApp` | Por defecto | Qué controla |
+|---|---|---|
+| `securityHeaders` | `true` | `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy` y `Cache-Control: no-store`. Un objeto cambia (`{ 'Cache-Control': 'private' }`) o quita (`{ 'X-Frame-Options': false }`) cabeceras; `false` las desactiva todas |
+| `bodyLimit` | `'100kb'` | Tamaño máximo de un body JSON o urlencoded. Si se supera, responde 413 |
+| `trustProxy` | sin confiar | Igual que `trust proxy` de Express. Configúralo detrás de un proxy para que `req.ip` sea el del cliente |
+| `timeouts` | `{ headers: 10_000, request: 30_000, keepAlive: 5_000 }` | Milisegundos para recibir las cabeceras, la petición completa y entre peticiones de una conexión. Limitan ataques de conexiones lentas |
+| `requestId` | `true` | Genera un UUID por petición, lo envía en `X-Request-Id`, lo incluye en los errores (`requestId`) y en el log de los 500. `{ trustIncoming: true }` reutiliza el que envía tu gateway si solo tiene letras, números, `.`, `_` o `-` (máximo 128); `{ header }` cambia la cabecera; `false` lo desactiva |
+
+- La cabecera `X-Powered-By` está siempre desactivada.
+- El 404 de rutas inexistentes no repite la ruta pedida en la respuesta.
+- `DEFAULT_SECURITY_HEADERS` exporta las cabeceras por defecto.
+- `REQUEST_ID.get()` devuelve el id de la petición en curso desde cualquier servicio.
+
+### Rate limiting
+
+```ts
+import { RateLimit, rateLimit } from 'viga';
+
+app.use(rateLimit({ max: 300, windowMs: 60_000 }));
+
+@Public()
+@Controller('auth')
+class AuthController {
+  @Post('login')
+  @RateLimit({ max: 5, windowMs: 15 * 60_000, key: (req) => `${req.ip}:${req.body?.email}` })
+  login(ctx: HttpContext) {}
+}
+```
+
+- `rateLimit()` es un middleware para toda la app; `@RateLimit()` va en un método o en el controlador. Cada uno lleva su propio contador.
+- Al superar `max` dentro de `windowMs` responde 429 con `code: 'errors.tooManyRequests'` y `Retry-After`. Todas las respuestas llevan `RateLimit-Limit`, `RateLimit-Remaining` y `RateLimit-Reset`.
+- La clave por defecto es `req.ip`. Detrás de un proxy configura `trustProxy`, o todos los clientes compartirán el mismo contador.
+- El contador vive en memoria (`MemoryRateLimitStore`). Con varias instancias, implementa `RateLimitStore` sobre Redis u otro almacén compartido y pásalo en `store`.
+
+### Checklist para pruebas de seguridad
+
+El framework cubre las capas comunes; estas dependen de tu código y son lo primero que revisa una prueba de caja gris, con usuarios y roles reales:
+
+- **Autorización por recurso (IDOR).** Que una ruta exija sesión no basta: comprueba que el recurso pertenece al usuario. Filtra en el repositorio por el usuario actual y responde 404, no 403, cuando no es suyo, para no revelar qué ids existen:
+  ```ts
+  findOwned(id: number) {
+    const { id: ownerId } = CURRENT_USER.get();
+    return this.database.db.query.orders.findFirst({
+      where: and(eq(orders.id, id), eq(orders.ownerId, ownerId)),
+    });
+  }
+  ```
+- **Asignación masiva.** Sin `@Validate`, `ctx.body` llega tal cual lo envía el cliente. Valida todo body de `POST`, `PUT` y `PATCH`, usa el valor parseado y nunca `ctx.req.body`. Con Zod, `z.strictObject()` rechaza campos de más (`"role": "admin"`) en lugar de ignorarlos.
+- **Roles.** Pon el guard de rol en el controlador con `@UseGuards` para que una ruta nueva no quede abierta por olvido.
+- **Fuerza bruta.** Limita login, registro, recuperación de contraseña y verificación de códigos con `@RateLimit`.
+- **CORS.** Lista los orígenes permitidos de forma explícita; nunca `origin: '*'` junto con `credentials: true`.
+- **Mensajes de error.** No distingas "usuario no existe" de "contraseña incorrecta": usa siempre `UnauthorizedException()`.
 
 ### Errores
 

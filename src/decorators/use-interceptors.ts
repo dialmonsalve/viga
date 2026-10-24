@@ -2,6 +2,7 @@ import { injectorOf, type Injector } from '../di/injector.ts';
 import type { HttpContext } from '../http/context.ts';
 import { INTERCEPTORS, ownList, type AnyConstructor } from '../metadata.ts';
 import { diagnostic } from '../diagnostics.ts';
+import { addToPipeline } from './pipeline.ts';
 
 export type CallHandler = () => Promise<unknown>;
 
@@ -65,10 +66,14 @@ export function UseInterceptors(...refs: InterceptorRef[]): InterceptorDecorator
       return;
     }
 
-    return async function (this: object, ctx: HttpContext) {
-      const injector = injectorOf(this);
-      const interceptors = refs.map((ref) => resolveInterceptor(ref, injector));
-      return runInterceptors(interceptors, ctx, async () => target.call(this, ctx));
-    };
+    return addToPipeline(target, {
+      interceptors: [
+        (self, ctx, next) => {
+          const injector = injectorOf(self);
+          const interceptors = refs.map((ref) => resolveInterceptor(ref, injector));
+          return runInterceptors(interceptors, ctx, next);
+        },
+      ],
+    });
   } as InterceptorDecorator;
 }

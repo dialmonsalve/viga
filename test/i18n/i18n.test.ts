@@ -149,9 +149,9 @@ describe('I18n integrado en la app', () => {
       headers: { 'accept-language': 'es-CO' },
     });
 
-    assert.equal(english.body.message, 'The route /nope does not exist');
+    assert.equal(english.body.message, 'The requested route does not exist');
     assert.equal(english.headers.get('content-language'), 'en');
-    assert.equal(spanish.body.message, 'La ruta /nope no existe');
+    assert.equal(spanish.body.message, 'La ruta solicitada no existe');
     assert.equal(spanish.headers.get('content-language'), 'es');
   });
 

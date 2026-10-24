@@ -56,6 +56,12 @@ export class UnsupportedMediaTypeException extends HttpException {
   }
 }
 
+export class TooManyRequestsException extends HttpException {
+  constructor(code = 'errors.tooManyRequests', params?: MessageParams) {
+    super(429, code, 'Too Many Requests', undefined, params);
+  }
+}
+
 export class InternalServerErrorException extends HttpException {
   constructor(code = 'errors.internal', params?: MessageParams) {
     super(500, code, 'Internal Server Error', undefined, params);

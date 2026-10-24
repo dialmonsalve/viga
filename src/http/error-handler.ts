@@ -4,6 +4,7 @@ import type { Logger } from '../logger.ts';
 import { HttpException, NotFoundException } from './exceptions.ts';
 import { DEFAULT_MESSAGES, interpolate, type MessageResolver } from './messages.ts';
 import { diagnostic } from '../diagnostics.ts';
+import { REQUEST_ID } from './request-id.ts';
 
 export interface ApiErrorBody {
   statusCode: number;
@@ -11,6 +12,7 @@ export interface ApiErrorBody {
   message: string;
   error: string;
   details?: unknown;
+  requestId?: string;
   timestamp: string;
 }
 
@@ -22,6 +24,7 @@ const CODE_BY_STATUS: Record<number, string> = {
   409: 'errors.conflict',
   413: 'errors.payloadTooLarge',
   415: 'errors.unsupportedMediaType',
+  429: 'errors.tooManyRequests',
   503: 'errors.serviceUnavailable',
 };
 
@@ -61,8 +64,8 @@ function describe(exception: HttpException, req: Request, resolveMessage?: Messa
   return { code: CODE_BY_STATUS[statusCode] ?? 'errors.internal', message: code };
 }
 
-export const notFoundHandler: RequestHandler = (req, _res, next) => {
-  next(new NotFoundException('errors.routeNotFound', { path: req.path }));
+export const notFoundHandler: RequestHandler = (_req, _res, next) => {
+  next(new NotFoundException('errors.routeNotFound'));
 };
 
 export function createErrorHandler(
@@ -72,9 +75,14 @@ export function createErrorHandler(
   return (err, req, res, _next) => {
     const exception = toHttpException(err);
     const { statusCode, error, details } = exception;
+    const requestId = REQUEST_ID.find();
 
     if (statusCode >= 500) {
-      logger.error(diagnostic('http.unhandledException'), err);
+      if (requestId === undefined) {
+        logger.error(diagnostic('http.unhandledException'), err);
+      } else {
+        logger.error(diagnostic('http.unhandledException'), err, { requestId });
+      }
     }
 
     const body: ApiErrorBody = {
@@ -82,6 +90,7 @@ export function createErrorHandler(
       ...describe(exception, req, resolveMessage),
       error,
       ...(details === undefined ? {} : { details }),
+      ...(requestId === undefined ? {} : { requestId }),
       timestamp: new Date().toISOString(),
     };
 

@@ -3,6 +3,7 @@ export { Injectable } from './injectable.ts';
 export { Module, type ModuleOptions } from './module.ts';
 export { UseGuards, type CanActivate, type Guard, type GuardFn } from './use-guards.ts';
 export { Public } from './public.ts';
+export { RateLimit } from './rate-limit.ts';
 export {
   UseInterceptors,
   type CallHandler,

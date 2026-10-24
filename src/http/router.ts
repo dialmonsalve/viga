@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { readControllerDefinition, type HttpMethod } from '../decorators/controller.ts';
-import type { GuardFn } from '../decorators/use-guards.ts';
+import { resolveGuard, runGuards, type GuardFn } from '../decorators/use-guards.ts';
 import {
   resolveInterceptor,
   runInterceptors,
@@ -43,6 +43,7 @@ export function mountController(
 
   const instance = injector.instantiate(ControllerClass) as Record<PropertyKey, unknown>;
   const router = Router();
+  const guards = definition.guards.map((guard) => resolveGuard(guard, injector));
   const interceptors = [
     ...pipeline.interceptors,
     ...definition.interceptors.map((ref) => resolveInterceptor(ref, injector)),
@@ -64,6 +65,7 @@ export function mountController(
     router[route.method](normalizePath(route.path), async (req: Request, res: Response) => {
       const ctx = createContext(req, res);
       if (!isPublic) await authenticate(pipeline.authGuard, ctx);
+      await runGuards(guards, ctx);
 
       const result = await runInterceptors(interceptors, ctx, async () =>
         handler.call(instance, ctx)

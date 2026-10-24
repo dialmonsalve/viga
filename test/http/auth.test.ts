@@ -6,6 +6,7 @@ import {
   Injectable,
   Module,
   Public,
+  UseGuards,
   type ApiErrorBody,
   type CanActivate,
   type HttpContext,
@@ -99,5 +100,70 @@ describe('rutas privadas por defecto', () => {
       assert.equal((await server.request('/account')).status, 401);
       assert.equal((await server.request('/account/status')).status, 200);
     });
+  });
+});
+
+describe('@UseGuards en el controlador', () => {
+  const order: string[] = [];
+  const isAdmin = ({ req }: HttpContext) => {
+    order.push('controlador');
+    return req.headers['x-role'] === 'admin';
+  };
+
+  @UseGuards(isAdmin)
+  @Controller('/admin')
+  class AdminController {
+    @Get()
+    @UseGuards(() => {
+      order.push('método');
+      return true;
+    })
+    panel() {
+      return { admin: true };
+    }
+
+    @Get('/health')
+    @Public()
+    health() {
+      return { up: true };
+    }
+  }
+
+  @Module({ controllers: [AdminController] })
+  class AdminModule {}
+
+  let server: TestServer;
+
+  before(async () => {
+    server = await startTestServer(AdminModule, {
+      configure: (app) => app.useAuthGuard(TokenGuard),
+    });
+  });
+
+  after(() => server.close());
+
+  const asUser = (role: string) => ({
+    headers: { authorization: 'Bearer valido', 'x-role': role },
+  });
+
+  it('protege todas las rutas del controlador', async () => {
+    assert.equal((await server.request('/admin', asUser('cashier'))).status, 403);
+    assert.equal((await server.request('/admin/health', asUser('cashier'))).status, 403);
+  });
+
+  it('se ejecuta después de la autenticación', async () => {
+    order.length = 0;
+    const { status } = await server.request('/admin', { headers: { 'x-role': 'admin' } });
+
+    assert.equal(status, 401);
+    assert.deepEqual(order, []);
+  });
+
+  it('se ejecuta antes que los guards del método', async () => {
+    order.length = 0;
+    const { status } = await server.request('/admin', asUser('admin'));
+
+    assert.equal(status, 200);
+    assert.deepEqual(order, ['controlador', 'método']);
   });
 });

@@ -13,6 +13,8 @@ export const diagnosticsEs = {
   'router.notController': '{name} debe estar decorada con @Controller()',
   'router.notMethod': '{controller}.{method} no es un método',
   'interceptor.nextCalledTwice': 'next() solo puede llamarse una vez',
+  'rateLimit.invalidOptions':
+    'max y windowMs deben ser enteros positivos, se recibió max={max} windowMs={windowMs}',
   'lifecycle.destroyFailed': 'Falló el cierre de uno o más providers',
   'app.getBeforeInit': 'get() solo puede llamarse después de init() o listen()',
   'app.alreadyListening': 'El servidor ya está escuchando',

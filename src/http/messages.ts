@@ -14,10 +14,11 @@ export const DEFAULT_MESSAGES: Readonly<Record<string, string>> = {
   'errors.unauthorized': 'You must sign in to continue',
   'errors.forbidden': 'You are not allowed to perform this action',
   'errors.notFound': 'The requested resource does not exist',
-  'errors.routeNotFound': 'The route {path} does not exist',
+  'errors.routeNotFound': 'The requested route does not exist',
   'errors.conflict': 'The resource already exists',
   'errors.payloadTooLarge': 'The request exceeds the maximum allowed size',
   'errors.unsupportedMediaType': 'The content type is not allowed',
+  'errors.tooManyRequests': 'Too many requests, try again later',
   'errors.internal': 'An unexpected error occurred',
   'errors.serviceUnavailable': 'The service is not available right now',
 };

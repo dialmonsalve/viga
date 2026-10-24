@@ -1,5 +1,6 @@
 import {
   CONTROLLER,
+  GUARDS,
   HTTP_CODES,
   INTERCEPTORS,
   PUBLIC,
@@ -11,6 +12,7 @@ import {
   readOwn,
   type AnyConstructor,
 } from '../metadata.ts';
+import type { Guard } from './use-guards.ts';
 import type { InterceptorRef } from './use-interceptors.ts';
 
 export type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
@@ -27,6 +29,7 @@ export interface ControllerDefinition {
   httpCodes: Record<PropertyKey, number>;
   isPublic: boolean;
   publicRoutes: Record<PropertyKey, boolean>;
+  guards: Guard[];
   interceptors: InterceptorRef[];
 }
 
@@ -73,6 +76,7 @@ export function readControllerDefinition(
     httpCodes: (metadata[HTTP_CODES] as Record<PropertyKey, number> | undefined) ?? {},
     isPublic: metadata[PUBLIC] === true,
     publicRoutes: (metadata[PUBLIC_ROUTES] as Record<PropertyKey, boolean> | undefined) ?? {},
+    guards: (metadata[GUARDS] as Guard[] | undefined) ?? [],
     interceptors: (metadata[INTERCEPTORS] as InterceptorRef[] | undefined) ?? [],
   };
 }

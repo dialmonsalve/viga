@@ -10,9 +10,17 @@ import { loadApplication } from './di/module-loader.ts';
 import { createErrorHandler, notFoundHandler } from './http/error-handler.ts';
 import type { MessageResolver } from './http/messages.ts';
 import { mountController, normalizePath, type RoutePipeline } from './http/router.ts';
+import { requestId, type RequestIdOptions } from './http/request-id.ts';
+import { securityHeaders, type SecurityHeaders } from './http/security-headers.ts';
 import { LOGGER, type Logger } from './logger.ts';
 import type { AnyConstructor } from './metadata.ts';
 import { diagnostic } from './diagnostics.ts';
+
+export interface ServerTimeouts {
+  headers?: number;
+  request?: number;
+  keepAlive?: number;
+}
 
 export interface AppOptions {
   rootModule: AnyConstructor;
@@ -20,7 +28,18 @@ export interface AppOptions {
   resolveMessage?: MessageResolver;
   logger?: Logger;
   bodyParser?: boolean;
+  bodyLimit?: number | string;
+  securityHeaders?: boolean | SecurityHeaders;
+  requestId?: boolean | RequestIdOptions;
+  trustProxy?: boolean | number | string | string[];
+  timeouts?: ServerTimeouts;
 }
+
+const DEFAULT_TIMEOUTS: Required<ServerTimeouts> = {
+  headers: 10_000,
+  request: 30_000,
+  keepAlive: 5_000,
+};
 
 interface Running {
   root: Injector;
@@ -32,6 +51,10 @@ export class App {
   readonly logger: Logger;
   private readonly rootModule: AnyConstructor;
   private readonly bodyParser: boolean;
+  private readonly bodyLimit: number | string;
+  private readonly securityHeaders: false | SecurityHeaders;
+  private readonly requestId: false | RequestIdOptions;
+  private readonly timeouts: Required<ServerTimeouts>;
   private readonly resolveMessage?: MessageResolver;
   private readonly middlewares: RequestHandler[] = [];
   private readonly interceptors: InterceptorRef[] = [];
@@ -46,7 +69,23 @@ export class App {
     this.rootModule = options.rootModule;
     this.logger = options.logger ?? console;
     this.bodyParser = options.bodyParser ?? true;
+    this.bodyLimit = options.bodyLimit ?? '100kb';
+    this.securityHeaders =
+      options.securityHeaders === false
+        ? false
+        : options.securityHeaders === true || options.securityHeaders === undefined
+          ? {}
+          : options.securityHeaders;
+    this.requestId =
+      options.requestId === false
+        ? false
+        : options.requestId === true || options.requestId === undefined
+          ? {}
+          : options.requestId;
+    this.timeouts = { ...DEFAULT_TIMEOUTS, ...options.timeouts };
     this.resolveMessage = options.resolveMessage;
+    this.express.disable('x-powered-by');
+    if (options.trustProxy !== undefined) this.express.set('trust proxy', options.trustProxy);
     if (options.globalPrefix) this.setGlobalPrefix(options.globalPrefix);
   }
 
@@ -92,6 +131,9 @@ export class App {
     if (this.server) throw new Error(diagnostic('app.alreadyListening'));
 
     const server = createServer(this.express);
+    server.headersTimeout = this.timeouts.headers;
+    server.requestTimeout = this.timeouts.request;
+    server.keepAliveTimeout = this.timeouts.keepAlive;
     await new Promise<void>((resolve, reject) => {
       server.once('error', reject);
       server.listen(port, host, () => {
@@ -148,10 +190,12 @@ export class App {
     }
 
     this.express.use(contextMiddleware);
+    if (this.requestId) this.express.use(requestId(this.requestId));
+    if (this.securityHeaders) this.express.use(securityHeaders(this.securityHeaders));
     if (this.middlewares.length > 0) this.express.use(...this.middlewares);
     if (this.bodyParser) {
-      this.express.use(express.json());
-      this.express.use(express.urlencoded({ extended: false }));
+      this.express.use(express.json({ limit: this.bodyLimit }));
+      this.express.use(express.urlencoded({ extended: false, limit: this.bodyLimit }));
     }
     this.express.use(this.globalPrefix || '/', apiRouter);
     this.express.use(notFoundHandler);

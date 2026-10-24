@@ -8,6 +8,7 @@ export const HTTP_CODES = Symbol('httpCodes');
 export const PUBLIC = Symbol('public');
 export const PUBLIC_ROUTES = Symbol('publicRoutes');
 export const INTERCEPTORS = Symbol('interceptors');
+export const GUARDS = Symbol('guards');
 
 export function readMetadata(target: object): DecoratorMetadataObject {
   const holder = target as { [Symbol.metadata]?: DecoratorMetadataObject | null };

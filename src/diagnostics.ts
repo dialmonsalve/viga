@@ -13,6 +13,8 @@ export const DIAGNOSTICS = {
   'router.notController': '{name} must be decorated with @Controller()',
   'router.notMethod': '{controller}.{method} is not a method',
   'interceptor.nextCalledTwice': 'next() can only be called once',
+  'rateLimit.invalidOptions':
+    'max and windowMs must be positive integers, received max={max} windowMs={windowMs}',
   'lifecycle.destroyFailed': 'One or more providers failed to shut down',
   'app.getBeforeInit': 'get() can only be called after init() or listen()',
   'app.alreadyListening': 'The server is already listening',
@@ -39,6 +41,7 @@ const PREFIXES: Record<string, string> = {
   module: 'Module',
   router: 'Router',
   interceptor: 'Interceptor',
+  rateLimit: 'RateLimit',
   lifecycle: 'Lifecycle',
   app: 'App',
   http: 'HTTP',

@@ -1,3 +1,4 @@
+import { addToPipeline } from '../decorators/pipeline.ts';
 import { findInjectorOf } from '../di/injector.ts';
 import type { HttpContext, RequestSchemas } from '../http/context.ts';
 import { BadRequestException } from '../http/exceptions.ts';
@@ -69,9 +70,13 @@ export function Validate<const S extends RequestSchemas>(schemas: S) {
     method: M,
     _context: ClassMethodDecoratorContext<This, M>
   ) {
-    return async function (this: This, ctx: HttpContext) {
-      const options = findInjectorOf(this)?.find(VALIDATION_OPTIONS);
-      return method.call(this, await parseRequest(schemas, ctx, options));
-    } as unknown as M;
+    return addToPipeline(method, {
+      pipes: [
+        (self, ctx) => {
+          const options = findInjectorOf(self)?.find(VALIDATION_OPTIONS);
+          return parseRequest(schemas, ctx, options) as Promise<HttpContext>;
+        },
+      ],
+    });
   };
 }

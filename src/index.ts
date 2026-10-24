@@ -1,7 +1,16 @@
 import './polyfills.ts';
 
 export * from './decorators/index.ts';
-export { App, createApp, type AppOptions } from './app.ts';
+export { App, createApp, type AppOptions, type ServerTimeouts } from './app.ts';
+export { DEFAULT_SECURITY_HEADERS, type SecurityHeaders } from './http/security-headers.ts';
+export { REQUEST_ID, type RequestIdOptions } from './http/request-id.ts';
+export {
+  MemoryRateLimitStore,
+  rateLimit,
+  type RateLimitHit,
+  type RateLimitOptions,
+  type RateLimitStore,
+} from './http/rate-limit.ts';
 export { createContextKey, runInNewContext, type ContextKey } from './context.ts';
 export {
   DIAGNOSTICS,
