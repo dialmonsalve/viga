@@ -14,20 +14,28 @@ interface Pipeline {
   guards: GuardStep[];
   interceptors: InterceptorStep[];
   pipes: PipeStep[];
+  validated: Set<string>;
 }
+
+type Steps = Partial<Omit<Pipeline, 'validated'>> & { validates?: string[] };
 
 const PIPELINE = Symbol('pipeline');
 
 type Handler = ((this: object, ctx: HttpContext) => unknown) & { [PIPELINE]?: Pipeline };
 
-export function addToPipeline<M>(method: M, steps: Partial<Pipeline>): M {
+export function validatedParts(method: unknown): ReadonlySet<string> {
+  return (method as Handler | undefined)?.[PIPELINE]?.validated ?? new Set();
+}
+
+export function addToPipeline<M>(method: M, steps: Steps): M {
   const handler = method as Handler;
   const existing = handler[PIPELINE];
-  const pipeline = existing ?? { guards: [], interceptors: [], pipes: [] };
+  const pipeline = existing ?? { guards: [], interceptors: [], pipes: [], validated: new Set() };
 
   pipeline.guards.unshift(...(steps.guards ?? []));
   pipeline.interceptors.unshift(...(steps.interceptors ?? []));
   pipeline.pipes.unshift(...(steps.pipes ?? []));
+  for (const part of steps.validates ?? []) pipeline.validated.add(part);
 
   if (existing) return method;
 

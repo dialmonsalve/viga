@@ -6,6 +6,7 @@ import {
   runInterceptors,
   type InterceptorFn,
 } from '../decorators/use-interceptors.ts';
+import { validatedParts } from '../decorators/pipeline.ts';
 import type { Injector } from '../di/injector.ts';
 import type { AnyConstructor } from '../metadata.ts';
 import { createContext, type HttpContext } from './context.ts';
@@ -15,9 +16,12 @@ import { diagnostic } from '../diagnostics.ts';
 export interface RoutePipeline {
   authGuard?: GuardFn;
   interceptors: InterceptorFn[];
+  requireValidation?: boolean;
 }
 
-async function authenticate(guard: GuardFn | undefined, ctx: HttpContext) {
+const METHODS_WITH_BODY: ReadonlySet<HttpMethod> = new Set(['post', 'put', 'patch']);
+
+export async function authenticate(guard: GuardFn | undefined, ctx: HttpContext) {
   if (!guard || !(await guard(ctx))) throw new UnauthorizedException();
 }
 
@@ -56,6 +60,20 @@ export function mountController(
         diagnostic('router.notMethod', {
           controller: ControllerClass.name,
           method: String(route.handlerName),
+        })
+      );
+    }
+
+    if (
+      pipeline.requireValidation &&
+      METHODS_WITH_BODY.has(route.method) &&
+      !validatedParts(handler).has('body')
+    ) {
+      throw new Error(
+        diagnostic('router.missingBodyValidation', {
+          controller: ControllerClass.name,
+          method: String(route.handlerName),
+          verb: route.method.toUpperCase(),
         })
       );
     }

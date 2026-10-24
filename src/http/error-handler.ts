@@ -1,7 +1,10 @@
 import type { ErrorRequestHandler, Request, RequestHandler } from 'express';
 import { STATUS_CODES } from 'node:http';
 import type { Logger } from '../logger.ts';
+import type { GuardFn } from '../decorators/use-guards.ts';
+import { createContext } from './context.ts';
 import { HttpException, NotFoundException } from './exceptions.ts';
+import { authenticate } from './router.ts';
 import { DEFAULT_MESSAGES, interpolate, type MessageResolver } from './messages.ts';
 import { diagnostic } from '../diagnostics.ts';
 import { REQUEST_ID } from './request-id.ts';
@@ -67,6 +70,15 @@ function describe(exception: HttpException, req: Request, resolveMessage?: Messa
 export const notFoundHandler: RequestHandler = (_req, _res, next) => {
   next(new NotFoundException('errors.routeNotFound'));
 };
+
+export function concealedNotFoundHandler(authGuard: GuardFn | undefined): RequestHandler {
+  return (req, res, next) => {
+    authenticate(authGuard, createContext(req, res)).then(
+      () => next(new NotFoundException('errors.routeNotFound')),
+      next
+    );
+  };
+}
 
 export function createErrorHandler(
   logger: Logger,

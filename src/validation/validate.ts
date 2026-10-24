@@ -71,6 +71,7 @@ export function Validate<const S extends RequestSchemas>(schemas: S) {
     _context: ClassMethodDecoratorContext<This, M>
   ) {
     return addToPipeline(method, {
+      validates: PARTS.filter((part) => schemas[part] !== undefined),
       pipes: [
         (self, ctx) => {
           const options = findInjectorOf(self)?.find(VALIDATION_OPTIONS);

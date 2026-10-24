@@ -12,6 +12,8 @@ export const DIAGNOSTICS = {
   'module.notModule': '{name} must be decorated with @Module()',
   'router.notController': '{name} must be decorated with @Controller()',
   'router.notMethod': '{controller}.{method} is not a method',
+  'router.missingBodyValidation':
+    '{controller}.{method} handles {verb} but has no @Validate({ body }), required by requireValidation',
   'interceptor.nextCalledTwice': 'next() can only be called once',
   'rateLimit.invalidOptions':
     'max and windowMs must be positive integers, received max={max} windowMs={windowMs}',

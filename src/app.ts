@@ -7,7 +7,11 @@ import { resolveInterceptor, type InterceptorRef } from './decorators/use-interc
 import type { Injector, Token } from './di/injector.ts';
 import { runDestroyHooks, runInitHooks } from './di/lifecycle.ts';
 import { loadApplication } from './di/module-loader.ts';
-import { createErrorHandler, notFoundHandler } from './http/error-handler.ts';
+import {
+  concealedNotFoundHandler,
+  createErrorHandler,
+  notFoundHandler,
+} from './http/error-handler.ts';
 import type { MessageResolver } from './http/messages.ts';
 import { mountController, normalizePath, type RoutePipeline } from './http/router.ts';
 import { requestId, type RequestIdOptions } from './http/request-id.ts';
@@ -33,6 +37,8 @@ export interface AppOptions {
   requestId?: boolean | RequestIdOptions;
   trustProxy?: boolean | number | string | string[];
   timeouts?: ServerTimeouts;
+  requireValidation?: boolean;
+  concealRoutes?: boolean;
 }
 
 const DEFAULT_TIMEOUTS: Required<ServerTimeouts> = {
@@ -55,6 +61,8 @@ export class App {
   private readonly securityHeaders: false | SecurityHeaders;
   private readonly requestId: false | RequestIdOptions;
   private readonly timeouts: Required<ServerTimeouts>;
+  private readonly requireValidation: boolean;
+  private readonly concealRoutes: boolean;
   private readonly resolveMessage?: MessageResolver;
   private readonly middlewares: RequestHandler[] = [];
   private readonly interceptors: InterceptorRef[] = [];
@@ -83,6 +91,8 @@ export class App {
           ? {}
           : options.requestId;
     this.timeouts = { ...DEFAULT_TIMEOUTS, ...options.timeouts };
+    this.requireValidation = options.requireValidation ?? false;
+    this.concealRoutes = options.concealRoutes ?? false;
     this.resolveMessage = options.resolveMessage;
     this.express.disable('x-powered-by');
     if (options.trustProxy !== undefined) this.express.set('trust proxy', options.trustProxy);
@@ -182,6 +192,7 @@ export class App {
     const pipeline: RoutePipeline = {
       authGuard: this.authGuard && resolveGuard(this.authGuard, root),
       interceptors: this.interceptors.map((ref) => resolveInterceptor(ref, root)),
+      requireValidation: this.requireValidation,
     };
 
     const apiRouter = Router();
@@ -198,7 +209,9 @@ export class App {
       this.express.use(express.urlencoded({ extended: false, limit: this.bodyLimit }));
     }
     this.express.use(this.globalPrefix || '/', apiRouter);
-    this.express.use(notFoundHandler);
+    this.express.use(
+      this.concealRoutes ? concealedNotFoundHandler(pipeline.authGuard) : notFoundHandler
+    );
     this.express.use(createErrorHandler(this.logger, this.resolveMessage));
 
     this.running = { root, instances };

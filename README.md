@@ -11,6 +11,14 @@ El core solo resuelve lo que todo servidor necesita. Lo demás son subrutas opci
 | `viga/i18n` | Catálogos de mensajes, negociación de `Accept-Language`, mensajes del framework en es/en | Nada |
 | `viga/drizzle` | `DrizzleModule` y `DatabaseService` con cierre del pool | `drizzle-orm`, `pg` |
 
+## Agradecimientos
+
+viga está inspirado en [NestJS](https://nestjs.com). Los módulos, la inyección de dependencias, los controladores con decoradores, los guards y los interceptores vienen de las ideas que Kamil Myśliwiec y la comunidad de Nest llevan años perfeccionando. Gracias por mostrar que en Node se puede construir backends con estructura.
+
+viga no comparte código con Nest. Toma esas ideas y las lleva a otro terreno: decoradores estándar de JavaScript (TC39) en lugar de `experimentalDecorators` y `reflect-metadata`, promesas en lugar de RxJS y un core pequeño con todo lo demás opcional.
+
+También se apoya en el trabajo de [Express](https://expressjs.com), [Standard Schema](https://standardschema.dev) y [Drizzle ORM](https://orm.drizzle.team).
+
 ## Requisitos
 
 - Node.js 24.13 o superior
@@ -173,6 +181,9 @@ app.use(cors({ origin: 'https://mi-front.com', credentials: true }));
 | `timeouts` | `{ headers: 10_000, request: 30_000, keepAlive: 5_000 }` | Milisegundos para recibir las cabeceras, la petición completa y entre peticiones de una conexión. Limitan ataques de conexiones lentas |
 | `requestId` | `true` | Genera un UUID por petición, lo envía en `X-Request-Id`, lo incluye en los errores (`requestId`) y en el log de los 500. `{ trustIncoming: true }` reutiliza el que envía tu gateway si solo tiene letras, números, `.`, `_` o `-` (máximo 128); `{ header }` cambia la cabecera; `false` lo desactiva |
 
+| `requireValidation` | `false` | Con `true`, la app no arranca si una ruta `POST`, `PUT` o `PATCH` no tiene `@Validate({ body })`. Una ruta sin body lo declara con `@Validate({ body: z.strictObject({}).optional() })` |
+| `concealRoutes` | `false` | Con `true`, una ruta inexistente responde 401 a quien no tiene sesión, igual que una ruta privada. Así no se puede descubrir qué rutas existen. Con sesión válida responde 404; las rutas `@Public` no cambian |
+
 - La cabecera `X-Powered-By` está siempre desactivada.
 - El 404 de rutas inexistentes no repite la ruta pedida en la respuesta.
 - `DEFAULT_SECURITY_HEADERS` exporta las cabeceras por defecto.
@@ -212,7 +223,7 @@ El framework cubre las capas comunes; estas dependen de tu código y son lo prim
     });
   }
   ```
-- **Asignación masiva.** Sin `@Validate`, `ctx.body` llega tal cual lo envía el cliente. Valida todo body de `POST`, `PUT` y `PATCH`, usa el valor parseado y nunca `ctx.req.body`. Con Zod, `z.strictObject()` rechaza campos de más (`"role": "admin"`) en lugar de ignorarlos.
+- **Asignación masiva.** Sin `@Validate`, `ctx.body` llega tal cual lo envía el cliente. Valida todo body de `POST`, `PUT` y `PATCH` (`requireValidation: true` lo garantiza), usa el valor parseado y nunca `ctx.req.body`. Con Zod, `z.strictObject()` rechaza campos de más (`"role": "admin"`) en lugar de ignorarlos.
 - **Roles.** Pon el guard de rol en el controlador con `@UseGuards` para que una ruta nueva no quede abierta por olvido.
 - **Fuerza bruta.** Limita login, registro, recuperación de contraseña y verificación de códigos con `@RateLimit`.
 - **CORS.** Lista los orígenes permitidos de forma explícita; nunca `origin: '*'` junto con `credentials: true`.

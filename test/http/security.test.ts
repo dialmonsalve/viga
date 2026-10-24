@@ -1,16 +1,21 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
+import { z } from 'zod';
 import {
   Controller,
   DEFAULT_SECURITY_HEADERS,
   Get,
   Module,
+  Patch,
   Post,
+  Public,
+  Put,
   createApp,
   silentLogger,
   type ApiErrorBody,
   type HttpContext,
 } from '../../src/index.ts';
+import { Validate } from '../../src/validation/index.ts';
 import { startTestServer, type TestServer } from '../helpers/http.ts';
 
 @Controller('echo')
@@ -158,6 +163,147 @@ describe('seguridad HTTP', () => {
 
       assert.equal(headers.get('content-security-policy'), null);
       assert.equal(headers.get('x-powered-by'), null);
+    } finally {
+      await server.close();
+    }
+  });
+});
+
+describe('requireValidation', () => {
+  const Title = z.strictObject({ title: z.string() });
+
+  @Controller('books')
+  class ValidatedController {
+    @Get()
+    list() {
+      return [];
+    }
+
+    @Post()
+    @Validate({ body: Title })
+    create({ body }: HttpContext) {
+      return body;
+    }
+
+    @Put(':id')
+    @Validate({ params: z.object({ id: z.string() }), body: Title })
+    replace({ body }: HttpContext) {
+      return body;
+    }
+
+    @Post('logout')
+    @Validate({ body: z.strictObject({}).optional() })
+    logout() {}
+  }
+
+  @Controller('loose')
+  class LooseController {
+    @Patch(':id')
+    @Validate({ params: z.object({ id: z.string() }) })
+    update({ body }: HttpContext) {
+      return body;
+    }
+  }
+
+  @Module({ controllers: [ValidatedController] })
+  class ValidatedModule {}
+
+  @Module({ controllers: [LooseController] })
+  class LooseModule {}
+
+  it('arranca cuando todas las rutas con body lo validan', async () => {
+    const server = await startTestServer(ValidatedModule, { requireValidation: true });
+
+    try {
+      const { status } = await server.request('/books/logout', { method: 'POST' });
+      assert.equal(status, 204);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('falla al arrancar si una ruta POST, PUT o PATCH no valida el body', async () => {
+    const app = createApp({
+      rootModule: LooseModule,
+      logger: silentLogger,
+      requireValidation: true,
+    });
+
+    await assert.rejects(
+      app.init(),
+      /LooseController\.update handles PATCH but has no @Validate\(\{ body \}\)/
+    );
+  });
+
+  it('no exige nada si la opción está desactivada', async () => {
+    const app = createApp({ rootModule: LooseModule, logger: silentLogger });
+
+    await app.init();
+    await app.close();
+  });
+});
+
+describe('concealRoutes', () => {
+  @Controller('orders')
+  class OrdersController {
+    @Get()
+    list() {
+      return [];
+    }
+
+    @Get('health')
+    @Public()
+    health() {
+      return { up: true };
+    }
+  }
+
+  @Module({ controllers: [OrdersController] })
+  class OrdersModule {}
+
+  const authGuard = ({ req }: HttpContext) => req.headers.authorization === 'Bearer valido';
+  const signedIn = { headers: { authorization: 'Bearer valido' } };
+
+  describe('activado', () => {
+    let server: TestServer;
+
+    before(async () => {
+      server = await startTestServer(OrdersModule, {
+        concealRoutes: true,
+        configure: (app) => app.useAuthGuard(authGuard),
+      });
+    });
+
+    after(() => server.close());
+
+    it('responde igual a una ruta privada y a una inexistente sin sesión', async () => {
+      const existing = await server.request<ApiErrorBody>('/orders');
+      const missing = await server.request<ApiErrorBody>('/admin/users');
+
+      assert.equal(existing.status, 401);
+      assert.equal(missing.status, 401);
+      assert.equal(missing.body.code, existing.body.code);
+    });
+
+    it('responde 404 a una ruta inexistente con sesión', async () => {
+      const { status, body } = await server.request<ApiErrorBody>('/admin/users', signedIn);
+
+      assert.equal(status, 404);
+      assert.equal(body.code, 'errors.routeNotFound');
+    });
+
+    it('mantiene accesibles las rutas públicas', async () => {
+      assert.equal((await server.request('/orders/health')).status, 200);
+    });
+  });
+
+  it('desactivado, una ruta inexistente responde 404 sin sesión', async () => {
+    const server = await startTestServer(OrdersModule, {
+      configure: (app) => app.useAuthGuard(authGuard),
+    });
+
+    try {
+      assert.equal((await server.request('/admin/users')).status, 404);
     } finally {
       await server.close();
     }
