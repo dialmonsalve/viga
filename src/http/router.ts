@@ -15,6 +15,12 @@ import { diagnostic } from '../diagnostics.ts';
 
 export const CONCEAL_ROUTES = new InjectionToken<boolean>('CONCEAL_ROUTES');
 
+export interface MountedRoute {
+  method: HttpMethod;
+  path: string;
+  isPublic: boolean;
+}
+
 export interface RoutePipeline {
   authGuard?: GuardFn;
   interceptors: InterceptorFn[];
@@ -41,7 +47,7 @@ export function mountController(
   ControllerClass: AnyConstructor,
   injector: Injector,
   pipeline: RoutePipeline = { interceptors: [] }
-) {
+): MountedRoute[] {
   const definition = readControllerDefinition(ControllerClass);
   if (!definition) {
     throw new Error(diagnostic('router.notController', { name: ControllerClass.name }));
@@ -49,6 +55,7 @@ export function mountController(
 
   const instance = injector.instantiate(ControllerClass) as Record<PropertyKey, unknown>;
   const router = Router();
+  const mounted: MountedRoute[] = [];
   const guards = definition.guards.map((guard) => resolveGuard(guard, injector));
   const interceptors = [
     ...pipeline.interceptors,
@@ -78,6 +85,11 @@ export function mountController(
     }
 
     const isPublic = definition.isPublic || definition.publicRoutes[route.handlerName] === true;
+    mounted.push({
+      method: route.method,
+      path: normalizePath(`${definition.prefix}/${route.path}`),
+      isPublic,
+    });
 
     router[route.method](normalizePath(route.path), async (req: Request, res: Response) => {
       if (unvalidatedBody) req.body = undefined;
@@ -102,4 +114,5 @@ export function mountController(
   }
 
   parent.use(normalizePath(definition.prefix), router);
+  return mounted;
 }

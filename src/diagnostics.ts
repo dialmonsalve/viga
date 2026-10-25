@@ -24,6 +24,9 @@ export const DIAGNOSTICS = {
     '@RateLimit from "viga" only works on HTTP routes; in a gateway use RateLimit from "viga/websocket"',
   'lifecycle.destroyFailed': 'One or more providers failed to shut down',
   'lifecycle.serverCloseFailed': 'One or more providers failed while the server was closing',
+  'app.noAuthGuard':
+    'No auth guard is configured, so the {count} private routes will respond 401; add app.useAuthGuard() or mark public routes with @Public()',
+  'app.publicRoutes': 'Public routes: {routes}',
   'app.getBeforeInit': 'get() can only be called after init() or listen()',
   'app.trustProxyAll':
     'trustProxy: true takes the client IP from the first X-Forwarded-For value, which the client can forge to bypass rate limits; use the number of proxies in front of the app (for example 1) or their addresses',
@@ -45,6 +48,9 @@ export const DIAGNOSTICS = {
   'config.asyncSchema': 'The configuration schema must validate synchronously',
   'pagination.invalidOptions':
     'defaultLimit, maxLimit and maxPage must be positive integers and defaultLimit cannot exceed maxLimit, received defaultLimit={defaultLimit} maxLimit={maxLimit} maxPage={maxPage}',
+  'ws.noAuthenticate':
+    'No authenticate function is configured, so the {count} private gateways will reject every handshake with 401; set authenticate in WebSocketModule.forRoot() or mark public gateways with @Public()',
+  'ws.publicGateways': 'Public gateways: {paths}',
   'ws.invalidEvent':
     'Invalid event name "{event}": use 1 to 128 letters, digits, ".", ":", "_" or "-"',
   'ws.duplicatePath': 'The gateways {first} and {second} use the same path {path}',

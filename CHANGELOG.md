@@ -11,7 +11,7 @@ First public release.
 - Modules with `imports`, `exports`, re-exports and global modules (which must be imported by the root module).
 - Dependency injection with `inject()` in class fields: class, `useClass`, `useValue` and `useFactory` providers, `InjectionToken`, and detection of circular dependencies and imports.
 - Controllers with standard TC39 decorators, `@HttpCode`, guards, interceptors and `@Public`.
-- Private routes by default through `app.useAuthGuard()`.
+- Private routes by default through `app.useAuthGuard()`. Startup warns when private routes have no auth guard and lists the public routes at debug level (also for WebSocket gateways).
 - Lifecycle hooks `OnModuleInit` and `OnModuleDestroy`, `close()` that only closes providers that finished starting, and `enableShutdownHooks()`, which exits with the signal's standard code (also as PID 1 in a container).
 - Per-request context with `createContextKey` and `runInNewContext`.
 - Secure defaults: security headers, body size limit, server timeouts, request id, `X-Powered-By` disabled, and the optional `requireValidation` (which also drops unvalidated bodies in any other method) and `concealRoutes` (which also covers WebSocket handshakes). `trustProxy: true` logs a warning because it lets clients forge their IP.

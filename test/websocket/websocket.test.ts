@@ -927,6 +927,32 @@ describe('viga/websocket', () => {
       await assert.rejects(start([TwiceModule]), /TwiceGateway handles the event "ping" more than once/);
     });
 
+    it('avisa si hay gateways privados sin authenticate y lista los públicos', async () => {
+      @Gateway('/private-only')
+      class PrivateOnlyGateway {}
+
+      @Module({ providers: [PrivateOnlyGateway] })
+      class PrivateOnlyModule {}
+
+      const warnings: string[] = [];
+      const debug: string[] = [];
+      await start(
+        [EchoModule, PrivateOnlyModule],
+        {},
+        {
+          logger: {
+            ...silentLogger,
+            warn: (message) => warnings.push(message),
+            debug: (message) => debug.push(message),
+          },
+        }
+      );
+
+      assert.equal(warnings.length, 1);
+      assert.match(warnings[0]!, /the 1 private gateways will reject every handshake with 401/);
+      assert.deepEqual(debug, ['[WebSocket] Public gateways: /echo']);
+    });
+
     it('rechaza un messageRateLimit inválido', () => {
       assert.throws(
         () => WebSocketModule.forRoot({ messageRateLimit: { max: 0, windowMs: 1000 } }),

@@ -255,6 +255,7 @@ export class WsServer implements OnServerListen, OnServerClose {
   async onServerListen(server: Server) {
     this.routes = this.buildRoutes();
     if (this.routes.size === 0) return;
+    this.reportGateways();
 
     await this.options.adapter.attach(server, {
       paths: [...this.routes.keys()],
@@ -334,6 +335,18 @@ export class WsServer implements OnServerListen, OnServerClose {
       });
     }
     return routes;
+  }
+
+  private reportGateways() {
+    const publicPaths = [...this.routes].filter(([, route]) => route.isPublic).map(([path]) => path);
+    const privateCount = this.routes.size - publicPaths.length;
+
+    if (!this.options.authenticate && privateCount > 0) {
+      this.logger.warn(diagnostic('ws.noAuthenticate', { count: privateCount }));
+    }
+    if (publicPaths.length > 0) {
+      this.logger.debug(diagnostic('ws.publicGateways', { paths: publicPaths.join(', ') }));
+    }
   }
 
   private isFull() {

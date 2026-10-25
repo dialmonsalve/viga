@@ -108,6 +108,8 @@ Providers can implement `OnModuleInit` and `OnModuleDestroy`:
 
 - Every route must pass the guard set with `app.useAuthGuard()`. If there is none, it responds 401: nothing is left open by accident.
 - `@Public()` on a method or on the whole controller opens the route.
+- If there are private routes but no `useAuthGuard()`, the app logs a warning at startup saying how many will respond 401.
+- The public routes are listed in the startup log at `debug` level (`Public routes: GET /api/health, POST /api/auth/login`), so you can review what's exposed before a deploy or an audit.
 
 ### Request order
 
@@ -523,6 +525,7 @@ class AppModule {}
 - Rooms: `client.join(room)`, `client.leave(room)`, `client.rooms`, and `inject(WsServer).to(room).send(event, data, { except })` or `.broadcast(…)`. A client can be in several rooms and leaves all of them when it disconnects. Rooms live in memory: with several instances, a message doesn't reach clients connected to another one.
 - A browser's `WebSocket` can't send custom headers: the handshake only carries the URL, cookies, `Origin` and `Accept-Language`. Authenticate with the session cookie (or a short-lived token in the URL, keeping in mind that URLs end up in logs), not with `Authorization`.
 - With `i18n`, the language is negotiated once in the handshake (`resolveLocale` first, then `Accept-Language`, then the default) and applies to every message of that connection: `i18n.t()` and `i18n.locale()` work inside gateways, error messages are translated, and `client.locale` holds it.
+- Like HTTP routes, private gateways without `authenticate` log a warning at startup, and the public ones are listed at `debug` level.
 - `client.state` holds connection data. Whatever `authenticate` returns (an object) is stored there.
 - `RateLimit` from `viga/websocket` limits one event (on the method) or every event of a gateway (on the class), on top of `messageRateLimit`. It counts per connection by default; `key: ({ client }) => String(client.state.userId)` counts per user across tabs. Above the limit it responds `errors.tooManyRequests` with `details.retryAfter` in seconds. The `@RateLimit` from `viga` is for HTTP routes only.
 - `@UseGuards` and `@UseInterceptors` work per message, on the method or the whole gateway. `OnWsConnection` and `OnWsDisconnect` are lifecycle hooks for each connection.

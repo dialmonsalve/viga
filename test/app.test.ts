@@ -13,6 +13,7 @@ import {
   LOGGER,
   Module,
   Patch,
+  Public,
   createApp,
   inject,
   silentLogger,
@@ -261,6 +262,76 @@ describe('App', () => {
     await server.close();
 
     await assert.rejects(server.request('/'));
+  });
+
+  describe('avisos de rutas privadas al arrancar', () => {
+    @Controller('status')
+    class StatusController {
+      @Public()
+      @Get()
+      status() {
+        return 'ok';
+      }
+
+      @Get('secret')
+      secret() {
+        return 'secret';
+      }
+
+      @Patch('secret')
+      update() {}
+    }
+
+    @Module({ controllers: [StatusController] })
+    class StatusModule {}
+
+    @Public()
+    @Controller('open')
+    class OpenController {
+      @Get()
+      open() {
+        return 'open';
+      }
+    }
+
+    @Module({ controllers: [OpenController] })
+    class OpenModule {}
+
+    const boot = async (rootModule: typeof StatusModule, guard?: () => boolean) => {
+      const warnings: string[] = [];
+      const debug: string[] = [];
+      const app = createApp({
+        rootModule,
+        globalPrefix: '/api',
+        logger: {
+          ...silentLogger,
+          warn: (message) => warnings.push(message),
+          debug: (message) => debug.push(message),
+        },
+      });
+      if (guard) app.useAuthGuard(guard);
+      await app.init();
+      await app.close();
+      return { warnings, debug };
+    };
+
+    it('avisa si hay rutas privadas y ningún guard, y dice cuántas', async () => {
+      const { warnings } = await boot(StatusModule);
+
+      assert.equal(warnings.length, 1);
+      assert.match(warnings[0]!, /No auth guard is configured, so the 2 private routes will respond 401/);
+    });
+
+    it('no avisa si hay guard o si todas las rutas son públicas', async () => {
+      assert.deepEqual((await boot(StatusModule, () => true)).warnings, []);
+      assert.deepEqual((await boot(OpenModule)).warnings, []);
+    });
+
+    it('lista las rutas públicas con su método y la ruta completa en el log de debug', async () => {
+      const { debug } = await boot(StatusModule, () => true);
+
+      assert.deepEqual(debug, ['[App] Public routes: GET /api/status']);
+    });
   });
 
   it('si un onServerClose falla, lo registra y sigue cerrando', async () => {

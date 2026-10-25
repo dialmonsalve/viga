@@ -108,6 +108,8 @@ Los providers pueden implementar `OnModuleInit` y `OnModuleDestroy`:
 
 - Toda ruta exige pasar el guard configurado con `app.useAuthGuard()`. Si no hay ninguno, responde 401: nada queda abierto por olvido.
 - `@Public()` en un método o en el controlador entero deja la ruta abierta.
+- Si hay rutas privadas pero ningún `useAuthGuard()`, la app avisa al arrancar de cuántas responderán 401.
+- Las rutas públicas se listan en el log de arranque con nivel `debug` (`Rutas públicas: GET /api/health, POST /api/auth/login`), para revisar qué queda expuesto antes de un despliegue o de una auditoría.
 
 ### Orden de una petición
 
@@ -523,6 +525,7 @@ class AppModule {}
 - Salas: `client.join(sala)`, `client.leave(sala)`, `client.rooms`, e `inject(WsServer).to(sala).send(evento, datos, { except })` o `.broadcast(…)`. Un cliente puede estar en varias salas y sale de todas al desconectarse. Las salas viven en memoria: con varias instancias, un mensaje no llega a los clientes conectados a otra.
 - El `WebSocket` del navegador no puede enviar cabeceras propias: el handshake solo lleva la URL, las cookies, `Origin` y `Accept-Language`. Autentica con la cookie de sesión (o con un token de vida corta en la URL, teniendo en cuenta que las URLs acaban en los logs), no con `Authorization`.
 - Con `i18n`, el idioma se negocia una vez en el handshake (primero `resolveLocale`, luego `Accept-Language`, luego el idioma por defecto) y se aplica a cada mensaje de esa conexión: `i18n.t()` e `i18n.locale()` funcionan dentro de los gateways, los mensajes de error se traducen y `client.locale` lo guarda.
+- Igual que en las rutas HTTP, los gateways privados sin `authenticate` generan un aviso al arrancar, y los públicos se listan con nivel `debug`.
 - `client.state` guarda datos de la conexión. Lo que devuelve `authenticate` (un objeto) queda ahí.
 - `RateLimit` de `viga/websocket` limita un evento (en el método) o todos los de un gateway (en la clase), además de `messageRateLimit`. Por defecto cuenta por conexión; `key: ({ client }) => String(client.state.userId)` cuenta por usuario aunque abra varias pestañas. Al superarlo responde `errors.tooManyRequests` con `details.retryAfter` en segundos. El `@RateLimit` de `viga` es solo para rutas HTTP.
 - `@UseGuards` y `@UseInterceptors` funcionan por mensaje, en el método o en todo el gateway. `OnWsConnection` y `OnWsDisconnect` son hooks del ciclo de vida de cada conexión.

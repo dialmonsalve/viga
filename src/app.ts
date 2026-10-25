@@ -24,6 +24,7 @@ import {
   CONCEAL_ROUTES,
   mountController,
   normalizePath,
+  type MountedRoute,
   type RoutePipeline,
 } from './http/router.ts';
 import { requestId, type RequestIdOptions } from './http/request-id.ts';
@@ -237,9 +238,10 @@ export class App {
     };
 
     const apiRouter = Router();
-    for (const { controller, injector } of controllers) {
-      mountController(apiRouter, controller, injector, pipeline);
-    }
+    const routes = controllers.flatMap(({ controller, injector }) =>
+      mountController(apiRouter, controller, injector, pipeline)
+    );
+    this.reportRoutes(routes);
 
     this.express.use(contextMiddleware);
     if (this.requestId) this.express.use(requestId(this.requestId));
@@ -262,6 +264,20 @@ export class App {
 
     this.running = { root };
     return this.running;
+  }
+
+  private reportRoutes(routes: MountedRoute[]) {
+    const publicRoutes = routes
+      .filter((route) => route.isPublic)
+      .map((route) => `${route.method.toUpperCase()} ${normalizePath(this.globalPrefix + route.path)}`);
+    const privateCount = routes.length - publicRoutes.length;
+
+    if (!this.authGuard && privateCount > 0) {
+      this.logger.warn(diagnostic('app.noAuthGuard', { count: privateCount }));
+    }
+    if (publicRoutes.length > 0) {
+      this.logger.debug(diagnostic('app.publicRoutes', { routes: publicRoutes.join(', ') }));
+    }
   }
 
   private async stop() {
