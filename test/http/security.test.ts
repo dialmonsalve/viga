@@ -11,6 +11,7 @@ import {
   Public,
   Put,
   createApp,
+  rateLimit,
   silentLogger,
   type ApiErrorBody,
   type HttpContext,
@@ -152,6 +153,56 @@ describe('seguridad HTTP', () => {
       } finally {
         await app.close();
       }
+    });
+  });
+
+  describe('trustProxy y X-Forwarded-For falsificado', () => {
+    const statusesWith = async (trustProxy: true | number) => {
+      const server = await startTestServer(EchoModule, {
+        trustProxy,
+        configure: (app) =>
+          app.useAuthGuard(() => true).use(rateLimit({ max: 1, windowMs: 60_000 })),
+      });
+      try {
+        const statuses: number[] = [];
+        for (const forged of ['10.0.0.1', '10.0.0.2', '10.0.0.3']) {
+          const { status } = await server.request('/echo/ip', {
+            headers: { 'x-forwarded-for': `${forged}, 203.0.113.9` },
+          });
+          statuses.push(status);
+        }
+        return statuses;
+      } finally {
+        await server.close();
+      }
+    };
+
+    it('con el número de proxies, el cliente no puede cambiar su IP', async () => {
+      assert.deepEqual(await statusesWith(1), [200, 429, 429]);
+    });
+
+    it('con trustProxy: true el cliente sí puede, y la app lo avisa al crearse', async () => {
+      const warnings: string[] = [];
+      createApp({
+        rootModule: EchoModule,
+        trustProxy: true,
+        logger: { ...silentLogger, warn: (message) => warnings.push(message) },
+      });
+
+      assert.deepEqual(await statusesWith(true), [200, 200, 200]);
+      assert.equal(warnings.length, 1);
+      assert.match(warnings[0]!, /trustProxy: true takes the client IP from the first X-Forwarded-For/);
+    });
+
+    it('no avisa con un número de proxies', () => {
+      const warnings: string[] = [];
+      createApp({
+        rootModule: EchoModule,
+        trustProxy: 1,
+        logger: { ...silentLogger, warn: (message) => warnings.push(message) },
+      });
+
+      assert.deepEqual(warnings, []);
     });
   });
 

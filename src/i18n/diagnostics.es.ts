@@ -25,6 +25,8 @@ export const diagnosticsEs = {
   'lifecycle.destroyFailed': 'Falló el cierre de uno o más providers',
   'lifecycle.serverCloseFailed': 'Uno o más providers fallaron mientras se cerraba el servidor',
   'app.getBeforeInit': 'get() solo puede llamarse después de init() o listen()',
+  'app.trustProxyAll':
+    'trustProxy: true toma la IP del cliente del primer valor de X-Forwarded-For, que el cliente puede falsificar para saltarse los límites; usa el número de proxies delante de la app (por ejemplo 1) o sus direcciones',
   'app.alreadyListening': 'El servidor ya está escuchando',
   'app.configureAfterStart': '{method}() debe llamarse antes de init() o listen()',
   'app.listening': 'Servidor escuchando en el puerto {port}{prefix}',

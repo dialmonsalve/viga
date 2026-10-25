@@ -25,6 +25,8 @@ export const DIAGNOSTICS = {
   'lifecycle.destroyFailed': 'One or more providers failed to shut down',
   'lifecycle.serverCloseFailed': 'One or more providers failed while the server was closing',
   'app.getBeforeInit': 'get() can only be called after init() or listen()',
+  'app.trustProxyAll':
+    'trustProxy: true takes the client IP from the first X-Forwarded-For value, which the client can forge to bypass rate limits; use the number of proxies in front of the app (for example 1) or their addresses',
   'app.alreadyListening': 'The server is already listening',
   'app.configureAfterStart': '{method}() must be called before init() or listen()',
   'app.listening': 'Server listening on port {port}{prefix}',

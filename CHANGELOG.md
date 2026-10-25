@@ -14,7 +14,7 @@ First public release.
 - Private routes by default through `app.useAuthGuard()`.
 - Lifecycle hooks `OnModuleInit` and `OnModuleDestroy`, `close()` that only closes providers that finished starting, and `enableShutdownHooks()`, which exits with the signal's standard code (also as PID 1 in a container).
 - Per-request context with `createContextKey` and `runInNewContext`.
-- Secure defaults: security headers, body size limit, server timeouts, request id, `X-Powered-By` disabled, and the optional `requireValidation` and `concealRoutes`.
+- Secure defaults: security headers, body size limit, server timeouts, request id, `X-Powered-By` disabled, and the optional `requireValidation` and `concealRoutes`. `trustProxy: true` logs a warning because it lets clients forge their IP.
 - Rate limiting with `rateLimit()` and `@RateLimit()`, with a pluggable store. The in-memory store is bounded (`maxKeys`) and hashes long keys.
 - HTTP exceptions with stable codes, `resolveMessage` and developer diagnostics that can be translated with `setDiagnostics`.
 - `listen()` defaults to port 3000.

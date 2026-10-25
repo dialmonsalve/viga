@@ -190,7 +190,7 @@ app.use(cors({ origin: 'https://my-frontend.com', credentials: true }));
 |---|---|---|
 | `securityHeaders` | `true` | `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy` and `Cache-Control: no-store`. An object changes (`{ 'Cache-Control': 'private' }`) or removes (`{ 'X-Frame-Options': false }`) headers; `false` disables them all |
 | `bodyLimit` | `'100kb'` | Maximum size of a JSON or urlencoded body. Above it, responds 413 |
-| `trustProxy` | not trusted | Same as Express's `trust proxy`. Set it behind a proxy so `req.ip` is the client's |
+| `trustProxy` | not trusted | Same as Express's `trust proxy`. Behind a proxy, set it to the number of proxies in front of the app (for example `1`) or their addresses, so `req.ip` is the client's. Avoid `true`: it takes the first `X-Forwarded-For` value, which the client can forge to bypass rate limits, and viga logs a warning |
 | `timeouts` | `{ headers: 10_000, request: 30_000, keepAlive: 5_000 }` | Milliseconds to receive the headers, the full request, and between requests on one connection. They limit slow-connection attacks |
 | `requestId` | `true` | Generates a UUID per request, sends it in `X-Request-Id`, includes it in errors (`requestId`) and in the 500 log. `{ trustIncoming: true }` reuses the one your gateway sends if it only has letters, digits, `.`, `_` or `-` (128 max); `{ header }` changes the header; `false` disables it |
 | `requireValidation` | `false` | With `true`, the app doesn't start if a `POST`, `PUT` or `PATCH` route has no `@Validate({ body })`. A route without a body declares it with `@Validate({ body: z.strictObject({}).optional() })` |
@@ -219,7 +219,8 @@ class AuthController {
 
 - `rateLimit()` is an app-wide middleware; `@RateLimit()` goes on a method or a controller. Each one has its own counter.
 - When `max` is exceeded within `windowMs`, it responds 429 with `code: 'errors.tooManyRequests'` and `Retry-After`. Every response carries `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset`.
-- The default key is `req.ip`. Behind a proxy, set `trustProxy`, or every client will share the same counter.
+- The default key is `req.ip`. Behind a proxy, set `trustProxy` to the number of proxies, or every client will share the same counter.
+- HTTP rate limiting is off by default (WebSocket has a per-connection limit on by default): add `rateLimit()` or `@RateLimit()` yourself. It isn't enabled automatically because, behind a proxy without `trustProxy`, every user would share the proxy's IP and be blocked together.
 - The counter lives in memory (`MemoryRateLimitStore`). It keeps at most 10,000 keys (`new MemoryRateLimitStore({ maxKeys })`) and evicts the oldest one, and keys longer than 128 characters are stored as a hash, so a flood of unique keys (for example, made-up emails) can't exhaust memory. With several instances, implement `RateLimitStore` on Redis or another shared store and pass it as `store`.
 
 ### Security testing checklist
@@ -461,7 +462,7 @@ class AppModule {}
 | `authenticate` | none | Checks the handshake request. Gateways are private by default: without `authenticate`, only `@Public()` gateways accept connections. Returning `false` responds 401 |
 | `handshakeTimeoutMs` | `10_000` | If `authenticate` takes longer, the handshake responds 503 and a warning is logged, so a slow auth service can't pile up open sockets |
 | `allowedOrigins` | `[]` | List or function. A request with an `Origin` that isn't allowed responds 403 (prevents cross-site WebSocket hijacking). Requests without `Origin` (non-browser clients) are accepted |
-| `maxConnections` | `10_000` | Simultaneous connections across all gateways. Above it, the handshake responds 503. It's a global limit: a per-IP limit would need `trustProxy` behind a proxy |
+| `maxConnections` | `10_000` | Simultaneous connections across all gateways. Above it, the handshake responds 503. It's a global limit; for a limit per client, use `connectionsPerKey` |
 | `connectionsPerKey` | `false` | `{ max, key? }` limits simultaneous connections per client; above it, the handshake responds 429. `key` receives the handshake request and defaults to the socket's IP. Behind a proxy, read the IP your proxy adds, for example the last `X-Forwarded-For` value with one proxy: `(req) => req.headers['x-forwarded-for']?.toString().split(',').at(-1)?.trim()`. Never the first value: the client can forge it. Returning `undefined` skips the limit |
 | `maxPayload` | 100 KiB | Larger messages close the connection with 1009 |
 | `messageRateLimit` | `{ max: 100, windowMs: 10_000 }` | Messages per connection, for every event; above it, responds `errors.tooManyRequests` with `details.retryAfter`. `false` disables it |

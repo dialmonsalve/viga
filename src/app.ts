@@ -107,6 +107,7 @@ export class App {
     this.express.disable('x-powered-by');
     if (options.trustProxy !== undefined)
       this.express.set('trust proxy', options.trustProxy);
+    if (options.trustProxy === true) this.logger.warn(diagnostic('app.trustProxyAll'));
     if (options.globalPrefix) this.setGlobalPrefix(options.globalPrefix);
   }
 
