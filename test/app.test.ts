@@ -303,6 +303,7 @@ describe('App', () => {
       const app = createApp({
         rootModule,
         globalPrefix: '/api',
+        requireValidation: false,
         logger: {
           ...silentLogger,
           warn: (message) => warnings.push(message),

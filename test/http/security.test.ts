@@ -12,6 +12,7 @@ import {
   Post,
   Public,
   Put,
+  UseGuards,
   createApp,
   rateLimit,
   silentLogger,
@@ -24,6 +25,7 @@ import { startTestServer, type TestServer } from '../helpers/http.ts';
 @Controller('echo')
 class EchoController {
   @Post()
+  @Validate({ body: z.unknown() })
   echo({ body }: HttpContext) {
     return body;
   }
@@ -347,7 +349,7 @@ describe('requireValidation', () => {
     });
 
     it('sin requireValidation, el body llega como antes', async () => {
-      const server = await startTestServer(ItemsModule);
+      const server = await startTestServer(ItemsModule, { requireValidation: false });
 
       try {
         const removed = await server.request('/items/1', {
@@ -362,8 +364,14 @@ describe('requireValidation', () => {
     });
   });
 
-  it('no exige nada si la opción está desactivada', async () => {
+  it('está activado por defecto', async () => {
     const app = createApp({ rootModule: LooseModule, logger: silentLogger });
+
+    await assert.rejects(app.init(), /LooseController\.update handles PATCH but has no @Validate/);
+  });
+
+  it('no exige nada si la opción está desactivada', async () => {
+    const app = createApp({ rootModule: LooseModule, logger: silentLogger, requireValidation: false });
 
     await app.init();
     await app.close();
@@ -424,8 +432,32 @@ describe('concealRoutes', () => {
     });
   });
 
+  it('por defecto se activa cuando hay guard de autenticación', async () => {
+    const server = await startTestServer(OrdersModule, {
+      configure: (app) => app.useAuthGuard(authGuard),
+    });
+
+    try {
+      assert.equal((await server.request('/admin/users')).status, 401);
+      assert.equal((await server.request('/admin/users', signedIn)).status, 404);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('por defecto no se activa sin guard de autenticación, para no convertir cada 404 en 401', async () => {
+    const server = await startTestServer(OrdersModule, { configure: () => undefined });
+
+    try {
+      assert.equal((await server.request('/admin/users')).status, 404);
+    } finally {
+      await server.close();
+    }
+  });
+
   it('desactivado, una ruta inexistente responde 404 sin sesión', async () => {
     const server = await startTestServer(OrdersModule, {
+      concealRoutes: false,
       configure: (app) => app.useAuthGuard(authGuard),
     });
 
@@ -434,5 +466,72 @@ describe('concealRoutes', () => {
     } finally {
       await server.close();
     }
+  });
+});
+
+describe('cuerpo de la petición', () => {
+  const Note = z.object({ text: z.string() });
+  const seen: { raw: unknown; parsed: unknown }[] = [];
+
+  @Controller('notes')
+  class NotesController {
+    @Post()
+    @Validate({ body: Note })
+    create({ req, body }: HttpContext<{ body: typeof Note }>) {
+      seen.push({ raw: req.body, parsed: body });
+      return body;
+    }
+
+    @Post('limited')
+    @Public()
+    @UseGuards(({ req }: HttpContext) => req.body?.text !== 'bloqueado')
+    @Validate({ body: Note })
+    limited() {
+      return 'ok';
+    }
+  }
+
+  @Module({ controllers: [NotesController] })
+  class NotesModule {}
+
+  let server: TestServer;
+  const signedIn = { authorization: 'Bearer valido' };
+  const post = (path: string, body: string, headers: Record<string, string> = {}) =>
+    server.request<ApiErrorBody>(path, {
+      method: 'POST',
+      body,
+      headers: { 'content-type': 'application/json', ...headers },
+    });
+
+  before(async () => {
+    server = await startTestServer(NotesModule, {
+      configure: (app) => app.useAuthGuard(({ req }) => req.headers.authorization === 'Bearer valido'),
+    });
+  });
+
+  after(() => server.close());
+
+  it('no parsea el cuerpo de quien no está autenticado', async () => {
+    assert.equal((await post('/notes', '{roto')).status, 401);
+    assert.equal((await post('/notes', JSON.stringify({ text: 'x'.repeat(200_000) }))).status, 401);
+    assert.equal((await post('/nope', '{roto')).status, 401);
+  });
+
+  it('los guards ven el cuerpo parseado, por ejemplo para limitar por email', async () => {
+    assert.equal((await post('/notes/limited', JSON.stringify({ text: 'bloqueado' }))).status, 403);
+    assert.equal((await post('/notes/limited', JSON.stringify({ text: 'hola' }))).status, 201);
+  });
+
+  it('parsea y valida el cuerpo una vez autenticado', async () => {
+    assert.equal((await post('/notes', '{roto', signedIn)).status, 400);
+    assert.equal((await post('/notes', JSON.stringify({ text: 'x'.repeat(200_000) }), signedIn)).status, 413);
+  });
+
+  it('ctx.req.body queda con el valor validado, sin los campos que el esquema descarta', async () => {
+    seen.length = 0;
+    const response = await post('/notes', JSON.stringify({ text: 'hola', role: 'admin' }), signedIn);
+
+    assert.equal(response.status, 201);
+    assert.deepEqual(seen, [{ raw: { text: 'hola' }, parsed: { text: 'hola' } }]);
   });
 });

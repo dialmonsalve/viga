@@ -79,7 +79,7 @@ export class App {
   private readonly requestId: false | RequestIdOptions;
   private readonly timeouts: Required<ServerTimeouts>;
   private readonly requireValidation: boolean;
-  private readonly concealRoutes: boolean;
+  private readonly concealRoutes: boolean | undefined;
   private readonly resolveMessage?: MessageResolver;
   private readonly csrf: RequestHandler | undefined;
   private readonly middlewares: RequestHandler[] = [];
@@ -111,8 +111,8 @@ export class App {
           ? {}
           : options.requestId;
     this.timeouts = { ...DEFAULT_TIMEOUTS, ...options.timeouts };
-    this.requireValidation = options.requireValidation ?? false;
-    this.concealRoutes = options.concealRoutes ?? false;
+    this.requireValidation = options.requireValidation ?? true;
+    this.concealRoutes = options.concealRoutes;
     this.csrf =
       options.csrf === false
         ? undefined
@@ -223,12 +223,28 @@ export class App {
     }
   }
 
+  private createBodyParser(): RoutePipeline['parseBody'] {
+    if (!this.bodyParser) return undefined;
+    const parsers = [
+      express.json({ limit: this.bodyLimit }),
+      express.urlencoded({ extended: false, limit: this.bodyLimit }),
+    ];
+    return async (req, res) => {
+      for (const parse of parsers) {
+        await new Promise<void>((resolve, reject) =>
+          parse(req, res, (error?: unknown) => (error ? reject(error) : resolve()))
+        );
+      }
+    };
+  }
+
   private async start(): Promise<Running> {
+    const concealRoutes = this.concealRoutes ?? this.authGuard !== undefined;
     const { controllers, injectors, root } = loadApplication(this.rootModule, {
       platformProviders: [
         { provide: LOGGER, useValue: this.logger },
         { provide: PROVIDER_INSTANCES, useValue: () => this.initialized },
-        { provide: CONCEAL_ROUTES, useValue: this.concealRoutes },
+        { provide: CONCEAL_ROUTES, useValue: concealRoutes },
         { provide: CLIENT_IP, useValue: clientIpResolver(this.express) },
       ],
     });
@@ -244,6 +260,7 @@ export class App {
         resolveInterceptor(ref, root)
       ),
       requireValidation: this.requireValidation,
+      parseBody: this.createBodyParser(),
     };
 
     const apiRouter = Router();
@@ -258,15 +275,9 @@ export class App {
       this.express.use(securityHeaders(this.securityHeaders));
     if (this.middlewares.length > 0) this.express.use(...this.middlewares);
     if (this.csrf) this.express.use(this.csrf);
-    if (this.bodyParser) {
-      this.express.use(express.json({ limit: this.bodyLimit }));
-      this.express.use(
-        express.urlencoded({ extended: false, limit: this.bodyLimit })
-      );
-    }
     this.express.use(this.globalPrefix || '/', apiRouter);
     this.express.use(
-      this.concealRoutes
+      concealRoutes
         ? concealedNotFoundHandler(pipeline.authGuard)
         : notFoundHandler
     );

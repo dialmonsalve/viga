@@ -114,7 +114,9 @@ Providers can implement `OnModuleInit` and `OnModuleDestroy`:
 
 ### Request order
 
-Request id → security headers → app middlewares (`app.use`) → CSRF check → body parser → authentication (except `@Public`) → controller guards → method `@UseGuards` (including `@RateLimit`) → global interceptors → controller interceptors → method `@UseInterceptors` → `@Validate` → handler, and back in reverse order.
+Request id → security headers → app middlewares (`app.use`) → CSRF check → authentication (except `@Public`) → body parser → controller guards → method `@UseGuards` (including `@RateLimit`) → global interceptors → controller interceptors → method `@UseInterceptors` → `@Validate` → handler, and back in reverse order.
+
+The body is parsed only after authentication, so an anonymous request to a private route gets 401 without the server reading its body, and an unknown route never parses one. Guards still see it, for example to rate limit by email.
 
 Every guard runs before any interceptor, so an interceptor that answers without calling `next()`, such as a cache, can't skip a method's guard or rate limit. Gateways in `viga/websocket` follow the same rule.
 
@@ -196,12 +198,12 @@ app.use(cors({ origin: 'https://my-frontend.com', credentials: true }));
 | `createApp` option | Default | What it controls |
 |---|---|---|
 | `securityHeaders` | `true` | `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy` and `Cache-Control: no-store`. An object changes (`{ 'Cache-Control': 'private' }`) or removes (`{ 'X-Frame-Options': false }`) headers; `false` disables them all |
-| `bodyLimit` | `'100kb'` | Maximum size of a JSON or urlencoded body. Above it, responds 413 |
+| `bodyLimit` | `'100kb'` | Maximum size of a JSON or urlencoded body. Above it, responds 413. The body is read only on existing routes and after authentication |
 | `trustProxy` | not trusted | Same as Express's `trust proxy`. Behind a proxy, set it to the number of proxies in front of the app (for example `1`) or their addresses, so `req.ip` is the client's. Avoid `true`: it takes the first `X-Forwarded-For` value, which the client can forge to bypass rate limits, and viga logs a warning. WebSocket's `connectionsPerKey` uses the same setting |
 | `timeouts` | `{ headers: 10_000, request: 30_000, keepAlive: 5_000 }` | Milliseconds to receive the headers, the full request, and between requests on one connection. They limit slow-connection attacks |
 | `requestId` | `true` | Generates a UUID per request, sends it in `X-Request-Id`, includes it in errors (`requestId`) and in the 500 log. `{ trustIncoming: true }` reuses the one your gateway sends if it only has letters, digits, `.`, `_` or `-` (128 max); `{ header }` changes the header; `false` disables it |
-| `requireValidation` | `false` | With `true`, the app doesn't start if a `POST`, `PUT` or `PATCH` route has no `@Validate({ body })`. A route without a body declares it with `@Validate({ body: z.strictObject({}).optional() })`. In any other method (`GET`, `DELETE`…), a route without a body schema gets `ctx.body` and `ctx.req.body` as `undefined`, so an unvalidated body never reaches a handler |
-| `concealRoutes` | `false` | With `true`, an unknown route responds 401 to anyone without a session, just like a private route, so routes can't be discovered. With a valid session it responds 404; `@Public` routes don't change. It also applies to `viga/websocket` handshakes: an unknown path answers like a private gateway (403 for a forbidden `Origin`, 401 without a session, 404 with one) |
+| `requireValidation` | `true` | The app doesn't start if a `POST`, `PUT` or `PATCH` route has no `@Validate({ body })`. A route without a body declares it with `@Validate({ body: z.strictObject({}).optional() })`. In any other method (`GET`, `DELETE`…), a route without a body schema gets `ctx.body` and `ctx.req.body` as `undefined`, so an unvalidated body never reaches a handler. After `@Validate`, `ctx.req.body` holds the validated value too, so code that reads it by mistake doesn't get fields the schema dropped. `false` turns the check off |
+| `concealRoutes` | on with an auth guard | An unknown route responds 401 to anyone without a session, just like a private route, so routes can't be discovered. With a valid session it responds 404; `@Public` routes don't change. It also applies to `viga/websocket` handshakes: an unknown path answers like a private gateway (403 for a forbidden `Origin`, 401 without a session, 404 with one). It's on by default when the app has `useAuthGuard()`, and off without one so a fully public API keeps answering 404. `false` or `true` forces it |
 | `csrf` | `true` | Rejects with 403 (`errors.crossSiteRequest`) a `POST` from another site that a browser can send without a CORS preflight: no body, a form (`urlencoded`, `multipart`) or `text/plain`. It's the only way a page on another site can make the browser send a request with your users' cookies. It reads `Sec-Fetch-Site`, or compares `Origin` with the host when that header is missing, and runs before the body is parsed. JSON, `PUT`, `PATCH` and `DELETE` from another origin aren't checked because the browser sends them only after a preflight, which your CORS setup decides. Requests without either header, such as curl or a backend, pass. `{ trustedOrigins: ['https://idp.example'] }` allows forms from those origins, for example an OAuth `form_post` callback; `false` disables it |
 
 - The `X-Powered-By` header is always disabled.
@@ -213,6 +215,10 @@ app.use(cors({ origin: 'https://my-frontend.com', credentials: true }));
 
 ```ts
 import { RateLimit, ipKey, rateLimit } from 'viga';
+import { Validate } from 'viga/validation';
+import { z } from 'zod';
+
+const Login = z.strictObject({ email: z.email(), password: z.string() });
 
 app.use(rateLimit({ max: 300, windowMs: 60_000 }));
 
@@ -221,7 +227,8 @@ app.use(rateLimit({ max: 300, windowMs: 60_000 }));
 class AuthController {
   @Post('login')
   @RateLimit({ max: 5, windowMs: 15 * 60_000, key: (req) => `${ipKey(req.ip ?? '')}:${req.body?.email}` })
-  login(ctx: HttpContext) {}
+  @Validate({ body: Login })
+  login({ body }: HttpContext<{ body: typeof Login }>) {}
 }
 ```
 
@@ -244,7 +251,7 @@ The framework covers the common layers; these depend on your code and are the fi
     });
   }
   ```
-- **Mass assignment.** Without `@Validate`, `ctx.body` arrives exactly as the client sent it. Validate every `POST`, `PUT` and `PATCH` body (`requireValidation: true` enforces it), use the parsed value and never `ctx.req.body`. With Zod, `z.strictObject()` rejects extra fields (`"role": "admin"`) instead of ignoring them.
+- **Mass assignment.** Without `@Validate`, `ctx.body` arrives exactly as the client sent it. Validate every `POST`, `PUT` and `PATCH` body (`requireValidation` enforces it) and use the parsed value. With Zod, `z.strictObject()` rejects extra fields (`"role": "admin"`) instead of ignoring them.
 - **Roles.** Put the role guard on the controller with `@UseGuards` so a new route isn't left open by accident.
 - **Brute force.** Limit login, sign-up, password recovery and code verification with `@RateLimit`.
 - **CORS.** List the allowed origins explicitly; never `origin: '*'` together with `credentials: true`.

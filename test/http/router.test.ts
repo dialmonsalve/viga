@@ -129,7 +129,7 @@ describe('mountController', () => {
   let server: TestServer;
 
   before(async () => {
-    server = await startTestServer(BooksModule);
+    server = await startTestServer(BooksModule, { requireValidation: false });
   });
 
   after(() => server.close());
@@ -232,6 +232,7 @@ describe('resolveMessage', () => {
 
   before(async () => {
     server = await startTestServer(BooksModule, {
+      requireValidation: false,
       resolveMessage: (code, params, req) => {
         seen.push(req.path);
         if (code === 'books.notFound') return `No existe el libro ${params?.id}`;

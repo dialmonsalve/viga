@@ -61,6 +61,7 @@ async function parseRequest<S extends RequestSchemas>(
   if (Object.keys(errors).length > 0) {
     throw new BadRequestException('errors.validation', errors);
   }
+  if (schemas.body) ctx.req.body = parsed.body;
 
   return parsed as unknown as HttpContext<S>;
 }

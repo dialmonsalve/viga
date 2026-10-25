@@ -53,7 +53,7 @@ describe('protección CSRF', () => {
     server.request<ApiErrorBody>('/account/transfer', { method: 'POST', headers, body });
 
   before(async () => {
-    server = await startTestServer(AppModule);
+    server = await startTestServer(AppModule, { requireValidation: false });
   });
 
   after(() => server.close());
@@ -130,6 +130,7 @@ describe('protección CSRF', () => {
 describe('opción csrf', () => {
   it('trustedOrigins permite formularios de los orígenes listados', async () => {
     const server = await startTestServer(AppModule, {
+      requireValidation: false,
       csrf: { trustedOrigins: ['https://idp.example'] },
     });
 
@@ -149,7 +150,7 @@ describe('opción csrf', () => {
   });
 
   it('false desactiva la protección', async () => {
-    const server = await startTestServer(AppModule, { csrf: false });
+    const server = await startTestServer(AppModule, { csrf: false, requireValidation: false });
 
     try {
       const response = await server.request('/account/transfer', {

@@ -25,6 +25,7 @@ export interface RoutePipeline {
   authGuard?: GuardFn;
   interceptors: InterceptorFn[];
   requireValidation?: boolean;
+  parseBody?: (req: Request, res: Response) => Promise<void>;
 }
 
 const METHODS_WITH_BODY: ReadonlySet<HttpMethod> = new Set(['post', 'put', 'patch']);
@@ -93,9 +94,13 @@ export function mountController(
     });
 
     router[route.method](normalizePath(route.path), async (req: Request, res: Response) => {
-      if (unvalidatedBody) req.body = undefined;
       const ctx = createContext(req, res);
       if (!isPublic) await authenticate(pipeline.authGuard, ctx);
+
+      if (unvalidatedBody) req.body = undefined;
+      else await pipeline.parseBody?.(req, res);
+      ctx.body = req.body;
+
       await runGuards(guards, ctx);
       await steps.guard(instance, ctx);
 
