@@ -898,6 +898,100 @@ describe('viga/websocket', () => {
     });
   });
 
+  describe('expiración de sesión', () => {
+    const disconnects: { code: number; reason: string }[] = [];
+    const Renew = z.object({ ms: z.number().int().positive().nullable() });
+
+    @Gateway('/session')
+    class SessionGateway implements OnWsDisconnect {
+      @OnMessage('whoami', z.undefined())
+      whoami({ client }: WsContext) {
+        return { userId: client.state.userId, expiresAt: client.expiresAt };
+      }
+
+      @OnMessage('renew', Renew)
+      renew({ client, data }: WsContext<typeof Renew>) {
+        client.expireAt(data.ms === null ? undefined : Date.now() + data.ms);
+        return 'ok';
+      }
+
+      onDisconnect(_client: WsClient, code: number, reason: string) {
+        disconnects.push({ code, reason });
+      }
+    }
+
+    @Module({ providers: [SessionGateway] })
+    class SessionModule {}
+
+    const expiringIn = (ms: number | (() => unknown)) => ({
+      authenticate: () => ({ userId: 7, expiresAt: typeof ms === 'number' ? Date.now() + ms : ms() }),
+    });
+
+    afterEach(() => {
+      disconnects.length = 0;
+    });
+
+    it('cierra con 1008 cuando vence el expiresAt que devuelve authenticate', async () => {
+      const { url } = await start([SessionModule], expiringIn(80));
+      const socket = await connect(`${url}/session`);
+
+      const reply = await socket.request('whoami');
+      assert.equal(reply.data.userId, 7);
+      assert.ok(reply.data.expiresAt > Date.now());
+
+      const [code, reason] = (await once(socket.ws, 'close')) as [number, Buffer];
+      assert.equal(code, 1008);
+      assert.equal(reason.toString(), 'Session expired');
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      assert.deepEqual(disconnects, [{ code: 1008, reason: 'Session expired' }]);
+    });
+
+    it('acepta expiresAt como Date', async () => {
+      const { url } = await start([SessionModule], expiringIn(() => new Date(Date.now() + 60_000)));
+      const socket = await connect(`${url}/session`);
+
+      assert.ok((await socket.request('whoami')).data.expiresAt > Date.now() + 50_000);
+      socket.ws.close();
+    });
+
+    it('rechaza con 401 un handshake cuya sesión ya venció', async () => {
+      const { url } = await start([SessionModule], expiringIn(-1));
+
+      assert.equal(await handshakeStatus(`${url}/session`), 401);
+    });
+
+    it('rechaza con 500 y registra el error si expiresAt no es una fecha válida', async () => {
+      const errors: string[] = [];
+      const logger = { ...silentLogger, error: (message: string) => errors.push(message) };
+      const { url } = await start([SessionModule], expiringIn(() => 'mañana'), { logger });
+
+      assert.equal(await handshakeStatus(`${url}/session`), 500);
+      assert.match(errors[0]!, /expiresAt must be a Date or a timestamp in milliseconds/);
+    });
+
+    it('client.expireAt renueva la sesión o le quita el vencimiento', async () => {
+      const { url } = await start([SessionModule], expiringIn(80));
+      const socket = await connect(`${url}/session`);
+
+      assert.equal((await socket.request('renew', { ms: 60_000 })).data, 'ok');
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      assert.equal(socket.ws.readyState, WebSocket.OPEN);
+
+      await socket.request('renew', { ms: null });
+      assert.equal((await socket.request('whoami')).data.expiresAt, undefined);
+      socket.ws.close();
+    });
+
+    it('no cierra antes de tiempo un vencimiento más lejano que el máximo de setTimeout', async () => {
+      const { url } = await start([SessionModule], expiringIn(30 * 24 * 60 * 60_000));
+      const socket = await connect(`${url}/session`);
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      assert.equal(socket.ws.readyState, WebSocket.OPEN);
+      socket.ws.close();
+    });
+  });
+
   describe('conexiones muertas o lentas', () => {
     const waitFor = async (condition: () => boolean, timeoutMs = 2_000) => {
       const deadline = Date.now() + timeoutMs;

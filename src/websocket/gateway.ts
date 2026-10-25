@@ -25,6 +25,8 @@ export interface WsClient {
   readonly state: Record<string, unknown>;
   readonly rooms: ReadonlySet<string>;
   readonly locale: string | undefined;
+  readonly expiresAt: number | undefined;
+  expireAt(at: Date | number | undefined): void;
   send(event: string, data?: unknown): void;
   join(room: string): void;
   leave(room: string): void;

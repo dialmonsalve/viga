@@ -48,6 +48,7 @@ const EVENT_NAME = /^[\w.:-]{1,128}$/;
 const MESSAGE_ID = /^[\w-]{1,64}$/;
 const POLICY_VIOLATION = 1008;
 const INTERNAL_ERROR = 1011;
+const MAX_TIMEOUT_MS = 2 ** 31 - 1;
 
 type MessageId = string | number;
 
@@ -78,7 +79,13 @@ interface Slot {
 interface Handshake {
   route: Route;
   state: Record<string, unknown>;
+  expiresAt: number | undefined;
   slot: Slot;
+}
+
+function toTimestamp(value: unknown) {
+  const ms = value instanceof Date ? value.getTime() : value;
+  return typeof ms === 'number' && Number.isFinite(ms) ? ms : undefined;
 }
 
 export interface WsBroadcastOptions {
@@ -174,6 +181,8 @@ class Client implements WsClient {
   private open = true;
   private hits = 0;
   private windowEndsAt = 0;
+  private expiry: NodeJS.Timeout | undefined;
+  private expiresAtMs: number | undefined;
 
   constructor(
     readonly state: Record<string, unknown>,
@@ -185,6 +194,34 @@ class Client implements WsClient {
 
   get isOpen() {
     return this.open;
+  }
+
+  get expiresAt() {
+    return this.expiresAtMs;
+  }
+
+  expireAt(at: Date | number | undefined) {
+    const ms = at === undefined ? undefined : toTimestamp(at);
+    if (at !== undefined && ms === undefined) {
+      throw new Error(diagnostic('ws.invalidExpiresAt', { value: String(at) }));
+    }
+    if (!this.open) return;
+    clearTimeout(this.expiry);
+    this.expiry = undefined;
+    this.expiresAtMs = ms;
+    if (ms !== undefined) this.scheduleExpiry();
+  }
+
+  private scheduleExpiry() {
+    const delay = (this.expiresAtMs ?? 0) - Date.now();
+    if (delay <= 0) {
+      this.open = false;
+      this.expiry = undefined;
+      this.connection.close(POLICY_VIOLATION, 'Session expired');
+      return;
+    }
+    this.expiry = setTimeout(() => this.scheduleExpiry(), Math.min(delay, MAX_TIMEOUT_MS));
+    this.expiry.unref();
   }
 
   send(event: string, data?: unknown) {
@@ -219,6 +256,7 @@ class Client implements WsClient {
 
   markClosed() {
     this.open = false;
+    clearTimeout(this.expiry);
     this.roomRegistry.leaveAll(this);
   }
 
@@ -441,16 +479,17 @@ export class WsServer implements OnServerListen, OnServerClose {
 
     const slot = this.reserve(key, req);
     let state: Record<string, unknown> = {};
+    let expiresAt: number | undefined;
     if (!route.isPublic) {
       const auth = await this.checkAuthentication(req);
       if ('status' in auth) {
         slot.release();
         return { action: 'reject', status: auth.status };
       }
-      state = auth.state;
+      ({ state, expiresAt } = auth);
     }
 
-    this.handshakes.set(req, { route, state, slot });
+    this.handshakes.set(req, { route, state, expiresAt, slot });
     return { action: 'accept' };
   }
 
@@ -472,11 +511,19 @@ export class WsServer implements OnServerListen, OnServerClose {
 
   private async checkAuthentication(
     req: IncomingMessage
-  ): Promise<{ status: number } | { state: Record<string, unknown> }> {
+  ): Promise<{ status: number } | { state: Record<string, unknown>; expiresAt: number | undefined }> {
     try {
       const result = await this.authenticate(req);
       if (!result) return { status: 401 };
-      return { state: typeof result === 'object' ? { ...result } : {} };
+      const state = typeof result === 'object' ? { ...result } : {};
+      if (state.expiresAt === undefined) return { state, expiresAt: undefined };
+
+      const expiresAt = toTimestamp(state.expiresAt);
+      if (expiresAt === undefined) {
+        this.logger.error(diagnostic('ws.invalidExpiresAt', { value: String(state.expiresAt) }));
+        return { status: 500 };
+      }
+      return expiresAt <= Date.now() ? { status: 401 } : { state, expiresAt };
     } catch (error) {
       const exception = toHttpException(error);
       if (exception.statusCode >= 500 && !(error instanceof ServiceUnavailableException)) {
@@ -512,11 +559,12 @@ export class WsServer implements OnServerListen, OnServerClose {
       connection.close(INTERNAL_ERROR);
       return;
     }
-    const { route, state, slot } = handshake;
+    const { route, state, expiresAt, slot } = handshake;
     slot.settle();
 
     const client = new Client(state, this.localeOf(req), connection, this.rooms, this.options);
     this.connected.add(client);
+    client.expireAt(expiresAt);
 
     const ready = this.inContext(client, async () => route.gateway.onConnection?.(client))
       .then(
@@ -591,6 +639,7 @@ export class WsServer implements OnServerListen, OnServerClose {
     message: string,
     isBinary: boolean
   ) {
+    if (!client.isOpen) return;
     let id: MessageId | undefined;
     try {
       client.consume(this.options.messageRateLimit);

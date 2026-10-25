@@ -64,6 +64,8 @@ export const diagnosticsEs = {
   'ws.invalidOption': '{option} debe ser un entero positivo, se recibió {value}',
   'ws.untrustedForwardedFor':
     'Un handshake WebSocket trae X-Forwarded-For pero trustProxy no confía en quien lo envía, así que connectionsPerKey cuenta como uno a todos los clientes detrás de ese proxy; pon en trustProxy el número de proxies delante de la app',
+  'ws.invalidExpiresAt':
+    'expiresAt debe ser un Date o una marca de tiempo en milisegundos, se recibió {value}',
   'ws.handshakeTimeout':
     'authenticate no respondió en {ms} ms, así que el handshake se rechazó con 503',
   'ws.missingPackage':
