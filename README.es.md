@@ -13,8 +13,8 @@ El core solo resuelve lo que todo servidor necesita. Lo demás son subrutas opci
 | `viga/i18n` | Catálogos de mensajes, negociación de `Accept-Language`, mensajes del framework en es/en | Nada |
 | `viga/drizzle` | `DrizzleModule` y `DatabaseService` con cierre del pool | `drizzle-orm`, `pg` |
 | `viga/config` | `ConfigModule` que valida y tipa las variables de entorno al arrancar | Nada |
-| `viga/pagination` | `@Paginate` con resultados tipados, enlaces seguros y límites | Nada |
-| `viga/websocket` | Gateways, salas y una interfaz de adaptador pública, con seguridad por defecto | `ws` |
+| `viga/pagination` | `@Paginate` con resultados tipados, enlaces relativos y límites | Nada |
+| `viga/websocket` | Gateways, salas y una interfaz de adaptador pública, con valores restrictivos por defecto | `ws` |
 
 ## Agradecimientos
 
@@ -193,7 +193,9 @@ import cors from 'cors';
 app.use(cors({ origin: 'https://mi-front.com', credentials: true }));
 ```
 
-### Seguridad por defecto
+### Valores de seguridad por defecto
+
+Estos valores reducen riesgos comunes, pero no hacen segura una aplicación por sí solos, y viga no puede garantizar que lo sea. La seguridad también depende de tu código, tu configuración, tus dependencias y tu infraestructura, así que prueba y revisa tu app antes de llevarla a producción.
 
 | Opción de `createApp` | Por defecto | Qué controla |
 |---|---|---|
@@ -203,8 +205,8 @@ app.use(cors({ origin: 'https://mi-front.com', credentials: true }));
 | `timeouts` | `{ headers: 10_000, request: 30_000, keepAlive: 5_000 }` | Milisegundos para recibir las cabeceras, la petición completa y entre peticiones de una conexión. Limitan ataques de conexiones lentas |
 | `requestId` | `true` | Genera un UUID por petición, lo envía en `X-Request-Id`, lo incluye en los errores (`requestId`) y en el log de los 500. `{ trustIncoming: true }` reutiliza el que envía tu gateway si solo tiene letras, números, `.`, `_` o `-` (máximo 128); `{ header }` cambia la cabecera; `false` lo desactiva |
 | `requireValidation` | `true` | Una ruta sin schema para el body no acepta body: no se parsea, y una petición que lo envía responde 400 `errors.unexpectedBody`. Un `POST` sin body, como un logout, no necesita decorador, y si olvidas `@Validate({ body })` en una ruta de creación ves el 400 en la primera petición, así que un body sin validar nunca llega a un handler. Aplica a todos los métodos. Tras `@Validate`, `ctx.req.body` también tiene el valor validado, así que el código que lo lea por error no recibe campos que el schema descartó. `false` lo desactiva y todas las rutas reciben el body tal cual |
-| `concealRoutes` | activo con guard de autenticación | Una ruta inexistente responde 401 a quien no tiene sesión, igual que una ruta privada. Así no se puede descubrir qué rutas existen. Con sesión válida responde 404; las rutas `@Public` no cambian. También se aplica a los handshakes de `viga/websocket`: una ruta desconocida responde como un gateway privado (403 con un `Origin` no permitido, 401 sin sesión, 404 con sesión). Viene activo cuando la app tiene `useAuthGuard()`, y apagado sin él para que una API totalmente pública siga respondiendo 404. `false` o `true` lo fuerzan |
-| `csrf` | `true` | Rechaza con 403 (`errors.crossSiteRequest`) un `POST` de otro sitio que el navegador puede enviar sin preflight CORS: sin cuerpo, un formulario (`urlencoded`, `multipart`) o `text/plain`. Es la única forma en que una página de otro sitio puede hacer que el navegador envíe una petición con las cookies de tus usuarios. Lee `Sec-Fetch-Site` o, si falta, compara `Origin` con el host, y corre antes de parsear el cuerpo. JSON, `PUT`, `PATCH` y `DELETE` desde otro origen no se revisan porque el navegador solo los envía tras un preflight, que decide tu configuración de CORS. Las peticiones sin ninguna de las dos cabeceras, como curl o un backend, pasan. `{ trustedOrigins: ['https://idp.example'] }` permite formularios de esos orígenes, por ejemplo el callback `form_post` de OAuth; `false` la desactiva |
+| `concealRoutes` | activo con guard de autenticación | Una ruta inexistente responde 401 a quien no tiene sesión, igual que una ruta privada. Así es más difícil averiguar qué rutas existen. Con sesión válida responde 404; las rutas `@Public` no cambian. También se aplica a los handshakes de `viga/websocket`: una ruta desconocida responde como un gateway privado (403 con un `Origin` no permitido, 401 sin sesión, 404 con sesión). Viene activo cuando la app tiene `useAuthGuard()`, y apagado sin él para que una API totalmente pública siga respondiendo 404. `false` o `true` lo fuerzan |
+| `csrf` | `true` | Rechaza con 403 (`errors.crossSiteRequest`) un `POST` de otro sitio que el navegador puede enviar sin preflight CORS: sin cuerpo, un formulario (`urlencoded`, `multipart`) o `text/plain`. Son las peticiones que una página de otro sitio puede hacer que el navegador envíe con las cookies de tus usuarios sin preflight. Lee `Sec-Fetch-Site` o, si falta, compara `Origin` con el host, y corre antes de parsear el cuerpo. JSON, `PUT`, `PATCH` y `DELETE` desde otro origen no se revisan porque el navegador solo los envía tras un preflight, que decide tu configuración de CORS. Las peticiones sin ninguna de las dos cabeceras, como curl o un backend, pasan. `{ trustedOrigins: ['https://idp.example'] }` permite formularios de esos orígenes, por ejemplo el callback `form_post` de OAuth; `false` la desactiva |
 
 - La cabecera `X-Powered-By` está siempre desactivada.
 - El 404 de rutas inexistentes no repite la ruta pedida en la respuesta.
@@ -240,7 +242,7 @@ class AuthController {
 
 ### Checklist para pruebas de seguridad
 
-El framework cubre las capas comunes; estas dependen de tu código y son lo primero que revisa una prueba de caja gris, con usuarios y roles reales:
+viga solo se encarga de algunas capas comunes. Estas dependen de tu código y son lo primero que revisa una prueba de caja gris, con usuarios y roles reales:
 
 - **Autorización por recurso (IDOR).** Que una ruta exija sesión no basta: comprueba que el recurso pertenece al usuario. Filtra en el repositorio por el usuario actual y responde 404, no 403, cuando no es suyo, para no revelar qué ids existen:
   ```ts
