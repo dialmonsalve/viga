@@ -33,6 +33,7 @@ export interface WebSocketOptions {
   maxRoomsPerClient?: number;
   handshakeTimeoutMs?: number;
   maxConnections?: number;
+  maxPendingHandshakes?: number;
   connectionsPerKey?: WsConnectionsPerKey | false;
   heartbeatMs?: number;
   messageRateLimit?: WsMessageRateLimit | false;
@@ -62,7 +63,8 @@ export function resolveOptions(options: WebSocketOptions): ResolvedWebSocketOpti
     maxRoomsPerClient: 100,
     handshakeTimeoutMs: 10_000,
     maxConnections: 10_000,
-    connectionsPerKey: false,
+    maxPendingHandshakes: 100,
+    connectionsPerKey: { max: 50 },
     heartbeatMs: 30_000,
     messageRateLimit: { max: 100, windowMs: 10_000 },
     requireValidation: true,
@@ -70,7 +72,12 @@ export function resolveOptions(options: WebSocketOptions): ResolvedWebSocketOpti
     resolveMessage: options.resolveMessage ?? options.i18n?.resolveMessage,
   };
 
-  for (const option of ['maxRoomsPerClient', 'handshakeTimeoutMs', 'maxConnections'] as const) {
+  for (const option of [
+    'maxRoomsPerClient',
+    'handshakeTimeoutMs',
+    'maxConnections',
+    'maxPendingHandshakes',
+  ] as const) {
     if (!isPositiveInteger(resolved[option])) {
       throw new Error(
         diagnostic('ws.invalidOption', { option, value: String(resolved[option]) })

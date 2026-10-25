@@ -60,6 +60,8 @@ export const DIAGNOSTICS = {
     '{gateway}.{method} handles "{event}" without a schema, required by requireValidation',
   'ws.unhandledException': 'Unhandled exception in a WebSocket gateway',
   'ws.invalidOption': '{option} must be a positive integer, received {value}',
+  'ws.untrustedForwardedFor':
+    'A WebSocket handshake carries X-Forwarded-For but trustProxy does not trust its sender, so connectionsPerKey counts every client behind that proxy as one; set trustProxy to the number of proxies in front of the app',
   'ws.handshakeTimeout':
     'authenticate did not respond within {ms} ms, so the handshake was rejected with 503',
   'ws.missingPackage':

@@ -19,6 +19,7 @@ import {
   createErrorHandler,
   notFoundHandler,
 } from './http/error-handler.ts';
+import { CLIENT_IP, clientIpResolver } from './http/client-ip.ts';
 import type { MessageResolver } from './http/messages.ts';
 import {
   CONCEAL_ROUTES,
@@ -221,6 +222,7 @@ export class App {
         { provide: LOGGER, useValue: this.logger },
         { provide: PROVIDER_INSTANCES, useValue: () => this.initialized },
         { provide: CONCEAL_ROUTES, useValue: this.concealRoutes },
+        { provide: CLIENT_IP, useValue: clientIpResolver(this.express) },
       ],
     });
 

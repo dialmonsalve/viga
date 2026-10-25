@@ -22,6 +22,8 @@ import {
   ServiceUnavailableException,
   UnsupportedMediaTypeException,
 } from '../http/exceptions.ts';
+import { CLIENT_IP } from '../http/client-ip.ts';
+import { ipKey } from '../http/ip.ts';
 import { secondsUntil } from '../http/rate-limit.ts';
 import { DEFAULT_MESSAGES } from '../http/messages.ts';
 import { CONCEAL_ROUTES, normalizePath } from '../http/router.ts';
@@ -46,7 +48,6 @@ const EVENT_NAME = /^[\w.:-]{1,128}$/;
 const MESSAGE_ID = /^[\w-]{1,64}$/;
 const POLICY_VIOLATION = 1008;
 const INTERNAL_ERROR = 1011;
-const TRY_AGAIN_LATER = 1013;
 
 type MessageId = string | number;
 
@@ -64,13 +65,16 @@ interface Route {
   handlers: Map<string, (ctx: WsContext) => unknown>;
 }
 
+interface Slot {
+  settle(): void;
+  release(): void;
+}
+
 interface Handshake {
   route: Route;
   state: Record<string, unknown>;
-  key: string | undefined;
+  slot: Slot;
 }
-
-const byRemoteAddress = (req: IncomingMessage) => req.socket.remoteAddress;
 
 export interface WsBroadcastOptions {
   except?: WsClient;
@@ -231,10 +235,13 @@ export class WsServer implements OnServerListen, OnServerClose {
   private readonly instances = inject(PROVIDER_INSTANCES);
   private readonly logger = inject(LOGGER);
   private readonly concealRoutes = inject(CONCEAL_ROUTES);
+  private readonly clientIp = inject(CLIENT_IP);
   private readonly rooms = new Rooms();
   private readonly connected = new Set<Client>();
   private readonly handshakes = new WeakMap<IncomingMessage, Handshake>();
   private readonly perKey = new Map<string, number>();
+  private pending = 0;
+  private warnedForwardedFor = false;
   private routes = new Map<string, Route>();
   private attached = false;
 
@@ -350,12 +357,45 @@ export class WsServer implements OnServerListen, OnServerClose {
   }
 
   private isFull() {
-    return this.connected.size >= this.options.maxConnections;
+    return this.connected.size + this.pending >= this.options.maxConnections;
   }
 
   private keyOf(req: IncomingMessage) {
     const limit = this.options.connectionsPerKey;
-    return limit ? (limit.key ?? byRemoteAddress)(req) : undefined;
+    if (!limit) return undefined;
+    if (limit.key) return limit.key(req);
+
+    const socketIp = req.socket.remoteAddress;
+    const ip = this.clientIp(req) ?? socketIp;
+    if (!this.warnedForwardedFor && req.headers['x-forwarded-for'] !== undefined && ip === socketIp) {
+      this.warnedForwardedFor = true;
+      this.logger.warn(diagnostic('ws.untrustedForwardedFor'));
+    }
+    return ip === undefined ? undefined : ipKey(ip);
+  }
+
+  private reserve(key: string | undefined, req: IncomingMessage): Slot {
+    this.pending++;
+    this.track(key, 1);
+    let pending = true;
+    let held = true;
+
+    const slot: Slot = {
+      settle: () => {
+        if (!pending) return;
+        pending = false;
+        this.pending--;
+        req.socket.off('close', slot.release);
+      },
+      release: () => {
+        slot.settle();
+        if (!held) return;
+        held = false;
+        this.track(key, -1);
+      },
+    };
+    req.socket.once('close', slot.release);
+    return slot;
   }
 
   private isKeyFull(key: string | undefined) {
@@ -380,27 +420,40 @@ export class WsServer implements OnServerListen, OnServerClose {
   private async verify(req: IncomingMessage): Promise<WsVerdict> {
     const path = pathOf(req);
     const route = path === undefined ? undefined : this.routes.get(path);
-    if (!route) return this.concealRoutes ? this.concealed(req) : { action: 'ignore' };
+    if (!route && !this.concealRoutes) return { action: 'ignore' };
+    if (this.pending >= this.options.maxPendingHandshakes) {
+      return route ? { action: 'reject', status: 503 } : { action: 'ignore', status: 503 };
+    }
+    if (!route) return this.concealed(req);
     if (this.isFull()) return { action: 'reject', status: 503 };
     const key = this.keyOf(req);
     if (this.isKeyFull(key)) return { action: 'reject', status: 429 };
     if (this.hasForbiddenOrigin(req)) return { action: 'reject', status: 403 };
 
+    const slot = this.reserve(key, req);
     let state: Record<string, unknown> = {};
     if (!route.isPublic) {
       const auth = await this.checkAuthentication(req);
-      if ('status' in auth) return { action: 'reject', status: auth.status };
+      if ('status' in auth) {
+        slot.release();
+        return { action: 'reject', status: auth.status };
+      }
       state = auth.state;
     }
 
-    this.handshakes.set(req, { route, state, key });
+    this.handshakes.set(req, { route, state, slot });
     return { action: 'accept' };
   }
 
   private async concealed(req: IncomingMessage): Promise<WsVerdict> {
     if (this.hasForbiddenOrigin(req)) return { action: 'ignore', status: 403 };
-    const auth = await this.checkAuthentication(req);
-    return { action: 'ignore', status: 'status' in auth ? auth.status : 404 };
+    this.pending++;
+    try {
+      const auth = await this.checkAuthentication(req);
+      return { action: 'ignore', status: 'status' in auth ? auth.status : 404 };
+    } finally {
+      this.pending--;
+    }
   }
 
   private hasForbiddenOrigin(req: IncomingMessage) {
@@ -450,15 +503,11 @@ export class WsServer implements OnServerListen, OnServerClose {
       connection.close(INTERNAL_ERROR);
       return;
     }
-    const { route, state, key } = handshake;
-    if (this.isFull() || this.isKeyFull(key)) {
-      connection.close(TRY_AGAIN_LATER);
-      return;
-    }
+    const { route, state, slot } = handshake;
+    slot.settle();
 
     const client = new Client(state, this.localeOf(req), connection, this.rooms, this.options);
     this.connected.add(client);
-    this.track(key, 1);
 
     const ready = this.inContext(client, async () => route.gateway.onConnection?.(client))
       .then(
@@ -478,7 +527,7 @@ export class WsServer implements OnServerListen, OnServerClose {
     connection.onClose((code, reason) => {
       client.markClosed();
       this.connected.delete(client);
-      this.track(key, -1);
+      slot.release();
       void ready.then(async (ok) => {
         if (!ok) return;
         try {

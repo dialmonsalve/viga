@@ -104,9 +104,12 @@ async function connect(url: string, headers: Record<string, string> = {}): Promi
 async function handshakeStatus(url: string, headers: Record<string, string> = {}) {
   const ws = new WebSocket(url, { headers });
   ws.on('error', () => undefined);
-  const [, response] = (await once(ws, 'unexpected-response')) as [unknown, { statusCode: number }];
+  const status = await new Promise<number>((resolve) => {
+    ws.once('unexpected-response', (_req, response) => resolve(response.statusCode ?? 0));
+    ws.once('open', () => resolve(101));
+  });
   ws.terminate();
-  return response.statusCode;
+  return status;
 }
 
 const Echo = z.object({ text: z.string().min(1) });
@@ -228,6 +231,122 @@ describe('viga/websocket', () => {
 
       assert.equal(await handshakeStatus(`${url}/echo`, { 'x-client': 'ana' }), 429);
       for (const socket of [ana, beto, ...anonymous]) socket.ws.close();
+    });
+
+    it('por defecto limita a 50 las conexiones por IP', async () => {
+      const { url } = await start([EchoModule]);
+      const sockets = await Promise.all(Array.from({ length: 50 }, () => connect(`${url}/echo`)));
+
+      assert.equal(await handshakeStatus(`${url}/echo`), 429);
+      for (const socket of sockets) socket.ws.close();
+    });
+
+    it('con trustProxy cuenta por la IP real del cliente y agrupa IPv6 por /56', async () => {
+      const { url } = await start([EchoModule], { connectionsPerKey: { max: 1 } }, { trustProxy: 1 });
+      const first = await connect(`${url}/echo`, { 'x-forwarded-for': '2001:db8:aa:bb01::1' });
+
+      assert.equal(await handshakeStatus(`${url}/echo`, { 'x-forwarded-for': '2001:db8:aa:bbff::9' }), 429);
+      const other = await connect(`${url}/echo`, { 'x-forwarded-for': '198.51.100.7' });
+      assert.equal(await handshakeStatus(`${url}/echo`, { 'x-forwarded-for': '::ffff:198.51.100.7' }), 429);
+      first.ws.close();
+      other.ws.close();
+    });
+
+    it('avisa una vez si llega X-Forwarded-For y trustProxy no está configurado', async () => {
+      const warnings: string[] = [];
+      const logger = { ...silentLogger, warn: (message: string) => warnings.push(message) };
+      const { url } = await start([EchoModule], {}, { logger });
+      const sockets = [
+        await connect(`${url}/echo`, { 'x-forwarded-for': '198.51.100.7' }),
+        await connect(`${url}/echo`, { 'x-forwarded-for': '198.51.100.8' }),
+      ];
+
+      assert.equal(warnings.length, 1);
+      assert.match(warnings[0]!, /X-Forwarded-For/);
+      for (const socket of sockets) socket.ws.close();
+    });
+
+    describe('handshakes pendientes', () => {
+      const until = async (condition: () => boolean) => {
+        while (!condition()) await new Promise((resolve) => setTimeout(resolve, 5));
+      };
+
+      const gated = () => {
+        const gate = Promise.withResolvers<boolean>();
+        const state = { calls: 0 };
+        const authenticate = () => {
+          state.calls++;
+          return gate.promise;
+        };
+        return { gate, state, authenticate };
+      };
+
+      it('rechaza con 503 sin llamar a authenticate cuando se alcanza maxPendingHandshakes', async () => {
+        const { gate, state, authenticate } = gated();
+        const { url } = await start([PrivateModule], { authenticate, maxPendingHandshakes: 2 });
+        const pending = [connect(`${url}/private`), connect(`${url}/private`)];
+        await until(() => state.calls === 2);
+
+        assert.equal(await handshakeStatus(`${url}/private`), 503);
+        assert.equal(state.calls, 2);
+
+        gate.resolve(true);
+        for (const socket of await Promise.all(pending)) socket.ws.close();
+      });
+
+      it('connectionsPerKey cuenta también los handshakes que siguen autenticando', async () => {
+        const { gate, state, authenticate } = gated();
+        const { url } = await start([PrivateModule], { authenticate, connectionsPerKey: { max: 1 } });
+        const pending = connect(`${url}/private`);
+        await until(() => state.calls === 1);
+
+        assert.equal(await handshakeStatus(`${url}/private`), 429);
+        assert.equal(state.calls, 1);
+
+        gate.resolve(true);
+        (await pending).ws.close();
+      });
+
+      it('si el cliente corta mientras autentica, mantiene el hueco hasta que authenticate termina', async () => {
+        const { gate, state, authenticate } = gated();
+        const { app, url } = await start([PrivateModule], {
+          authenticate,
+          maxPendingHandshakes: 1,
+          connectionsPerKey: { max: 1 },
+        });
+        const aborted = new WebSocket(`${url}/private`);
+        aborted.on('error', () => undefined);
+        await until(() => state.calls === 1);
+        aborted.terminate();
+        await new Promise((resolve) => setTimeout(resolve, 20));
+
+        assert.equal(await handshakeStatus(`${url}/private`), 503);
+        gate.resolve(true);
+        await until(() => app.get(WsServer).clients.size === 0);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+
+        const socket = await connect(`${url}/private`);
+        assert.equal(socket.ws.readyState, WebSocket.OPEN);
+        socket.ws.close();
+      });
+
+      it('con concealRoutes una ruta desconocida también ocupa un hueco pendiente', async () => {
+        const { gate, state, authenticate } = gated();
+        const { url } = await start(
+          [PrivateModule],
+          { authenticate, maxPendingHandshakes: 1 },
+          { concealRoutes: true }
+        );
+        const unknown = handshakeStatus(`${url}/nope`);
+        await until(() => state.calls === 1);
+
+        assert.equal(await handshakeStatus(`${url}/private`), 503);
+        assert.equal(await handshakeStatus(`${url}/nope`), 503);
+        assert.equal(state.calls, 1);
+
+        gate.resolve(true);
+        assert.equal(await unknown, 404);
+      });
     });
 
     it('rechaza con 403 un Origin que no está permitido', async () => {
@@ -723,6 +842,10 @@ describe('viga/websocket', () => {
       assert.throws(
         () => WebSocketModule.forRoot({ maxConnections: -1 }),
         /maxConnections must be a positive integer, received -1/
+      );
+      assert.throws(
+        () => WebSocketModule.forRoot({ maxPendingHandshakes: 0 }),
+        /maxPendingHandshakes must be a positive integer, received 0/
       );
       assert.throws(
         () => WebSocketModule.forRoot({ connectionsPerKey: { max: 0 } }),
