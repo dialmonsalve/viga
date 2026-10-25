@@ -10,7 +10,9 @@ import {
   Module,
   NotFoundException,
   Post,
+  Public,
   inject,
+  silentLogger,
   type ApiErrorBody,
   type HttpContext,
 } from '../../src/index.ts';
@@ -231,5 +233,44 @@ describe('resolveMessage', () => {
     const { body } = await server.request<ApiErrorBody>('/nope');
 
     assert.equal(body.message, 'The requested route does not exist');
+  });
+});
+
+describe('errores después de empezar a responder', () => {
+  @Public()
+  @Controller('stream')
+  class StreamController {
+    @Get()
+    async partial({ res }: HttpContext) {
+      res.write('parcial');
+      throw new Error('boom');
+    }
+  }
+
+  @Module({ controllers: [StreamController] })
+  class StreamModule {}
+
+  it('registra el error una sola vez en el logger y corta la respuesta', async () => {
+    const logged: unknown[] = [];
+    const printed: unknown[] = [];
+    const consoleError = console.error;
+    console.error = (...args: unknown[]) => printed.push(args);
+
+    const server = await startTestServer(StreamModule, {
+      logger: { ...silentLogger, error: (_message, error) => logged.push(error) },
+    });
+
+    try {
+      const response = await fetch(server.url('/stream'));
+      await assert.rejects(response.text());
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      assert.equal(logged.length, 1);
+      assert.equal((logged[0] as Error).message, 'boom');
+      assert.deepEqual(printed, []);
+    } finally {
+      console.error = consoleError;
+      await server.close();
+    }
   });
 });

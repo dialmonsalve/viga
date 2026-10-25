@@ -16,7 +16,7 @@ First public release.
 - Per-request context with `createContextKey` and `runInNewContext`.
 - Secure defaults: security headers, body size limit, server timeouts, request id, `X-Powered-By` disabled, and the optional `requireValidation` (which also drops unvalidated bodies in any other method) and `concealRoutes` (which also covers WebSocket handshakes). `trustProxy: true` logs a warning because it lets clients forge their IP.
 - Rate limiting with `rateLimit()` and `@RateLimit()`, with a pluggable store. The in-memory store is bounded (`maxKeys`) and hashes long keys.
-- HTTP exceptions with stable codes, `resolveMessage` and developer diagnostics that can be translated with `setDiagnostics`.
+- HTTP exceptions with stable codes, `resolveMessage` and developer diagnostics that can be translated with `setDiagnostics`. A failure after the response started is logged once and closes the connection.
 - `listen()` defaults to port 3000.
 - `OnServerListen` and `OnServerClose` lifecycle hooks.
 - Guards and interceptors accept a context type, so they can be used outside HTTP.

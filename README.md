@@ -258,6 +258,7 @@ The framework covers the common layers; these depend on your code and are the fi
 - The `message` is decided by `resolveMessage`, an optional `createApp` hook. If you don't set it or it returns `undefined`, viga uses its default English messages for its own codes (`errors.*`).
 - If the code isn't known, it is treated as free text: it goes as-is in `message`, and `code` takes the one for the HTTP status (`errors.notFound`).
 - Unexpected errors respond 500 without leaking the internal message. Malformed JSON responds 400.
+- If a handler fails after it started writing the response (for example, a stream), the error goes to the logger and the connection is closed, so the client knows the response is incomplete.
 
 ```ts
 createApp({

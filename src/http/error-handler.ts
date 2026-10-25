@@ -101,6 +101,11 @@ export function createErrorHandler(
       }
     }
 
+    if (res.headersSent) {
+      res.destroy();
+      return;
+    }
+
     const body: ApiErrorBody = {
       statusCode,
       ...describeException(exception, req, resolveMessage),
