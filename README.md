@@ -13,8 +13,8 @@ The core only covers what every server needs. Everything else lives in optional 
 | `viga/i18n` | Message catalogs, `Accept-Language` negotiation, framework messages in en/es | Nothing |
 | `viga/drizzle` | `DrizzleModule` and `DatabaseService` with pool shutdown | `drizzle-orm`, `pg` |
 | `viga/config` | `ConfigModule` that validates and types environment variables at startup | Nothing |
-| `viga/pagination` | `@Paginate` with typed results, safe links and limits | Nothing |
-| `viga/websocket` | Gateways, rooms and a public adapter interface, with secure defaults | `ws` |
+| `viga/pagination` | `@Paginate` with typed results, relative links and limits | Nothing |
+| `viga/websocket` | Gateways, rooms and a public adapter interface, with restrictive defaults | `ws` |
 
 ## Acknowledgements
 
@@ -193,7 +193,9 @@ import cors from 'cors';
 app.use(cors({ origin: 'https://my-frontend.com', credentials: true }));
 ```
 
-### Secure by default
+### Security defaults
+
+These defaults reduce common risks, but they don't make an application secure on their own, and viga can't guarantee that it is. Security also depends on your code, configuration, dependencies and infrastructure, so test and review your app before going to production.
 
 | `createApp` option | Default | What it controls |
 |---|---|---|
@@ -203,8 +205,8 @@ app.use(cors({ origin: 'https://my-frontend.com', credentials: true }));
 | `timeouts` | `{ headers: 10_000, request: 30_000, keepAlive: 5_000 }` | Milliseconds to receive the headers, the full request, and between requests on one connection. They limit slow-connection attacks |
 | `requestId` | `true` | Generates a UUID per request, sends it in `X-Request-Id`, includes it in errors (`requestId`) and in the 500 log. `{ trustIncoming: true }` reuses the one your gateway sends if it only has letters, digits, `.`, `_` or `-` (128 max); `{ header }` changes the header; `false` disables it |
 | `requireValidation` | `true` | A route without a body schema doesn't accept a body: it isn't parsed, and a request that sends one responds 400 `errors.unexpectedBody`. A `POST` without a body, like a logout, needs no decorator, and if you forget `@Validate({ body })` on a create route you see the 400 on the first request, so an unvalidated body never reaches a handler. It applies to every method. After `@Validate`, `ctx.req.body` holds the validated value too, so code that reads it by mistake doesn't get fields the schema dropped. `false` turns it off and every route receives the body as sent |
-| `concealRoutes` | on with an auth guard | An unknown route responds 401 to anyone without a session, just like a private route, so routes can't be discovered. With a valid session it responds 404; `@Public` routes don't change. It also applies to `viga/websocket` handshakes: an unknown path answers like a private gateway (403 for a forbidden `Origin`, 401 without a session, 404 with one). It's on by default when the app has `useAuthGuard()`, and off without one so a fully public API keeps answering 404. `false` or `true` forces it |
-| `csrf` | `true` | Rejects with 403 (`errors.crossSiteRequest`) a `POST` from another site that a browser can send without a CORS preflight: no body, a form (`urlencoded`, `multipart`) or `text/plain`. It's the only way a page on another site can make the browser send a request with your users' cookies. It reads `Sec-Fetch-Site`, or compares `Origin` with the host when that header is missing, and runs before the body is parsed. JSON, `PUT`, `PATCH` and `DELETE` from another origin aren't checked because the browser sends them only after a preflight, which your CORS setup decides. Requests without either header, such as curl or a backend, pass. `{ trustedOrigins: ['https://idp.example'] }` allows forms from those origins, for example an OAuth `form_post` callback; `false` disables it |
+| `concealRoutes` | on with an auth guard | An unknown route responds 401 to anyone without a session, just like a private route, which makes it harder to find out which routes exist. With a valid session it responds 404; `@Public` routes don't change. It also applies to `viga/websocket` handshakes: an unknown path answers like a private gateway (403 for a forbidden `Origin`, 401 without a session, 404 with one). It's on by default when the app has `useAuthGuard()`, and off without one so a fully public API keeps answering 404. `false` or `true` forces it |
+| `csrf` | `true` | Rejects with 403 (`errors.crossSiteRequest`) a `POST` from another site that a browser can send without a CORS preflight: no body, a form (`urlencoded`, `multipart`) or `text/plain`. These are the requests a page on another site can make the browser send with your users' cookies without a preflight. It reads `Sec-Fetch-Site`, or compares `Origin` with the host when that header is missing, and runs before the body is parsed. JSON, `PUT`, `PATCH` and `DELETE` from another origin aren't checked because the browser sends them only after a preflight, which your CORS setup decides. Requests without either header, such as curl or a backend, pass. `{ trustedOrigins: ['https://idp.example'] }` allows forms from those origins, for example an OAuth `form_post` callback; `false` disables it |
 
 - The `X-Powered-By` header is always disabled.
 - The 404 for unknown routes doesn't echo the requested path.
@@ -240,7 +242,7 @@ class AuthController {
 
 ### Security testing checklist
 
-The framework covers the common layers; these depend on your code and are the first thing a gray-box test checks, with real users and roles:
+viga only handles some common layers. These depend on your code and are the first thing a gray-box test checks, with real users and roles:
 
 - **Per-resource authorization (IDOR).** Requiring a session isn't enough: check that the resource belongs to the user. Filter by the current user in the repository and respond 404, not 403, when it isn't theirs, so you don't reveal which ids exist:
   ```ts
