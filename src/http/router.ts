@@ -64,11 +64,8 @@ export function mountController(
       );
     }
 
-    if (
-      pipeline.requireValidation &&
-      METHODS_WITH_BODY.has(route.method) &&
-      !validatedParts(handler).has('body')
-    ) {
+    const unvalidatedBody = pipeline.requireValidation && !validatedParts(handler).has('body');
+    if (unvalidatedBody && METHODS_WITH_BODY.has(route.method)) {
       throw new Error(
         diagnostic('router.missingBodyValidation', {
           controller: ControllerClass.name,
@@ -81,6 +78,7 @@ export function mountController(
     const isPublic = definition.isPublic || definition.publicRoutes[route.handlerName] === true;
 
     router[route.method](normalizePath(route.path), async (req: Request, res: Response) => {
+      if (unvalidatedBody) req.body = undefined;
       const ctx = createContext(req, res);
       if (!isPublic) await authenticate(pipeline.authGuard, ctx);
       await runGuards(guards, ctx);

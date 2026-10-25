@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
+import { request as httpRequest } from 'node:http';
 import { after, before, describe, it } from 'node:test';
 import { z } from 'zod';
 import {
   Controller,
   DEFAULT_SECURITY_HEADERS,
+  Delete,
   Get,
   Module,
   Patch,
@@ -284,6 +286,80 @@ describe('requireValidation', () => {
       app.init(),
       /LooseController\.update handles PATCH but has no @Validate\(\{ body \}\)/
     );
+  });
+
+  describe('rutas sin body validado en otros métodos', () => {
+    const getWithBody = (url: string, payload: string) =>
+      new Promise<unknown>((resolve, reject) => {
+        const req = httpRequest(
+          url,
+          {
+            method: 'GET',
+            agent: false,
+            headers: {
+              'content-type': 'application/json',
+              'content-length': String(Buffer.byteLength(payload)),
+            },
+          },
+          (res) => {
+            let text = '';
+            res.setEncoding('utf8');
+            res.on('data', (chunk: string) => (text += chunk));
+            res.on('end', () => resolve(JSON.parse(text)));
+          }
+        );
+        req.on('error', reject);
+        req.end(payload);
+      });
+
+    @Public()
+    @Controller('items')
+    class ItemsController {
+      @Delete(':id')
+      remove({ body, req }: HttpContext) {
+        return { body: body ?? null, raw: req.body ?? null };
+      }
+
+      @Get()
+      list({ body }: HttpContext) {
+        return { body: body ?? null };
+      }
+    }
+
+    @Module({ controllers: [ItemsController] })
+    class ItemsModule {}
+
+    it('con requireValidation, el handler no recibe el body ni en ctx.body ni en ctx.req.body', async () => {
+      const server = await startTestServer(ItemsModule, { requireValidation: true });
+
+      try {
+        const removed = await server.request('/items/1', {
+          method: 'DELETE',
+          json: { role: 'admin' },
+        });
+        const listed = await getWithBody(server.url('/items'), JSON.stringify({ role: 'admin' }));
+
+        assert.deepEqual(removed.body, { body: null, raw: null });
+        assert.deepEqual(listed, { body: null });
+      } finally {
+        await server.close();
+      }
+    });
+
+    it('sin requireValidation, el body llega como antes', async () => {
+      const server = await startTestServer(ItemsModule);
+
+      try {
+        const removed = await server.request('/items/1', {
+          method: 'DELETE',
+          json: { role: 'admin' },
+        });
+
+        assert.deepEqual(removed.body, { body: { role: 'admin' }, raw: { role: 'admin' } });
+      } finally {
+        await server.close();
+      }
+    });
   });
 
   it('no exige nada si la opción está desactivada', async () => {

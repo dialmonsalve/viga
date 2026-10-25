@@ -15,6 +15,7 @@ export interface TestResponse<T = any> {
 
 export interface TestServer {
   app: App;
+  url(path: string): string;
   request<T = any>(path: string, options?: RequestOptions): Promise<TestResponse<T>>;
   close(): Promise<void>;
 }
@@ -39,6 +40,7 @@ export async function startTestServer(
 
   return {
     app,
+    url: (path) => `${baseUrl}${path}`,
     async request(path, { method = 'GET', json, body, headers = {} } = {}) {
       const response = await fetch(`${baseUrl}${path}`, {
         method,
