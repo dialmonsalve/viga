@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 import type { AddressInfo } from 'node:net';
+import { fileURLToPath } from 'node:url';
 import { after, before, describe, it } from 'node:test';
 import {
   Controller,
@@ -255,6 +258,45 @@ describe('App', () => {
     await server.close();
 
     await assert.rejects(server.request('/'));
+  });
+
+  describe('enableShutdownHooks()', () => {
+    const fixture = fileURLToPath(new URL('./fixtures/shutdown-app.ts', import.meta.url));
+
+    const runAndSignal = async (signal: NodeJS.Signals, args: string[] = []) => {
+      const child = spawn(process.execPath, ['--import', 'tsx', fixture, ...args], {
+        stdio: ['ignore', 'pipe', 'inherit'],
+      });
+      let output = '';
+      let signaled = false;
+      child.stdout.setEncoding('utf8');
+      child.stdout.on('data', (chunk: string) => {
+        output += chunk;
+        if (!signaled && output.includes('ready\n')) {
+          signaled = true;
+          child.kill(signal);
+        }
+      });
+      const [code] = (await once(child, 'exit')) as [number | null];
+      return { code, output };
+    };
+
+    it('cierra la app y termina con 128 + la señal aunque el event loop siga vivo', async () => {
+      const term = await runAndSignal('SIGTERM');
+      const int = await runAndSignal('SIGINT');
+
+      assert.equal(term.code, 143);
+      assert.match(term.output, /destroyed/);
+      assert.equal(int.code, 130);
+      assert.match(int.output, /destroyed/);
+    });
+
+    it('termina con código 1 si el cierre falla', async () => {
+      const { code, output } = await runAndSignal('SIGTERM', ['--fail-on-destroy']);
+
+      assert.equal(code, 1);
+      assert.match(output, /destroyed/);
+    });
   });
 
   it('listen() sin puerto escucha en el 3000', async () => {

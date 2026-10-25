@@ -92,7 +92,7 @@ Providers can implement `OnModuleInit` and `OnModuleDestroy`:
 - `listen(port?, host?)` listens on port 3000 unless told otherwise. `listen(0)` picks a random free port. viga doesn't read `process.env.PORT`; if you need it, pass it explicitly: `app.listen(Number(process.env.PORT ?? 3000))`.
 - `init()` (or `listen()`) creates every provider and runs `onModuleInit` in dependency order. If a hook returns a promise, it is awaited.
 - `close()` closes the server and runs `onModuleDestroy` in reverse order. If one fails, it still tries to close the rest and throws an `AggregateError`. If startup failed halfway, only the providers that finished `onModuleInit` are closed.
-- `enableShutdownHooks()` calls `close()` on `SIGTERM` or `SIGINT`.
+- `enableShutdownHooks()` calls `close()` on `SIGTERM` or `SIGINT`, then exits with the signal's standard code (143 or 130), or 1 if closing failed. It exits even if something keeps the event loop alive, and also works when Node is PID 1 in a container.
 
 ### Private routes by default
 

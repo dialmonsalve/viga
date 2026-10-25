@@ -1,6 +1,7 @@
 import express, { Router, type Application, type RequestHandler } from 'express';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { constants } from 'node:os';
 import { contextMiddleware } from './context.ts';
 import { resolveGuard, type Guard } from './decorators/use-guards.ts';
 import { resolveInterceptor, type InterceptorRef } from './decorators/use-interceptors.ts';
@@ -179,10 +180,16 @@ export class App {
       process.once(signal, () => {
         this.logger.info(diagnostic('app.signalReceived', { signal }));
         this.close()
-          .catch((error: unknown) =>
-            this.logger.error(diagnostic('app.closeFailed'), error)
+          .then(
+            () => {
+              process.exitCode = 128 + constants.signals[signal];
+            },
+            (error: unknown) => {
+              this.logger.error(diagnostic('app.closeFailed'), error);
+              process.exitCode = 1;
+            }
           )
-          .finally(() => process.kill(process.pid, signal));
+          .finally(() => process.exit());
       });
     }
     return this;

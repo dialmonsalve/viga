@@ -92,7 +92,7 @@ Los providers pueden implementar `OnModuleInit` y `OnModuleDestroy`:
 - `listen(port?, host?)` escucha en el puerto 3000 si no se indica otro. `listen(0)` usa un puerto libre aleatorio. viga no lee `process.env.PORT`; si lo necesitas, pásalo explícitamente: `app.listen(Number(process.env.PORT ?? 3000))`.
 - `init()` (o `listen()`) crea todos los providers y ejecuta `onModuleInit` en orden de dependencias. Si un hook devuelve una promesa, se espera.
 - `close()` cierra el servidor y ejecuta `onModuleDestroy` en orden inverso. Si alguno falla, intenta cerrar los demás y lanza un `AggregateError`. Si el arranque falló a medias, solo se cierran los providers que terminaron su `onModuleInit`.
-- `enableShutdownHooks()` llama a `close()` al recibir `SIGTERM` o `SIGINT`.
+- `enableShutdownHooks()` llama a `close()` al recibir `SIGTERM` o `SIGINT` y después termina el proceso con el código estándar de la señal (143 o 130), o con 1 si el cierre falló. Termina aunque algo mantenga vivo el event loop, y funciona también cuando Node es el PID 1 de un contenedor.
 
 ### Rutas privadas por defecto
 

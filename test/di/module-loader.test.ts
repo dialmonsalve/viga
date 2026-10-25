@@ -209,6 +209,56 @@ describe('loadModules', () => {
     assert.ok(reports.clock instanceof Clock);
   });
 
+  describe('módulos globales creados con forRoot()', () => {
+    const SETTINGS = new InjectionToken<string>('SETTINGS');
+
+    const SettingsModule = {
+      forRoot(value: string) {
+        @Module({
+          global: true,
+          providers: [{ provide: SETTINGS, useValue: value }],
+          exports: [SETTINGS],
+        })
+        class SettingsRootModule {}
+
+        return SettingsRootModule;
+      },
+    };
+
+    @Controller()
+    class SettingsController {
+      readonly settings = inject(SETTINGS);
+    }
+
+    it('rechaza llamar a forRoot() otra vez fuera del módulo raíz', () => {
+      @Module({ imports: [SettingsModule.forRoot('feature')], controllers: [SettingsController] })
+      class FeatureModule {}
+
+      @Module({ imports: [SettingsModule.forRoot('root'), FeatureModule] })
+      class RootModule {}
+
+      assert.throws(
+        () => loadModules(RootModule),
+        /SettingsRootModule is global and is imported from FeatureModule, but not from the root module/
+      );
+    });
+
+    it('acepta la misma clase de forRoot() en el raíz y en otro módulo', () => {
+      const Settings = SettingsModule.forRoot('compartido');
+
+      @Module({ imports: [Settings], controllers: [SettingsController] })
+      class FeatureModule {}
+
+      @Module({ imports: [Settings, FeatureModule] })
+      class RootModule {}
+
+      const [controller] = instantiateControllers(RootModule);
+
+      assert.ok(controller instanceof SettingsController);
+      assert.equal(controller.settings, 'compartido');
+    });
+  });
+
   it('acepta un módulo global como módulo raíz', () => {
     @Module({ global: true })
     class RootModule {}

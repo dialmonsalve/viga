@@ -12,7 +12,7 @@ First public release.
 - Dependency injection with `inject()` in class fields: class, `useClass`, `useValue` and `useFactory` providers, `InjectionToken`, and detection of circular dependencies and imports.
 - Controllers with standard TC39 decorators, `@HttpCode`, guards, interceptors and `@Public`.
 - Private routes by default through `app.useAuthGuard()`.
-- Lifecycle hooks `OnModuleInit` and `OnModuleDestroy`, `close()` that only closes providers that finished starting, and `enableShutdownHooks()`.
+- Lifecycle hooks `OnModuleInit` and `OnModuleDestroy`, `close()` that only closes providers that finished starting, and `enableShutdownHooks()`, which exits with the signal's standard code (also as PID 1 in a container).
 - Per-request context with `createContextKey` and `runInNewContext`.
 - Secure defaults: security headers, body size limit, server timeouts, request id, `X-Powered-By` disabled, and the optional `requireValidation` and `concealRoutes`.
 - Rate limiting with `rateLimit()` and `@RateLimit()`, with a pluggable store.
