@@ -20,6 +20,7 @@ import {
   notFoundHandler,
 } from './http/error-handler.ts';
 import { CLIENT_IP, clientIpResolver } from './http/client-ip.ts';
+import { csrfProtection, type CsrfOptions } from './http/csrf.ts';
 import type { MessageResolver } from './http/messages.ts';
 import {
   CONCEAL_ROUTES,
@@ -53,6 +54,7 @@ export interface AppOptions {
   timeouts?: ServerTimeouts;
   requireValidation?: boolean;
   concealRoutes?: boolean;
+  csrf?: boolean | CsrfOptions;
 }
 
 const DEFAULT_PORT = 3000;
@@ -79,6 +81,7 @@ export class App {
   private readonly requireValidation: boolean;
   private readonly concealRoutes: boolean;
   private readonly resolveMessage?: MessageResolver;
+  private readonly csrf: RequestHandler | undefined;
   private readonly middlewares: RequestHandler[] = [];
   private readonly interceptors: InterceptorRef[] = [];
   private readonly initialized: unknown[] = [];
@@ -110,6 +113,10 @@ export class App {
     this.timeouts = { ...DEFAULT_TIMEOUTS, ...options.timeouts };
     this.requireValidation = options.requireValidation ?? false;
     this.concealRoutes = options.concealRoutes ?? false;
+    this.csrf =
+      options.csrf === false
+        ? undefined
+        : csrfProtection(options.csrf === true ? {} : options.csrf);
     this.resolveMessage = options.resolveMessage;
     this.express.disable('x-powered-by');
     if (options.trustProxy !== undefined)
@@ -250,6 +257,7 @@ export class App {
     if (this.securityHeaders)
       this.express.use(securityHeaders(this.securityHeaders));
     if (this.middlewares.length > 0) this.express.use(...this.middlewares);
+    if (this.csrf) this.express.use(this.csrf);
     if (this.bodyParser) {
       this.express.use(express.json({ limit: this.bodyLimit }));
       this.express.use(

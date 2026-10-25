@@ -199,6 +199,7 @@ app.use(cors({ origin: 'https://my-frontend.com', credentials: true }));
 | `requestId` | `true` | Generates a UUID per request, sends it in `X-Request-Id`, includes it in errors (`requestId`) and in the 500 log. `{ trustIncoming: true }` reuses the one your gateway sends if it only has letters, digits, `.`, `_` or `-` (128 max); `{ header }` changes the header; `false` disables it |
 | `requireValidation` | `false` | With `true`, the app doesn't start if a `POST`, `PUT` or `PATCH` route has no `@Validate({ body })`. A route without a body declares it with `@Validate({ body: z.strictObject({}).optional() })`. In any other method (`GET`, `DELETE`…), a route without a body schema gets `ctx.body` and `ctx.req.body` as `undefined`, so an unvalidated body never reaches a handler |
 | `concealRoutes` | `false` | With `true`, an unknown route responds 401 to anyone without a session, just like a private route, so routes can't be discovered. With a valid session it responds 404; `@Public` routes don't change. It also applies to `viga/websocket` handshakes: an unknown path answers like a private gateway (403 for a forbidden `Origin`, 401 without a session, 404 with one) |
+| `csrf` | `true` | Rejects with 403 (`errors.crossSiteRequest`) a `POST` from another site that a browser can send without a CORS preflight: no body, a form (`urlencoded`, `multipart`) or `text/plain`. It's the only way a page on another site can make the browser send a request with your users' cookies. It reads `Sec-Fetch-Site`, or compares `Origin` with the host when that header is missing, and runs before the body is parsed. JSON, `PUT`, `PATCH` and `DELETE` from another origin aren't checked because the browser sends them only after a preflight, which your CORS setup decides. Requests without either header, such as curl or a backend, pass. `{ trustedOrigins: ['https://idp.example'] }` allows forms from those origins, for example an OAuth `form_post` callback; `false` disables it |
 
 - The `X-Powered-By` header is always disabled.
 - The 404 for unknown routes doesn't echo the requested path.
@@ -244,6 +245,7 @@ The framework covers the common layers; these depend on your code and are the fi
 - **Roles.** Put the role guard on the controller with `@UseGuards` so a new route isn't left open by accident.
 - **Brute force.** Limit login, sign-up, password recovery and code verification with `@RateLimit`.
 - **CORS.** List the allowed origins explicitly; never `origin: '*'` together with `credentials: true`.
+- **CSRF.** Keep `csrf` on if you use cookies, and never change state in a `GET`: it isn't checked because a link or an image can trigger it.
 - **Error messages.** Don't tell "user doesn't exist" apart from "wrong password": always use `UnauthorizedException()`.
 
 ### Errors

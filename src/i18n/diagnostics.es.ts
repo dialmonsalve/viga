@@ -28,6 +28,8 @@ export const diagnosticsEs = {
   'app.noAuthGuard':
     'No hay un guard de autenticación configurado, así que las {count} rutas privadas responderán 401; añade app.useAuthGuard() o marca las rutas públicas con @Public()',
   'app.publicRoutes': 'Rutas públicas: {routes}',
+  'app.invalidTrustedOrigin':
+    'csrf.trustedOrigins debe contener orígenes como https://app.example (esquema, host y puerto opcional, sin ruta ni barra final), se recibió {origin}',
   'app.getBeforeInit': 'get() solo puede llamarse después de init() o listen()',
   'app.trustProxyAll':
     'trustProxy: true toma la IP del cliente del primer valor de X-Forwarded-For, que el cliente puede falsificar para saltarse los límites; usa el número de proxies delante de la app (por ejemplo 1) o sus direcciones',

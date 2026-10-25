@@ -13,6 +13,7 @@ export const DEFAULT_MESSAGES: Readonly<Record<string, string>> = {
   'errors.validation': 'Invalid input data',
   'errors.unauthorized': 'You must sign in to continue',
   'errors.forbidden': 'You are not allowed to perform this action',
+  'errors.crossSiteRequest': 'Requests from another site are not allowed here',
   'errors.notFound': 'The requested resource does not exist',
   'errors.routeNotFound': 'The requested route does not exist',
   'errors.conflict': 'The resource already exists',

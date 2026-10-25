@@ -28,6 +28,8 @@ export const DIAGNOSTICS = {
   'app.noAuthGuard':
     'No auth guard is configured, so the {count} private routes will respond 401; add app.useAuthGuard() or mark public routes with @Public()',
   'app.publicRoutes': 'Public routes: {routes}',
+  'app.invalidTrustedOrigin':
+    'csrf.trustedOrigins must contain origins like https://app.example (scheme, host and optional port, no path or trailing slash), received {origin}',
   'app.getBeforeInit': 'get() can only be called after init() or listen()',
   'app.trustProxyAll':
     'trustProxy: true takes the client IP from the first X-Forwarded-For value, which the client can forge to bypass rate limits; use the number of proxies in front of the app (for example 1) or their addresses',

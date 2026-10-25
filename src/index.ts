@@ -3,6 +3,7 @@ import './polyfills.ts';
 export * from './decorators/index.ts';
 export { App, createApp, type AppOptions, type ServerTimeouts } from './app.ts';
 export { DEFAULT_SECURITY_HEADERS, type SecurityHeaders } from './http/security-headers.ts';
+export type { CsrfOptions } from './http/csrf.ts';
 export { REQUEST_ID, type RequestIdOptions } from './http/request-id.ts';
 export {
   MemoryRateLimitStore,

@@ -199,6 +199,7 @@ app.use(cors({ origin: 'https://mi-front.com', credentials: true }));
 | `requestId` | `true` | Genera un UUID por petición, lo envía en `X-Request-Id`, lo incluye en los errores (`requestId`) y en el log de los 500. `{ trustIncoming: true }` reutiliza el que envía tu gateway si solo tiene letras, números, `.`, `_` o `-` (máximo 128); `{ header }` cambia la cabecera; `false` lo desactiva |
 | `requireValidation` | `false` | Con `true`, la app no arranca si una ruta `POST`, `PUT` o `PATCH` no tiene `@Validate({ body })`. Una ruta sin body lo declara con `@Validate({ body: z.strictObject({}).optional() })`. En cualquier otro método (`GET`, `DELETE`…), una ruta sin schema para el body recibe `ctx.body` y `ctx.req.body` como `undefined`, así que un body sin validar nunca llega a un handler |
 | `concealRoutes` | `false` | Con `true`, una ruta inexistente responde 401 a quien no tiene sesión, igual que una ruta privada. Así no se puede descubrir qué rutas existen. Con sesión válida responde 404; las rutas `@Public` no cambian. También se aplica a los handshakes de `viga/websocket`: una ruta desconocida responde como un gateway privado (403 con un `Origin` no permitido, 401 sin sesión, 404 con sesión) |
+| `csrf` | `true` | Rechaza con 403 (`errors.crossSiteRequest`) un `POST` de otro sitio que el navegador puede enviar sin preflight CORS: sin cuerpo, un formulario (`urlencoded`, `multipart`) o `text/plain`. Es la única forma en que una página de otro sitio puede hacer que el navegador envíe una petición con las cookies de tus usuarios. Lee `Sec-Fetch-Site` o, si falta, compara `Origin` con el host, y corre antes de parsear el cuerpo. JSON, `PUT`, `PATCH` y `DELETE` desde otro origen no se revisan porque el navegador solo los envía tras un preflight, que decide tu configuración de CORS. Las peticiones sin ninguna de las dos cabeceras, como curl o un backend, pasan. `{ trustedOrigins: ['https://idp.example'] }` permite formularios de esos orígenes, por ejemplo el callback `form_post` de OAuth; `false` la desactiva |
 
 - La cabecera `X-Powered-By` está siempre desactivada.
 - El 404 de rutas inexistentes no repite la ruta pedida en la respuesta.
@@ -244,6 +245,7 @@ El framework cubre las capas comunes; estas dependen de tu código y son lo prim
 - **Roles.** Pon el guard de rol en el controlador con `@UseGuards` para que una ruta nueva no quede abierta por olvido.
 - **Fuerza bruta.** Limita login, registro, recuperación de contraseña y verificación de códigos con `@RateLimit`.
 - **CORS.** Lista los orígenes permitidos de forma explícita; nunca `origin: '*'` junto con `credentials: true`.
+- **CSRF.** Mantén `csrf` activo si usas cookies, y nunca cambies estado en un `GET`: no se revisa porque un enlace o una imagen pueden dispararlo.
 - **Mensajes de error.** No distingas "usuario no existe" de "contraseña incorrecta": usa siempre `UnauthorizedException()`.
 
 ### Errores
