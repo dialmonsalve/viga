@@ -462,6 +462,7 @@ class AppModule {}
 | `handshakeTimeoutMs` | `10_000` | Si `authenticate` tarda más, el handshake responde 503 y se registra un aviso, para que un servicio de autenticación lento no acumule sockets abiertos |
 | `allowedOrigins` | `[]` | Lista o función. Una petición con un `Origin` no permitido responde 403 (evita el secuestro de WebSocket entre sitios). Las peticiones sin `Origin` (clientes que no son navegador) se aceptan |
 | `maxConnections` | `10_000` | Conexiones simultáneas entre todos los gateways. Por encima, el handshake responde 503. Es un límite global: uno por IP necesitaría `trustProxy` detrás de un proxy |
+| `connectionsPerKey` | `false` | `{ max, key? }` limita las conexiones simultáneas por cliente; al superarlo, el handshake responde 429. `key` recibe la petición del handshake y por defecto usa la IP del socket. Detrás de un proxy, lee la IP que añade tu proxy, por ejemplo el último valor de `X-Forwarded-For` con un solo proxy: `(req) => req.headers['x-forwarded-for']?.toString().split(',').at(-1)?.trim()`. Nunca el primero: el cliente puede falsificarlo. Si devuelve `undefined`, no se limita |
 | `maxPayload` | 100 KiB | Un mensaje más grande cierra la conexión con 1009 |
 | `messageRateLimit` | `{ max: 100, windowMs: 10_000 }` | Mensajes por conexión, de cualquier evento; al superarlo responde `errors.tooManyRequests` con `details.retryAfter`. `false` lo desactiva |
 | `requireValidation` | `true` | La app no arranca si un `@OnMessage` no tiene schema. Un evento sin datos declara `z.undefined()` |

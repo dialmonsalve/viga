@@ -199,6 +199,34 @@ describe('viga/websocket', () => {
       second.ws.close();
     });
 
+    it('connectionsPerKey limita las conexiones por IP y libera el hueco al cerrar', async () => {
+      const { url } = await start([EchoModule], { connectionsPerKey: { max: 2 } });
+      const first = await connect(`${url}/echo`);
+      const second = await connect(`${url}/echo`);
+
+      assert.equal(await handshakeStatus(`${url}/echo`), 429);
+
+      first.ws.close();
+      await once(first.ws, 'close');
+      await new Promise((resolve) => setImmediate(resolve));
+      const third = await connect(`${url}/echo`);
+      assert.equal(third.ws.readyState, WebSocket.OPEN);
+      second.ws.close();
+      third.ws.close();
+    });
+
+    it('connectionsPerKey usa la key propia y no limita cuando devuelve undefined', async () => {
+      const { url } = await start([EchoModule], {
+        connectionsPerKey: { max: 1, key: (req) => req.headers['x-client']?.toString() },
+      });
+      const ana = await connect(`${url}/echo`, { 'x-client': 'ana' });
+      const beto = await connect(`${url}/echo`, { 'x-client': 'beto' });
+      const anonymous = [await connect(`${url}/echo`), await connect(`${url}/echo`)];
+
+      assert.equal(await handshakeStatus(`${url}/echo`, { 'x-client': 'ana' }), 429);
+      for (const socket of [ana, beto, ...anonymous]) socket.ws.close();
+    });
+
     it('rechaza con 403 un Origin que no está permitido', async () => {
       const { url } = await start([EchoModule], { allowedOrigins: ['https://app.example'] });
 
@@ -668,6 +696,10 @@ describe('viga/websocket', () => {
       assert.throws(
         () => WebSocketModule.forRoot({ maxConnections: -1 }),
         /maxConnections must be a positive integer, received -1/
+      );
+      assert.throws(
+        () => WebSocketModule.forRoot({ connectionsPerKey: { max: 0 } }),
+        /connectionsPerKey\.max must be a positive integer, received 0/
       );
     });
 

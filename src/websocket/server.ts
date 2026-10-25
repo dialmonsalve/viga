@@ -67,7 +67,10 @@ interface Route {
 interface Handshake {
   route: Route;
   state: Record<string, unknown>;
+  key: string | undefined;
 }
+
+const byRemoteAddress = (req: IncomingMessage) => req.socket.remoteAddress;
 
 export interface WsBroadcastOptions {
   except?: WsClient;
@@ -230,6 +233,7 @@ export class WsServer implements OnServerListen, OnServerClose {
   private readonly rooms = new Rooms();
   private readonly connected = new Set<Client>();
   private readonly handshakes = new WeakMap<IncomingMessage, Handshake>();
+  private readonly perKey = new Map<string, number>();
   private routes = new Map<string, Route>();
   private attached = false;
 
@@ -334,6 +338,23 @@ export class WsServer implements OnServerListen, OnServerClose {
     return this.connected.size >= this.options.maxConnections;
   }
 
+  private keyOf(req: IncomingMessage) {
+    const limit = this.options.connectionsPerKey;
+    return limit ? (limit.key ?? byRemoteAddress)(req) : undefined;
+  }
+
+  private isKeyFull(key: string | undefined) {
+    const limit = this.options.connectionsPerKey;
+    return limit && key !== undefined && (this.perKey.get(key) ?? 0) >= limit.max;
+  }
+
+  private track(key: string | undefined, delta: 1 | -1) {
+    if (key === undefined) return;
+    const count = (this.perKey.get(key) ?? 0) + delta;
+    if (count > 0) this.perKey.set(key, count);
+    else this.perKey.delete(key);
+  }
+
   private isAllowedOrigin(origin: string) {
     const { allowedOrigins } = this.options;
     return typeof allowedOrigins === 'function'
@@ -346,6 +367,8 @@ export class WsServer implements OnServerListen, OnServerClose {
     const route = path === undefined ? undefined : this.routes.get(path);
     if (!route) return { action: 'ignore' };
     if (this.isFull()) return { action: 'reject', status: 503 };
+    const key = this.keyOf(req);
+    if (this.isKeyFull(key)) return { action: 'reject', status: 429 };
 
     const { origin } = req.headers;
     if (origin !== undefined && !this.isAllowedOrigin(origin)) {
@@ -367,7 +390,7 @@ export class WsServer implements OnServerListen, OnServerClose {
       }
     }
 
-    this.handshakes.set(req, { route, state });
+    this.handshakes.set(req, { route, state, key });
     return { action: 'accept' };
   }
 
@@ -397,14 +420,15 @@ export class WsServer implements OnServerListen, OnServerClose {
       connection.close(INTERNAL_ERROR);
       return;
     }
-    if (this.isFull()) {
+    const { route, state, key } = handshake;
+    if (this.isFull() || this.isKeyFull(key)) {
       connection.close(TRY_AGAIN_LATER);
       return;
     }
 
-    const { route, state } = handshake;
     const client = new Client(state, this.localeOf(req), connection, this.rooms, this.options);
     this.connected.add(client);
+    this.track(key, 1);
 
     const ready = this.inContext(client, async () => route.gateway.onConnection?.(client))
       .then(
@@ -424,6 +448,7 @@ export class WsServer implements OnServerListen, OnServerClose {
     connection.onClose((code, reason) => {
       client.markClosed();
       this.connected.delete(client);
+      this.track(key, -1);
       void ready.then(async (ok) => {
         if (!ok) return;
         try {

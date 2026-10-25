@@ -13,6 +13,7 @@ export {
   WEBSOCKET_OPTIONS,
   type WebSocketOptions,
   type WsAuthenticate,
+  type WsConnectionsPerKey,
   type WsLocaleResolver,
   type WsMessageRateLimit,
 } from './options.ts';

@@ -14,6 +14,11 @@ export type WsLocaleResolver = (
   req: IncomingMessage
 ) => string | readonly string[] | null | undefined;
 
+export interface WsConnectionsPerKey {
+  max: number;
+  key?: (req: IncomingMessage) => string | undefined;
+}
+
 export interface WsMessageRateLimit {
   max: number;
   windowMs: number;
@@ -28,6 +33,7 @@ export interface WebSocketOptions {
   maxRoomsPerClient?: number;
   handshakeTimeoutMs?: number;
   maxConnections?: number;
+  connectionsPerKey?: WsConnectionsPerKey | false;
   heartbeatMs?: number;
   messageRateLimit?: WsMessageRateLimit | false;
   requireValidation?: boolean;
@@ -56,6 +62,7 @@ export function resolveOptions(options: WebSocketOptions): ResolvedWebSocketOpti
     maxRoomsPerClient: 100,
     handshakeTimeoutMs: 10_000,
     maxConnections: 10_000,
+    connectionsPerKey: false,
     heartbeatMs: 30_000,
     messageRateLimit: { max: 100, windowMs: 10_000 },
     requireValidation: true,
@@ -69,6 +76,13 @@ export function resolveOptions(options: WebSocketOptions): ResolvedWebSocketOpti
         diagnostic('ws.invalidOption', { option, value: String(resolved[option]) })
       );
     }
+  }
+
+  const perKey = resolved.connectionsPerKey;
+  if (perKey && !isPositiveInteger(perKey.max)) {
+    throw new Error(
+      diagnostic('ws.invalidOption', { option: 'connectionsPerKey.max', value: String(perKey.max) })
+    );
   }
 
   const limit = resolved.messageRateLimit;
