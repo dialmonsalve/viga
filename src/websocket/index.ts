@@ -13,6 +13,7 @@ export {
   WEBSOCKET_OPTIONS,
   type WebSocketOptions,
   type WsAuthenticate,
+  type WsLocaleResolver,
   type WsMessageRateLimit,
 } from './options.ts';
 export { RateLimit, type WsRateLimitOptions } from './rate-limit.ts';

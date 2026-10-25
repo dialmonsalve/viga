@@ -2,6 +2,7 @@ import type { Request } from 'express';
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, Server } from 'node:http';
 import { runInNewContext } from '../context.ts';
+import { runWithLocale } from '../i18n/i18n.ts';
 import { Injectable } from '../decorators/injectable.ts';
 import { validatedParts } from '../decorators/pipeline.ts';
 import { resolveGuard, runGuards, type GuardFn } from '../decorators/use-guards.ts';
@@ -164,6 +165,7 @@ class Client implements WsClient {
 
   constructor(
     readonly state: Record<string, unknown>,
+    readonly locale: string | undefined,
     private readonly connection: WsConnection,
     private readonly roomRegistry: Rooms,
     private readonly limits: ClientLimits
@@ -401,11 +403,10 @@ export class WsServer implements OnServerListen, OnServerClose {
     }
 
     const { route, state } = handshake;
-    const client = new Client(state, connection, this.rooms, this.options);
+    const client = new Client(state, this.localeOf(req), connection, this.rooms, this.options);
     this.connected.add(client);
 
-    const ready = Promise.resolve()
-      .then(() => route.gateway.onConnection?.(client))
+    const ready = this.inContext(client, async () => route.gateway.onConnection?.(client))
       .then(
         () => true,
         (error: unknown) => {
@@ -426,7 +427,9 @@ export class WsServer implements OnServerListen, OnServerClose {
       void ready.then(async (ok) => {
         if (!ok) return;
         try {
-          await route.gateway.onDisconnect?.(client, code, reason);
+          await this.inContext(client, async () =>
+            route.gateway.onDisconnect?.(client, code, reason)
+          );
         } catch (error) {
           this.logger.error(diagnostic('ws.unhandledException'), error);
         }
@@ -443,7 +446,32 @@ export class WsServer implements OnServerListen, OnServerClose {
     client.close(INTERNAL_ERROR);
   }
 
-  private async receive(
+  private localeOf(req: IncomingMessage) {
+    const { i18n, resolveLocale } = this.options;
+    if (!i18n) return undefined;
+    const preferred =
+      typeof resolveLocale === 'string'
+        ? req.headers[resolveLocale.toLowerCase()]
+        : resolveLocale?.(req);
+    return i18n.match(preferred) ?? i18n.negotiate(req.headers['accept-language']);
+  }
+
+  private inContext<T>(client: Client, fn: () => Promise<T>): Promise<T> {
+    const { locale } = client;
+    return runInNewContext(() => (locale === undefined ? fn() : runWithLocale(locale, fn)));
+  }
+
+  private receive(
+    route: Route,
+    client: Client,
+    req: IncomingMessage,
+    message: string,
+    isBinary: boolean
+  ) {
+    return this.inContext(client, () => this.handle(route, client, req, message, isBinary));
+  }
+
+  private async handle(
     route: Route,
     client: Client,
     req: IncomingMessage,
@@ -461,10 +489,8 @@ export class WsServer implements OnServerListen, OnServerClose {
       if (!handler) throw new NotFoundException();
 
       const ctx: WsContext = { client, req, event: envelope.event, data: envelope.data };
-      const result = await runInNewContext(async () => {
-        await runGuards(route.guards, ctx);
-        return runInterceptors(route.interceptors, ctx, async () => handler(ctx));
-      });
+      await runGuards(route.guards, ctx);
+      const result = await runInterceptors(route.interceptors, ctx, async () => handler(ctx));
 
       if (isAsyncIterable(result)) {
         for await (const item of result) {

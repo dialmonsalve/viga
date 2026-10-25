@@ -2,12 +2,17 @@ import type { IncomingMessage } from 'node:http';
 import { InjectionToken } from '../di/injector.ts';
 import { diagnostic } from '../diagnostics.ts';
 import type { MessageResolver } from '../http/messages.ts';
+import type { I18n } from '../i18n/i18n.ts';
 import type { WsAdapter } from './adapter.ts';
 import { createWsAdapter } from './ws-adapter.ts';
 
 export type WsAuthenticate = (
   req: IncomingMessage
 ) => boolean | Record<string, unknown> | Promise<boolean | Record<string, unknown>>;
+
+export type WsLocaleResolver = (
+  req: IncomingMessage
+) => string | readonly string[] | null | undefined;
 
 export interface WsMessageRateLimit {
   max: number;
@@ -27,12 +32,14 @@ export interface WebSocketOptions {
   messageRateLimit?: WsMessageRateLimit | false;
   requireValidation?: boolean;
   resolveMessage?: MessageResolver;
+  i18n?: I18n;
+  resolveLocale?: string | WsLocaleResolver;
 }
 
-export type ResolvedWebSocketOptions = Required<
-  Omit<WebSocketOptions, 'authenticate' | 'resolveMessage'>
-> &
-  Pick<WebSocketOptions, 'authenticate' | 'resolveMessage'>;
+type OptionalKeys = 'authenticate' | 'resolveMessage' | 'i18n' | 'resolveLocale';
+
+export type ResolvedWebSocketOptions = Required<Omit<WebSocketOptions, OptionalKeys>> &
+  Pick<WebSocketOptions, OptionalKeys>;
 
 export const WEBSOCKET_OPTIONS = new InjectionToken<ResolvedWebSocketOptions>('WEBSOCKET_OPTIONS');
 
@@ -53,6 +60,7 @@ export function resolveOptions(options: WebSocketOptions): ResolvedWebSocketOpti
     messageRateLimit: { max: 100, windowMs: 10_000 },
     requireValidation: true,
     ...options,
+    resolveMessage: options.resolveMessage ?? options.i18n?.resolveMessage,
   };
 
   for (const option of ['maxRoomsPerClient', 'handshakeTimeoutMs', 'maxConnections'] as const) {

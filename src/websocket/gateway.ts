@@ -24,6 +24,7 @@ export interface WsClient {
   readonly id: string;
   readonly state: Record<string, unknown>;
   readonly rooms: ReadonlySet<string>;
+  readonly locale: string | undefined;
   send(event: string, data?: unknown): void;
   join(room: string): void;
   leave(room: string): void;

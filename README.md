@@ -322,6 +322,7 @@ const app = createApp({ rootModule: AppModule, resolveMessage: i18n.resolveMessa
 - Catalog keys are nested: `'books.notFound'` looks up `{ books: { notFound: '…' } }`.
 - `i18n.resolveMessage` translates exception codes. It ships the framework messages in English and Spanish, and your catalogs can replace them.
 - `i18n.t(key, params)` and `i18n.locale()` use the language of the current request, in any service.
+- `i18n.match(value)` returns the supported language that matches a value (`'pt-BR'` → `'pt'`), or `undefined`; `i18n.negotiate(acceptLanguage)` falls back to `defaultLocale`.
 - Combined with validation: `ValidationModule.forRoot({ formatIssue: (issue) => translate(issue, i18n.locale()) })`.
 
 ## viga/drizzle
@@ -436,7 +437,7 @@ class ChatGateway {
 @Module({
   imports: [
     WebSocketModule.forRoot({
-      authenticate: async (req) => verifyToken(req.headers.authorization),
+      authenticate: async (req) => verifySession(req.headers.cookie),
       allowedOrigins: ['https://my-frontend.com'],
     }),
     ChatModule,
@@ -448,6 +449,8 @@ class AppModule {}
 - Gateways are providers: list them in a module's `providers`. They use the same port as HTTP and `inject()` like any service.
 - Messages are JSON: `{ "event": "join", "data": { … }, "id": 1 }`. The handler's return value is sent back as `{ event, data, id }`; an `async function*` sends one message per yielded value. Errors arrive as `{ "event": "error", "data": { statusCode, code, message, details? }, id }`, with the same codes as HTTP and without leaking internal messages.
 - Rooms: `client.join(room)`, `client.leave(room)`, `client.rooms`, and `inject(WsServer).to(room).send(event, data, { except })` or `.broadcast(…)`. A client can be in several rooms and leaves all of them when it disconnects. Rooms live in memory: with several instances, a message doesn't reach clients connected to another one.
+- A browser's `WebSocket` can't send custom headers: the handshake only carries the URL, cookies, `Origin` and `Accept-Language`. Authenticate with the session cookie (or a short-lived token in the URL, keeping in mind that URLs end up in logs), not with `Authorization`.
+- With `i18n`, the language is negotiated once in the handshake (`resolveLocale` first, then `Accept-Language`, then the default) and applies to every message of that connection: `i18n.t()` and `i18n.locale()` work inside gateways, error messages are translated, and `client.locale` holds it.
 - `client.state` holds connection data. Whatever `authenticate` returns (an object) is stored there.
 - `RateLimit` from `viga/websocket` limits one event (on the method) or every event of a gateway (on the class), on top of `messageRateLimit`. It counts per connection by default; `key: ({ client }) => String(client.state.userId)` counts per user across tabs. Above the limit it responds `errors.tooManyRequests` with `details.retryAfter` in seconds. The `@RateLimit` from `viga` is for HTTP routes only.
 - `@UseGuards` and `@UseInterceptors` work per message, on the method or the whole gateway. `OnWsConnection` and `OnWsDisconnect` are lifecycle hooks for each connection.
@@ -465,6 +468,8 @@ class AppModule {}
 | `heartbeatMs` | `30_000` | Pings each client; one that doesn't answer is disconnected |
 | `maxBufferedBytes` | 1 MiB | A client that doesn't read its messages is disconnected instead of filling the server's memory |
 | `maxRoomsPerClient` | `100` | Rooms a connection can be in at once. Joining one more responds `errors.tooManyRooms` |
+| `i18n` | none | An `I18n` instance from `viga/i18n`. Enables the per-connection language and, unless `resolveMessage` is set, translates error messages |
+| `resolveLocale` | none | A header name or a function of the handshake request, read before `Accept-Language`. In browsers, read it from the URL: `(req) => new URL(req.url, 'http://localhost').searchParams.get('lang')` |
 | `resolveMessage` | none | Same as in `createApp`, for error messages |
 | `adapter` | `ws` | Any `WsAdapter`. The interface is public, so other libraries can be plugged in |
 

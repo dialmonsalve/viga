@@ -17,6 +17,7 @@ import {
   type App,
   type AnyConstructor,
 } from '../../src/index.ts';
+import { I18n } from '../../src/i18n/index.ts';
 import {
   Gateway,
   OnMessage,
@@ -496,6 +497,81 @@ describe('viga/websocket', () => {
       const socket = await connect(`${url}/wrong`);
 
       assert.equal((await socket.request('x')).data.code, 'errors.internal');
+      socket.ws.close();
+    });
+  });
+
+  describe('idioma por conexión', () => {
+    const i18n = new I18n({
+      defaultLocale: 'es',
+      catalogs: {
+        es: { greet: 'Hola {name}' },
+        en: { greet: 'Hello {name}' },
+      },
+    });
+
+    const Greet = z.object({ name: z.string() });
+
+    @Public()
+    @Gateway('/greet')
+    class GreetGateway {
+      @OnMessage('greet', Greet)
+      greet({ client, data }: WsContext<typeof Greet>) {
+        return { text: i18n.t('greet', { name: data.name }), locale: client.locale };
+      }
+    }
+
+    @Module({ providers: [GreetGateway] })
+    class GreetModule {}
+
+    it('usa el Accept-Language del handshake en cada mensaje', async () => {
+      const { url } = await start([GreetModule], { i18n });
+      const english = await connect(`${url}/greet`, { 'accept-language': 'en-US,en;q=0.9' });
+      const spanish = await connect(`${url}/greet`, { 'accept-language': 'es-CO' });
+      const other = await connect(`${url}/greet`, { 'accept-language': 'fr' });
+
+      assert.deepEqual((await english.request('greet', { name: 'Ana' })).data, {
+        text: 'Hello Ana',
+        locale: 'en',
+      });
+      assert.equal((await spanish.request('greet', { name: 'Ana' })).data.text, 'Hola Ana');
+      assert.equal((await other.request('greet', { name: 'Ana' })).data.locale, 'es');
+      for (const socket of [english, spanish, other]) socket.ws.close();
+    });
+
+    it('resolveLocale tiene prioridad sobre Accept-Language', async () => {
+      const { url } = await start([GreetModule], {
+        i18n,
+        resolveLocale: (req) => new URL(req.url ?? '/', 'http://localhost').searchParams.get('lang'),
+      });
+      const socket = await connect(`${url}/greet?lang=en`, { 'accept-language': 'es' });
+      const invalid = await connect(`${url}/greet?lang=<script>`, { 'accept-language': 'en' });
+
+      assert.equal((await socket.request('greet', { name: 'Ana' })).data.locale, 'en');
+      assert.equal((await invalid.request('greet', { name: 'Ana' })).data.locale, 'en');
+      socket.ws.close();
+      invalid.ws.close();
+    });
+
+    it('traduce los mensajes de error con el idioma de la conexión', async () => {
+      const { url } = await start([GreetModule], { i18n });
+      const socket = await connect(`${url}/greet`, { 'accept-language': 'es' });
+
+      const reply = await socket.request('nope');
+
+      assert.equal(reply.data.code, 'errors.notFound');
+      assert.equal(reply.data.message, 'El recurso solicitado no existe');
+      socket.ws.close();
+    });
+
+    it('sin i18n, client.locale es undefined', async () => {
+      const { url } = await start([GreetModule]);
+      const socket = await connect(`${url}/greet`, { 'accept-language': 'en' });
+
+      const reply = await socket.request('greet', { name: 'Ana' });
+
+      assert.equal(reply.data.locale, undefined);
+      assert.equal(reply.data.text, 'Hola Ana');
       socket.ws.close();
     });
   });

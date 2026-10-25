@@ -61,8 +61,7 @@ export class I18n {
 
   readonly middleware: RequestHandler = (req, res, next) => {
     const locale =
-      matchLocale(this.resolveLocale?.(req), this.locales) ??
-      this.negotiate(req.headers['accept-language']);
+      this.match(this.resolveLocale?.(req)) ?? this.negotiate(req.headers['accept-language']);
     res.setHeader('Content-Language', locale);
     runWithLocale(locale, next);
   };
@@ -77,6 +76,10 @@ export class I18n {
 
   t(key: string, params?: MessageParams): string {
     return this.translate(this.locale(), key, params);
+  }
+
+  match(preferences: string | readonly string[] | null | undefined): string | undefined {
+    return matchLocale(preferences, this.locales);
   }
 
   negotiate(acceptLanguage: string | readonly string[] | null | undefined): string {

@@ -322,6 +322,7 @@ const app = createApp({ rootModule: AppModule, resolveMessage: i18n.resolveMessa
 - Las claves de los catálogos se anidan: `'books.notFound'` busca `{ books: { notFound: '…' } }`.
 - `i18n.resolveMessage` traduce los códigos de las excepciones. Trae en español e inglés los mensajes del framework, y tus catálogos pueden reemplazarlos.
 - `i18n.t(key, params)` e `i18n.locale()` usan el idioma de la petición en curso, en cualquier servicio.
+- `i18n.match(valor)` devuelve el idioma soportado que coincide con un valor (`'pt-BR'` → `'pt'`), o `undefined`; `i18n.negotiate(acceptLanguage)` usa `defaultLocale` si no hay coincidencia.
 - Combinado con validación: `ValidationModule.forRoot({ formatIssue: (issue) => traducir(issue, i18n.locale()) })`.
 
 ## viga/drizzle
@@ -436,7 +437,7 @@ class ChatGateway {
 @Module({
   imports: [
     WebSocketModule.forRoot({
-      authenticate: async (req) => verifyToken(req.headers.authorization),
+      authenticate: async (req) => verifySession(req.headers.cookie),
       allowedOrigins: ['https://mi-front.com'],
     }),
     ChatModule,
@@ -448,6 +449,8 @@ class AppModule {}
 - Los gateways son providers: van en los `providers` de un módulo. Usan el mismo puerto que HTTP e `inject()` como cualquier servicio.
 - Los mensajes son JSON: `{ "event": "join", "data": { … }, "id": 1 }`. Lo que devuelve el handler se envía como `{ event, data, id }`; un `async function*` envía un mensaje por cada valor. Los errores llegan como `{ "event": "error", "data": { statusCode, code, message, details? }, id }`, con los mismos códigos que HTTP y sin filtrar mensajes internos.
 - Salas: `client.join(sala)`, `client.leave(sala)`, `client.rooms`, e `inject(WsServer).to(sala).send(evento, datos, { except })` o `.broadcast(…)`. Un cliente puede estar en varias salas y sale de todas al desconectarse. Las salas viven en memoria: con varias instancias, un mensaje no llega a los clientes conectados a otra.
+- El `WebSocket` del navegador no puede enviar cabeceras propias: el handshake solo lleva la URL, las cookies, `Origin` y `Accept-Language`. Autentica con la cookie de sesión (o con un token de vida corta en la URL, teniendo en cuenta que las URLs acaban en los logs), no con `Authorization`.
+- Con `i18n`, el idioma se negocia una vez en el handshake (primero `resolveLocale`, luego `Accept-Language`, luego el idioma por defecto) y se aplica a cada mensaje de esa conexión: `i18n.t()` e `i18n.locale()` funcionan dentro de los gateways, los mensajes de error se traducen y `client.locale` lo guarda.
 - `client.state` guarda datos de la conexión. Lo que devuelve `authenticate` (un objeto) queda ahí.
 - `RateLimit` de `viga/websocket` limita un evento (en el método) o todos los de un gateway (en la clase), además de `messageRateLimit`. Por defecto cuenta por conexión; `key: ({ client }) => String(client.state.userId)` cuenta por usuario aunque abra varias pestañas. Al superarlo responde `errors.tooManyRequests` con `details.retryAfter` en segundos. El `@RateLimit` de `viga` es solo para rutas HTTP.
 - `@UseGuards` y `@UseInterceptors` funcionan por mensaje, en el método o en todo el gateway. `OnWsConnection` y `OnWsDisconnect` son hooks del ciclo de vida de cada conexión.
@@ -465,6 +468,8 @@ class AppModule {}
 | `heartbeatMs` | `30_000` | Hace ping a cada cliente; el que no responde se desconecta |
 | `maxBufferedBytes` | 1 MiB | Un cliente que no lee sus mensajes se desconecta en lugar de llenar la memoria del servidor |
 | `maxRoomsPerClient` | `100` | Salas en las que puede estar una conexión a la vez. Unirse a una más responde `errors.tooManyRooms` |
+| `i18n` | ninguna | Una instancia de `I18n` de `viga/i18n`. Activa el idioma por conexión y, si no defines `resolveMessage`, traduce los mensajes de error |
+| `resolveLocale` | ninguna | El nombre de una cabecera o una función de la petición del handshake, que se lee antes que `Accept-Language`. En navegadores, léelo de la URL: `(req) => new URL(req.url, 'http://localhost').searchParams.get('lang')` |
 | `resolveMessage` | ninguna | Igual que en `createApp`, para los mensajes de error |
 | `adapter` | `ws` | Cualquier `WsAdapter`. La interfaz es pública, así que se pueden conectar otras librerías |
 
