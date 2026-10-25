@@ -1,12 +1,58 @@
 ---
 import Default from '@astrojs/starlight/components/TableOfContents.astro';
 import peek from '../../assets/mascot-peek.svg';
+import eyes from '../../assets/mascot-peek-eyes.svg?raw';
 ---
 
 <div class="peek">
-  <img src={peek.src} alt="" width="64" height="52" decoding="async" />
+  <div class="figure" data-peek>
+    <img src={peek.src} alt="" width="64" height="52" decoding="async" />
+    <Fragment set:html={eyes} />
+  </div>
 </div>
 <Default />
+
+<script>
+  const MAX_X = 22;
+  const MAX_Y = 10;
+  const REACH = 240;
+
+  const figure = document.querySelector<HTMLElement>('[data-peek]');
+  const pupils = figure?.querySelectorAll<SVGGElement>('.pupil') ?? [];
+  const follows =
+    matchMedia('(pointer: fine)').matches && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (figure && pupils.length > 0 && follows) {
+    let frame = 0;
+    let pointerX = 0;
+    let pointerY = 0;
+
+    const update = () => {
+      frame = 0;
+      const box = figure.getBoundingClientRect();
+      if (box.width === 0) return;
+      const dx = pointerX - (box.left + box.width / 2);
+      const dy = pointerY - (box.top + box.height * 0.45);
+      const distance = Math.hypot(dx, dy) || 1;
+      const strength = Math.min(1, distance / REACH);
+      const x = (dx / distance) * MAX_X * strength;
+      const y = (dy / distance) * MAX_Y * strength;
+      pupils.forEach((pupil) => {
+        pupil.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+      });
+    };
+
+    addEventListener(
+      'pointermove',
+      (event) => {
+        pointerX = event.clientX;
+        pointerY = event.clientY;
+        if (!frame) frame = requestAnimationFrame(update);
+      },
+      { passive: true }
+    );
+  }
+</script>
 
 <style>
   .peek {
@@ -16,9 +62,53 @@ import peek from '../../assets/mascot-peek.svg';
     border-bottom: 1px solid var(--sl-color-hairline);
   }
 
-  .peek img {
-    display: block;
+  .figure {
+    position: relative;
     width: 4rem;
+  }
+
+  .figure img {
+    display: block;
+    width: 100%;
     height: auto;
+  }
+
+  .figure :global(svg) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .figure :global(.eye) {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+    animation: peek-blink 7s ease-in-out infinite;
+  }
+
+  .figure :global(.pupil) {
+    transition: transform 120ms ease-out;
+  }
+
+  @keyframes peek-blink {
+    0%,
+    92%,
+    100% {
+      transform: scaleY(1);
+    }
+
+    95% {
+      transform: scaleY(0.1);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .figure :global(.eye) {
+      animation: none;
+    }
+
+    .figure :global(.pupil) {
+      transition: none;
+    }
   }
 </style>
