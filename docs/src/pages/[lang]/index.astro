@@ -1,0 +1,120 @@
+---
+import Mascot from '../../components/Mascot.astro';
+import Layout from '../../layouts/Layout.astro';
+import { LANGS, LANG_NAMES, LANG_TAGS, getDictionary, type Lang } from '../../i18n';
+
+export function getStaticPaths() {
+  return LANGS.map((lang) => ({ params: { lang } }));
+}
+
+const lang = Astro.params.lang as Lang;
+const t = getDictionary(lang).home;
+---
+
+<Layout lang={lang} title={t.title} description={t.description}>
+  <main>
+    <div class="intro">
+      <h1>{t.heading}</h1>
+      <p class="tagline">{t.tagline}</p>
+      <a class="cta" href={`/${lang}/guides/example/`}>{t.cta}</a>
+      <nav aria-label={t.languages}>
+        <ul>
+          {
+            LANGS.map((target) => (
+              <li>
+                <a
+                  href={`/${target}/`}
+                  hreflang={LANG_TAGS[target]}
+                  lang={LANG_TAGS[target]}
+                  aria-current={target === lang ? 'page' : undefined}
+                >
+                  {LANG_NAMES[target]}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </nav>
+    </div>
+    <Mascot alt={t.mascotAlt} />
+  </main>
+</Layout>
+
+<style>
+  main {
+    max-width: 64rem;
+    margin: 0 auto;
+    padding: 4rem 1rem;
+    display: grid;
+    gap: 3rem;
+    align-items: center;
+    justify-items: center;
+  }
+
+  @media (min-width: 48rem) {
+    main {
+      grid-template-columns: 1fr auto;
+      padding-block: 6rem;
+    }
+  }
+
+  .intro {
+    display: grid;
+    gap: 1.5rem;
+    justify-items: start;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(2.5rem, 8vw, 4rem);
+    letter-spacing: -0.03em;
+  }
+
+  .tagline {
+    margin: 0;
+    font-size: 1.25rem;
+    color: var(--color-muted);
+  }
+
+  .cta {
+    padding: 0.75rem 1.25rem;
+    border-radius: 0.5rem;
+    background: var(--color-accent);
+    color: var(--color-accent-text);
+    font-weight: 600;
+    text-decoration: none;
+    transition: opacity 150ms ease;
+  }
+
+  .cta:hover {
+    opacity: 0.85;
+  }
+
+  ul {
+    display: flex;
+    gap: 0.25rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  nav a {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+    color: var(--color-muted);
+    font-size: 0.875rem;
+    text-decoration: none;
+  }
+
+  nav a:hover {
+    color: var(--color-text);
+  }
+
+  nav a[aria-current='page'] {
+    border-color: var(--color-border);
+    color: var(--color-text);
+    font-weight: 600;
+  }
+</style>

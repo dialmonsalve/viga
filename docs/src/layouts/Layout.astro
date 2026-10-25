@@ -1,0 +1,88 @@
+---
+import { ClientRouter } from 'astro:transitions';
+import { LANGS, LANG_TAGS, type Lang } from '../i18n';
+
+interface Props {
+  lang: Lang;
+  title: string;
+  description: string;
+}
+
+const { lang, title, description } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const pathFor = (target: Lang) => Astro.url.pathname.replace(new RegExp(`^/${lang}(?=/|$)`), `/${target}`);
+---
+
+<!doctype html>
+<html lang={LANG_TAGS[lang]}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    {
+      LANGS.map((target) => (
+        <link rel="alternate" hreflang={LANG_TAGS[target]} href={new URL(pathFor(target), Astro.site)} />
+      ))
+    }
+    <link rel="alternate" hreflang="x-default" href={new URL(pathFor('es'), Astro.site)} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <ClientRouter />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    --color-bg: #ffffff;
+    --color-text: #17181c;
+    --color-muted: #545864;
+    --color-border: #dcdee3;
+    --color-accent: #3a4d6e;
+    --color-accent-text: #ffffff;
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    color-scheme: light dark;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-bg: #17181c;
+      --color-text: #eceef2;
+      --color-muted: #a6aab5;
+      --color-border: #33363f;
+      --color-accent: #b7c3ea;
+      --color-accent-text: #10131f;
+    }
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--color-bg);
+    color: var(--color-text);
+    line-height: 1.5;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+      animation: none !important;
+    }
+  }
+</style>

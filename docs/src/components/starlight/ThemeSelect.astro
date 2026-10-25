@@ -1,0 +1,142 @@
+---
+import { Icon } from '@astrojs/starlight/components';
+
+const options = [
+  { value: 'auto', icon: 'laptop', label: Astro.locals.t('themeSelect.auto') },
+  { value: 'light', icon: 'sun', label: Astro.locals.t('themeSelect.light') },
+  { value: 'dark', icon: 'moon', label: Astro.locals.t('themeSelect.dark') },
+] as const;
+
+const group = `viga-theme-${crypto.randomUUID()}`;
+---
+
+<viga-theme-toggle>
+  <fieldset>
+    <legend class="sr-only">{Astro.locals.t('themeSelect.accessibleLabel')}</legend>
+    {
+      options.map((option) => (
+        <label title={option.label}>
+          <input type="radio" name={group} value={option.value} checked={option.value === 'auto'} />
+          <Icon name={option.icon} size="1rem" />
+          <span class="sr-only">{option.label}</span>
+        </label>
+      ))
+    }
+  </fieldset>
+</viga-theme-toggle>
+
+<script is:inline>
+  (() => {
+    let stored = null;
+    try {
+      stored = localStorage.getItem('starlight-theme');
+    } catch {}
+    const theme = stored === 'light' || stored === 'dark' ? stored : 'auto';
+    document.querySelectorAll(`viga-theme-toggle input[value="${theme}"]`).forEach((input) => {
+      input.checked = true;
+    });
+  })();
+</script>
+
+<script>
+  type Theme = 'auto' | 'dark' | 'light';
+
+  const storageKey = 'starlight-theme';
+
+  const parseTheme = (value: unknown): Theme =>
+    value === 'light' || value === 'dark' ? value : 'auto';
+
+  const loadTheme = (): Theme => {
+    try {
+      return parseTheme(localStorage.getItem(storageKey));
+    } catch {
+      return 'auto';
+    }
+  };
+
+  const systemTheme = (): Theme =>
+    matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+
+  function applyTheme(theme: Theme) {
+    document.documentElement.dataset.theme = theme === 'auto' ? systemTheme() : theme;
+    try {
+      localStorage.setItem(storageKey, theme === 'auto' ? '' : theme);
+    } catch {}
+    document.querySelectorAll<HTMLInputElement>('viga-theme-toggle input').forEach((input) => {
+      input.checked = input.value === theme;
+    });
+  }
+
+  matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+    if (loadTheme() === 'auto') applyTheme('auto');
+  });
+
+  class VigaThemeToggle extends HTMLElement {
+    connectedCallback() {
+      this.addEventListener('change', (event) => {
+        if (event.target instanceof HTMLInputElement) applyTheme(parseTheme(event.target.value));
+      });
+    }
+  }
+
+  customElements.define('viga-theme-toggle', VigaThemeToggle);
+</script>
+
+<style>
+  fieldset {
+    display: flex;
+    gap: 0.125rem;
+    margin: 0;
+    padding: 0.1875rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 999px;
+  }
+
+  label {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 999px;
+    color: var(--sl-color-gray-3);
+    cursor: pointer;
+    transition:
+      background-color 150ms ease,
+      color 150ms ease;
+  }
+
+  label:hover {
+    color: var(--sl-color-white);
+  }
+
+  input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  label:has(input:checked) {
+    background: var(--sl-color-accent-low);
+    color: var(--sl-color-text-accent);
+  }
+
+  label:has(input:focus-visible) {
+    outline: 2px solid var(--sl-color-text-accent);
+    outline-offset: 1px;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>

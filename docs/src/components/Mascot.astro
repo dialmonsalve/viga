@@ -1,0 +1,131 @@
+---
+import source from '../assets/mascot.svg?raw';
+
+interface Props {
+  alt: string;
+}
+
+const { alt } = Astro.props;
+const svg = source.replace('<svg ', '<svg aria-hidden="true" focusable="false" ');
+---
+
+<div class="mascot" role="img" aria-label={alt}>
+  <Fragment set:html={svg} />
+</div>
+
+<style>
+  .mascot {
+    width: min(20rem, 70vw);
+    animation: mascot-enter 700ms cubic-bezier(0.2, 0.8, 0.3, 1.2) both;
+  }
+
+  .mascot :global(svg) {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    transform-origin: 50% 100%;
+  }
+
+  .mascot :global(.tail) {
+    transform-box: view-box;
+    transform-origin: 1254px 1689px;
+  }
+
+  .mascot :global(.eyes),
+  .mascot :global(.eye-left),
+  .mascot :global(.eye-right) {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+  }
+
+  .mascot :global(.eyes) {
+    animation: mascot-blink 280ms ease-in-out 1.3s;
+  }
+
+  .mascot:hover :global(svg) {
+    animation: mascot-hop 600ms ease-in-out;
+  }
+
+  .mascot:hover :global(.tail) {
+    animation: mascot-wag 900ms ease-in-out;
+  }
+
+  .mascot:hover :global(.eye-left),
+  .mascot:hover :global(.eye-right) {
+    animation: mascot-blink 280ms ease-in-out 150ms;
+  }
+
+  @keyframes mascot-enter {
+    from {
+      opacity: 0;
+      transform: translateY(1.5rem) scale(0.96);
+    }
+
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes mascot-hop {
+    0%,
+    100% {
+      transform: translateY(0) scale(1, 1);
+    }
+
+    20% {
+      transform: translateY(0) scale(1.03, 0.94);
+    }
+
+    50% {
+      transform: translateY(-0.9rem) scale(0.98, 1.03);
+    }
+
+    80% {
+      transform: translateY(0) scale(1.02, 0.97);
+    }
+  }
+
+  @keyframes mascot-wag {
+    0%,
+    100% {
+      transform: rotate(0deg);
+    }
+
+    30% {
+      transform: rotate(-5deg);
+    }
+
+    55% {
+      transform: rotate(-1deg);
+    }
+
+    80% {
+      transform: rotate(-3deg);
+    }
+  }
+
+  @keyframes mascot-blink {
+    0%,
+    100% {
+      transform: scaleY(1);
+    }
+
+    40%,
+    60% {
+      transform: scaleY(0.1);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mascot,
+    .mascot :global(.eyes),
+    .mascot:hover :global(svg),
+    .mascot:hover :global(.tail),
+    .mascot:hover :global(.eye-left),
+    .mascot:hover :global(.eye-right) {
+      animation: none;
+    }
+  }
+</style>

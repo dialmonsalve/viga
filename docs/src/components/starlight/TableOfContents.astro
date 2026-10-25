@@ -1,0 +1,24 @@
+---
+import Default from '@astrojs/starlight/components/TableOfContents.astro';
+import peek from '../../assets/mascot-peek.svg';
+---
+
+<div class="peek">
+  <img src={peek.src} alt="" width="64" height="52" decoding="async" />
+</div>
+<Default />
+
+<style>
+  .peek {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid var(--sl-color-hairline);
+  }
+
+  .peek img {
+    display: block;
+    width: 4rem;
+    height: auto;
+  }
+</style>
