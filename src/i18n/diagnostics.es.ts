@@ -21,6 +21,8 @@ export const diagnosticsEs = {
   'rateLimit.invalidIpv6Subnet': 'ipv6Subnet debe ser un entero entre 1 y 128, se recibió {ipv6Subnet}',
   'rateLimit.httpOnly':
     '@RateLimit de "viga" solo funciona en rutas HTTP; en un gateway usa RateLimit de "viga/websocket"',
+  'testing.unknownOverride':
+    'El override de {token} no coincide con ningún provider; revisa que el token sea el mismo que declara el módulo',
   'lifecycle.destroyFailed': 'Falló el cierre de uno o más providers',
   'lifecycle.serverCloseFailed': 'Uno o más providers fallaron mientras se cerraba el servidor',
   'app.noAuthGuard':

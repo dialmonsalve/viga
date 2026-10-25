@@ -21,6 +21,8 @@ export const DIAGNOSTICS = {
   'rateLimit.invalidIpv6Subnet': 'ipv6Subnet must be an integer between 1 and 128, received {ipv6Subnet}',
   'rateLimit.httpOnly':
     '@RateLimit from "viga" only works on HTTP routes; in a gateway use RateLimit from "viga/websocket"',
+  'testing.unknownOverride':
+    'The override for {token} does not match any provider; check that the token is the same one the module declares',
   'lifecycle.destroyFailed': 'One or more providers failed to shut down',
   'lifecycle.serverCloseFailed': 'One or more providers failed while the server was closing',
   'app.noAuthGuard':
@@ -92,6 +94,7 @@ const PREFIXES: Record<string, string> = {
   config: 'Config',
   pagination: 'Pagination',
   ws: 'WebSocket',
+  testing: 'Testing',
 };
 
 let overrides: DiagnosticDictionary = {};

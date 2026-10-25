@@ -5,7 +5,7 @@ import { constants } from 'node:os';
 import { contextMiddleware } from './context.ts';
 import { resolveGuard, type Guard } from './decorators/use-guards.ts';
 import { resolveInterceptor, type InterceptorRef } from './decorators/use-interceptors.ts';
-import type { Injector, Token } from './di/injector.ts';
+import type { Injector, Provider, Token } from './di/injector.ts';
 import {
   PROVIDER_INSTANCES,
   runDestroyHooks,
@@ -59,6 +59,8 @@ export interface AppOptions {
 
 const DEFAULT_PORT = 3000;
 
+export const TESTING_OVERRIDES = Symbol('viga.testingOverrides');
+
 const DEFAULT_TIMEOUTS: Required<ServerTimeouts> = {
   headers: 10_000,
   request: 30_000,
@@ -72,6 +74,7 @@ interface Running {
 export class App {
   readonly express: Application = express();
   readonly logger: Logger;
+  [TESTING_OVERRIDES]: Provider[] = [];
   private readonly rootModule: AnyConstructor;
   private readonly bodyParser: boolean;
   private readonly bodyLimit: number | string;
@@ -241,6 +244,7 @@ export class App {
   private async start(): Promise<Running> {
     const concealRoutes = this.concealRoutes ?? this.authGuard !== undefined;
     const { controllers, injectors, root } = loadApplication(this.rootModule, {
+      overrides: this[TESTING_OVERRIDES],
       platformProviders: [
         { provide: LOGGER, useValue: this.logger },
         { provide: PROVIDER_INSTANCES, useValue: () => this.initialized },

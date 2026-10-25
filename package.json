@@ -60,6 +60,10 @@
       "types": "./dist/websocket/index.d.ts",
       "default": "./dist/websocket/index.js"
     },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "default": "./dist/testing/index.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

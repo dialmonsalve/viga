@@ -55,4 +55,8 @@ First public release.
 - `DrizzleModule.forRoot()` and `DatabaseService` with pool shutdown, default timeouts for statements, connections and idle transactions, and a startup warning for connections without verified TLS to a remote host.
 - Transactions with `database.transaction()` and `@Transactional()`, nested savepoints and isolation options.
 
+### `viga/testing`
+
+- `createTestingApp(Module, { overrides, configure })` starts the app on a free local port with the production defaults and a silent logger. `overrides` replaces providers in any module and fails on a token that matches no provider; `app.request()` returns the status, headers and parsed body.
+
 [0.1.0]: https://github.com/dialmonsalve/viga/releases/tag/v0.1.0

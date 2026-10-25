@@ -1,6 +1,6 @@
 import { readModuleOptions } from '../decorators/module.ts';
 import type { AnyConstructor } from '../metadata.ts';
-import { Injector, type Provider, type Token } from './injector.ts';
+import { Injector, tokenName, type Provider, type Token } from './injector.ts';
 import { diagnostic } from '../diagnostics.ts';
 
 export interface LoadedController {
@@ -16,16 +16,42 @@ export interface LoadedApplication {
 
 export interface LoadOptions {
   platformProviders?: Provider[];
+  overrides?: Provider[];
 }
 
 function providerToken(provider: Provider): Token {
   return typeof provider === 'function' ? provider : provider.provide;
 }
 
+function createOverrider(overrides: Provider[]) {
+  const byToken = new Map(overrides.map((provider) => [providerToken(provider), provider]));
+  const used = new Set<Token>();
+
+  return {
+    apply(providers: Provider[]) {
+      return providers.map((provider) => {
+        const token = providerToken(provider);
+        const override = byToken.get(token);
+        if (!override) return provider;
+        used.add(token);
+        return override;
+      });
+    },
+    assertAllUsed() {
+      for (const token of byToken.keys()) {
+        if (!used.has(token)) {
+          throw new Error(diagnostic('testing.unknownOverride', { token: tokenName(token) }));
+        }
+      }
+    },
+  };
+}
+
 export function loadApplication(
   RootModule: AnyConstructor,
-  { platformProviders = [] }: LoadOptions = {}
+  { platformProviders = [], overrides = [] }: LoadOptions = {}
 ): LoadedApplication {
+  const overrider = createOverrider(overrides);
   const injectors = new Map<AnyConstructor, Injector>();
   const loading: AnyConstructor[] = [];
   const controllers: LoadedController[] = [];
@@ -77,7 +103,7 @@ export function loadApplication(
       }
     }
 
-    const injector = new Injector(options.providers ?? [], {
+    const injector = new Injector(overrider.apply(options.providers ?? []), {
       name: ModuleClass.name,
       imports,
       exports,
@@ -95,6 +121,7 @@ export function loadApplication(
   }
 
   const root = load(RootModule);
+  overrider.assertAllUsed();
   return { controllers, injectors: [platform, ...injectors.values()], root };
 }
 
