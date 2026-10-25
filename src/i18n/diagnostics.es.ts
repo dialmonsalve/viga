@@ -44,6 +44,8 @@ export const diagnosticsEs = {
     '{gateway}.{method} maneja "{event}" sin schema, obligatorio por requireValidation',
   'ws.unhandledException': 'Excepción no controlada en un gateway de WebSocket',
   'ws.invalidOption': '{option} debe ser un entero positivo, se recibió {value}',
+  'ws.handshakeTimeout':
+    'authenticate no respondió en {ms} ms, así que el handshake se rechazó con 503',
   'ws.missingPackage':
     'El adaptador de WebSocket por defecto necesita el paquete "ws": instálalo, o pasa tu propio adaptador en WebSocketModule.forRoot({ adapter })',
 } as const satisfies Record<DiagnosticKey, string>;

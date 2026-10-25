@@ -18,6 +18,7 @@ import {
   BadRequestException,
   HttpException,
   NotFoundException,
+  ServiceUnavailableException,
   TooManyRequestsException,
   UnsupportedMediaTypeException,
 } from '../http/exceptions.ts';
@@ -345,12 +346,12 @@ export class WsServer implements OnServerListen, OnServerClose {
     let state: Record<string, unknown> = {};
     if (!route.isPublic) {
       try {
-        const result = await this.options.authenticate?.(req);
+        const result = await this.authenticate(req);
         if (!result) return { action: 'reject', status: 401 };
         if (typeof result === 'object') state = { ...result };
       } catch (error) {
         const exception = toHttpException(error);
-        if (exception.statusCode >= 500) {
+        if (exception.statusCode >= 500 && !(error instanceof ServiceUnavailableException)) {
           this.logger.error(diagnostic('ws.unhandledException'), error);
         }
         return { action: 'reject', status: exception.statusCode };
@@ -359,6 +360,25 @@ export class WsServer implements OnServerListen, OnServerClose {
 
     this.handshakes.set(req, { route, state });
     return { action: 'accept' };
+  }
+
+  private async authenticate(req: IncomingMessage) {
+    const { authenticate, handshakeTimeoutMs } = this.options;
+    if (!authenticate) return undefined;
+
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => {
+        this.logger.warn(diagnostic('ws.handshakeTimeout', { ms: handshakeTimeoutMs }));
+        reject(new ServiceUnavailableException());
+      }, handshakeTimeoutMs);
+    });
+
+    try {
+      return await Promise.race([Promise.resolve().then(() => authenticate(req)), timeout]);
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   private connect(connection: WsConnection, req: IncomingMessage) {

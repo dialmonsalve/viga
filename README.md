@@ -455,6 +455,7 @@ class AppModule {}
 | `WebSocketModule.forRoot` option | Default | What it controls |
 |---|---|---|
 | `authenticate` | none | Checks the handshake request. Gateways are private by default: without `authenticate`, only `@Public()` gateways accept connections. Returning `false` responds 401 |
+| `handshakeTimeoutMs` | `10_000` | If `authenticate` takes longer, the handshake responds 503 and a warning is logged, so a slow auth service can't pile up open sockets |
 | `allowedOrigins` | `[]` | List or function. A request with an `Origin` that isn't allowed responds 403 (prevents cross-site WebSocket hijacking). Requests without `Origin` (non-browser clients) are accepted |
 | `maxPayload` | 100 KiB | Larger messages close the connection with 1009 |
 | `messageRateLimit` | `{ max: 100, windowMs: 10_000 }` | Messages per connection; above it, responds `errors.tooManyRequests`. `false` disables it |

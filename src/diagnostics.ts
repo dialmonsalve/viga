@@ -44,6 +44,8 @@ export const DIAGNOSTICS = {
     '{gateway}.{method} handles "{event}" without a schema, required by requireValidation',
   'ws.unhandledException': 'Unhandled exception in a WebSocket gateway',
   'ws.invalidOption': '{option} must be a positive integer, received {value}',
+  'ws.handshakeTimeout':
+    'authenticate did not respond within {ms} ms, so the handshake was rejected with 503',
   'ws.missingPackage':
     'The default WebSocket adapter needs the "ws" package: install it, or pass your own adapter in WebSocketModule.forRoot({ adapter })',
 } as const;

@@ -173,6 +173,15 @@ describe('viga/websocket', () => {
       socket.ws.close();
     });
 
+    it('rechaza con 503 si authenticate no responde a tiempo', async () => {
+      const { url } = await start([PrivateModule], {
+        authenticate: () => new Promise<boolean>(() => undefined),
+        handshakeTimeoutMs: 50,
+      });
+
+      assert.equal(await handshakeStatus(`${url}/private`), 503);
+    });
+
     it('rechaza con 403 un Origin que no está permitido', async () => {
       const { url } = await start([EchoModule], { allowedOrigins: ['https://app.example'] });
 
@@ -432,10 +441,14 @@ describe('viga/websocket', () => {
       socket.ws.close();
     });
 
-    it('rechaza un maxRoomsPerClient que no es un entero positivo', () => {
+    it('rechaza opciones numéricas que no son enteros positivos', () => {
       assert.throws(
         () => WebSocketModule.forRoot({ maxRoomsPerClient: 0 }),
         /maxRoomsPerClient must be a positive integer, received 0/
+      );
+      assert.throws(
+        () => WebSocketModule.forRoot({ handshakeTimeoutMs: 1.5 }),
+        /handshakeTimeoutMs must be a positive integer, received 1.5/
       );
     });
 

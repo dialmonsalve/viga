@@ -21,6 +21,7 @@ export interface WebSocketOptions {
   maxPayload?: number;
   maxBufferedBytes?: number;
   maxRoomsPerClient?: number;
+  handshakeTimeoutMs?: number;
   heartbeatMs?: number;
   messageRateLimit?: WsMessageRateLimit | false;
   requireValidation?: boolean;
@@ -45,19 +46,19 @@ export function resolveOptions(options: WebSocketOptions): ResolvedWebSocketOpti
     maxPayload: 100 * 1024,
     maxBufferedBytes: 1024 * 1024,
     maxRoomsPerClient: 100,
+    handshakeTimeoutMs: 10_000,
     heartbeatMs: 30_000,
     messageRateLimit: { max: 100, windowMs: 10_000 },
     requireValidation: true,
     ...options,
   };
 
-  if (!isPositiveInteger(resolved.maxRoomsPerClient)) {
-    throw new Error(
-      diagnostic('ws.invalidOption', {
-        option: 'maxRoomsPerClient',
-        value: String(resolved.maxRoomsPerClient),
-      })
-    );
+  for (const option of ['maxRoomsPerClient', 'handshakeTimeoutMs'] as const) {
+    if (!isPositiveInteger(resolved[option])) {
+      throw new Error(
+        diagnostic('ws.invalidOption', { option, value: String(resolved[option]) })
+      );
+    }
   }
 
   const limit = resolved.messageRateLimit;
