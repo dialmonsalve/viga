@@ -23,6 +23,7 @@
     "dependency-injection",
     "modules",
     "standard-schema",
+    "config",
     "validation",
     "websocket",
     "pagination",
@@ -46,6 +47,10 @@
     "./drizzle": {
       "types": "./dist/drizzle/index.d.ts",
       "default": "./dist/drizzle/index.js"
+    },
+    "./config": {
+      "types": "./dist/config/index.d.ts",
+      "default": "./dist/config/index.js"
     },
     "./pagination": {
       "types": "./dist/pagination/index.d.ts",

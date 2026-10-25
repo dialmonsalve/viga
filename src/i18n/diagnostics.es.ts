@@ -41,6 +41,8 @@ export const diagnosticsEs = {
   'drizzle.idleClientError': 'Error inesperado en una conexión inactiva de PostgreSQL',
   'drizzle.nestedTransactionConfig':
     'Una transacción anidada no puede cambiar la configuración de la transacción exterior',
+  'config.invalid': 'Configuración inválida:\n{issues}',
+  'config.asyncSchema': 'El schema de configuración tiene que validar de forma síncrona',
   'pagination.invalidOptions':
     'defaultLimit, maxLimit y maxPage deben ser enteros positivos y defaultLimit no puede superar a maxLimit, se recibió defaultLimit={defaultLimit} maxLimit={maxLimit} maxPage={maxPage}',
   'ws.invalidEvent':

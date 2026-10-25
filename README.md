@@ -12,6 +12,7 @@ The core only covers what every server needs. Everything else lives in optional 
 | `viga/validation` | `@Validate` and `ValidationModule` with any [Standard Schema](https://standardschema.dev) library | Nothing (you pick Zod, Valibot, ArkType…) |
 | `viga/i18n` | Message catalogs, `Accept-Language` negotiation, framework messages in en/es | Nothing |
 | `viga/drizzle` | `DrizzleModule` and `DatabaseService` with pool shutdown | `drizzle-orm`, `pg` |
+| `viga/config` | `ConfigModule` that validates and types environment variables at startup | Nothing |
 | `viga/pagination` | `@Paginate` with typed results, safe links and limits | Nothing |
 | `viga/websocket` | Gateways, rooms and a public adapter interface, with secure defaults | `ws` |
 
@@ -327,6 +328,46 @@ const app = createApp({ rootModule: AppModule, resolveMessage: i18n.resolveMessa
 - `i18n.t(key, params)` and `i18n.locale()` use the language of the current request, in any service.
 - `i18n.match(value)` returns the supported language that matches a value (`'pt-BR'` → `'pt'`), or `undefined`; `i18n.negotiate(acceptLanguage)` falls back to `defaultLocale`.
 - Combined with validation: `ValidationModule.forRoot({ formatIssue: (issue) => translate(issue, i18n.locale()) })`.
+
+## viga/config
+
+```ts
+import { CONFIG, ConfigModule } from 'viga/config';
+import { z } from 'zod';
+
+const Env = z.object({
+  PORT: z.coerce.number().int().default(3000),
+  DATABASE_URL: z.url(),
+  JWT_SECRET: z.string().min(32),
+});
+
+declare module 'viga/config' {
+  interface Register {
+    schema: typeof Env;
+  }
+}
+
+@Module({ imports: [ConfigModule.forRoot({ schema: Env }), BooksModule] })
+class AppModule {}
+
+@Injectable()
+class AuthService {
+  private readonly config = inject(CONFIG);
+}
+
+const app = createApp({ rootModule: AppModule });
+await app.init();
+await app.listen(app.get(CONFIG).PORT);
+```
+
+- The configuration is validated when the app starts (`init()` or `listen()`), with any Standard Schema library. If a variable is missing or invalid, the app doesn't start and the error lists every failing variable.
+- Errors never show a variable's value: if a custom message includes it, it's replaced with `***`.
+- Declaring `Register` types `inject(CONFIG)`: `config.PORT` is a `number`, not the string `"3000"`.
+- The result is frozen. With a regular `z.object()`, it only contains the declared variables, not the rest of `process.env`.
+- Outside the container (for example, to pass the port to `listen()`), use `app.get(CONFIG)` after `await app.init()`: `get()` can't be called before the app starts.
+- It reads `process.env` by default; `env` accepts any object, for example one loaded from a file or built in a test.
+- viga doesn't read `.env` files: Node does it with `node --env-file=.env`.
+- The schema must validate synchronously.
 
 ## viga/pagination
 

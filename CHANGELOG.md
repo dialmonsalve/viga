@@ -40,6 +40,11 @@ First public release.
 - Public `WsAdapter` interface, with a default adapter on top of `ws` that is loaded only when needed. Adapters receive the gateway paths; a socket.io adapter in the test suite checks that the interface works beyond `ws`.
 - Secure defaults: private gateways, handshake authentication with a timeout (`handshakeTimeoutMs`), a cap on simultaneous connections (`maxConnections`) and an optional one per client (`connectionsPerKey`), `Origin` allowlist, `maxPayload`, per-connection message rate limit, heartbeat, slow-client protection and mandatory validation.
 
+### `viga/config`
+
+- `ConfigModule.forRoot({ schema, env? })` validates the configuration at startup with any Standard Schema library and fails listing every invalid variable, without showing their values.
+- `inject(CONFIG)` is typed through `Register` and returns a frozen object.
+
 ### `viga/pagination`
 
 - `@Paginate` with `page.offset`, `page.limit` and a generic `page.result(items, total)` that returns `PaginatedResult<T>` with `total`, `lastPage` and relative `next`/`prev` links that keep the query parameters.
