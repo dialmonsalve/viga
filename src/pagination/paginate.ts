@@ -9,6 +9,7 @@ export interface PaginateOptions {
   defaultLimit?: number;
   maxLimit?: number;
   maxPage?: number;
+  maxOffset?: number;
 }
 
 export interface PaginationMeta {
@@ -79,13 +80,14 @@ export function Paginate({
   defaultLimit = 20,
   maxLimit = 100,
   maxPage = 1000,
+  maxOffset = 10_000,
 }: PaginateOptions = {}) {
   if (
-    ![defaultLimit, maxLimit, maxPage].every(isPositiveInteger) ||
+    ![defaultLimit, maxLimit, maxPage, maxOffset].every(isPositiveInteger) ||
     defaultLimit > maxLimit
   ) {
     throw new Error(
-      diagnostic('pagination.invalidOptions', { defaultLimit, maxLimit, maxPage })
+      diagnostic('pagination.invalidOptions', { defaultLimit, maxLimit, maxPage, maxOffset })
     );
   }
 
@@ -97,14 +99,17 @@ export function Paginate({
       pipes: [
         async (_self, ctx) => {
           const { req } = ctx as HttpContext;
-          const page = readPositiveInteger(req.query.page, 1);
-          if (page === undefined || page > maxPage) {
-            throw new BadRequestException('errors.invalidPage', undefined, { max: maxPage });
-          }
-          const limit = readPositiveInteger(req.query.limit, defaultLimit);
-          if (limit === undefined) throw new BadRequestException('errors.invalidLimit');
+          const requested = readPositiveInteger(req.query.limit, defaultLimit);
+          if (requested === undefined) throw new BadRequestException('errors.invalidLimit');
+          const limit = Math.min(requested, maxLimit);
 
-          return { ...ctx, page: createPage(req, page, Math.min(limit, maxLimit)) };
+          const lastAllowed = Math.min(maxPage, Math.floor(maxOffset / limit) + 1);
+          const page = readPositiveInteger(req.query.page, 1);
+          if (page === undefined || page > lastAllowed) {
+            throw new BadRequestException('errors.invalidPage', undefined, { max: lastAllowed });
+          }
+
+          return { ...ctx, page: createPage(req, page, limit) };
         },
       ],
     });

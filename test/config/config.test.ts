@@ -110,7 +110,7 @@ describe('ConfigModule', () => {
     });
   });
 
-  it('identifica los errores de todo el objeto y no tapa valores demasiado cortos', async () => {
+  it('identifica errores de todo el objeto y oculta valores cortos sin romper el mensaje', async () => {
     const Ports = z
       .object({ FROM: z.coerce.number(), TO: z.coerce.number() })
       .refine((env) => env.FROM < env.TO, { error: 'FROM must be lower than TO' });
@@ -130,8 +130,51 @@ describe('ConfigModule', () => {
     );
     await assert.rejects(
       createApp({ rootModule: ShortModule, logger: silentLogger }).init(),
-      /- MODE: MODE "ab" is not allowed/
+      /- MODE: MODE "\*\*\*" is not allowed/
     );
+  });
+
+  it('oculta el valor en la ruta completa de una fuente anidada', async () => {
+    const custom: StandardSchemaV1 = {
+      '~standard': {
+        version: 1,
+        vendor: 'custom',
+        validate: () => ({
+          issues: [{ message: 'key s3cr3t-key about to expire', path: ['db', { key: 'key' }] }],
+        }),
+      },
+    };
+
+    @Module({ imports: [ConfigModule.forRoot({ schema: custom, env: { db: { key: 's3cr3t-key' } } })] })
+    class NestedModule {}
+
+    await assert.rejects(
+      createApp({ rootModule: NestedModule, logger: silentLogger }).init(),
+      (error: Error) => {
+        assert.match(error.message, /- db\.key: key \*\*\* about to expire/);
+        assert.doesNotMatch(error.message, /s3cr3t/);
+        return true;
+      }
+    );
+  });
+
+  it('congela la configuración en profundidad', async () => {
+    const Nested = z
+      .object({ DATABASE_URL: z.url() })
+      .transform((env) => ({ db: { url: env.DATABASE_URL }, hosts: ['a'] }));
+
+    @Module({ imports: [ConfigModule.forRoot({ schema: Nested, env: VALID })] })
+    class NestedModule {}
+
+    const app = createApp({ rootModule: NestedModule, logger: silentLogger });
+    await app.init();
+    const config = app.get(CONFIG) as unknown as { db: { url: string }; hosts: string[] };
+
+    assert.throws(() => {
+      config.db.url = 'postgres://evil';
+    }, TypeError);
+    assert.throws(() => config.hosts.push('b'), TypeError);
+    await app.close();
   });
 
   it('entiende los errores de cualquier librería Standard Schema', async () => {

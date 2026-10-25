@@ -44,13 +44,17 @@ export const diagnosticsEs = {
     'set("{key}") solo puede llamarse dentro de una petición o de runInNewContext()',
   'i18n.unknownDefaultLocale':
     'El idioma por defecto "{locale}" no está entre los catálogos: {locales}',
+  'drizzle.insecureConnection':
+    'PostgreSQL se conecta a {host} sin TLS, así que credenciales y datos viajan en claro; configura ssl en la conexión o añade sslmode=verify-full a la URL',
+  'drizzle.unverifiedTls':
+    'PostgreSQL usa TLS con rejectUnauthorized: false, así que no verifica el certificado del servidor y un intermediario puede leer la conexión; pasa la CA en ssl.ca',
   'drizzle.idleClientError': 'Error inesperado en una conexión inactiva de PostgreSQL',
   'drizzle.nestedTransactionConfig':
     'Una transacción anidada no puede cambiar la configuración de la transacción exterior',
   'config.invalid': 'Configuración inválida:\n{issues}',
   'config.asyncSchema': 'El schema de configuración tiene que validar de forma síncrona',
   'pagination.invalidOptions':
-    'defaultLimit, maxLimit y maxPage deben ser enteros positivos y defaultLimit no puede superar a maxLimit, se recibió defaultLimit={defaultLimit} maxLimit={maxLimit} maxPage={maxPage}',
+    'defaultLimit, maxLimit, maxPage y maxOffset deben ser enteros positivos y defaultLimit no puede superar a maxLimit, se recibió defaultLimit={defaultLimit} maxLimit={maxLimit} maxPage={maxPage} maxOffset={maxOffset}',
   'ws.noAuthenticate':
     'No hay una función authenticate configurada, así que los {count} gateways privados rechazarán cada handshake con 401; define authenticate en WebSocketModule.forRoot() o marca los gateways públicos con @Public()',
   'ws.publicGateways': 'Gateways públicos: {paths}',

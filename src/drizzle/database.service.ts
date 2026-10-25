@@ -26,8 +26,40 @@ export interface DrizzleOptions {
 
 export const DRIZZLE_OPTIONS = new InjectionToken<DrizzleOptions>('DRIZZLE_OPTIONS');
 
+const POOL_DEFAULTS: PoolConfig = {
+  statement_timeout: 30_000,
+  connectionTimeoutMillis: 10_000,
+  idle_in_transaction_session_timeout: 60_000,
+};
+
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
+
 function poolConfig(connection: string | PoolConfig): PoolConfig {
-  return typeof connection === 'string' ? { connectionString: connection } : connection;
+  const config = typeof connection === 'string' ? { connectionString: connection } : connection;
+  return { ...POOL_DEFAULTS, ...config };
+}
+
+function parseUrl(connectionString: string | undefined) {
+  if (!connectionString) return undefined;
+  try {
+    return new URL(connectionString);
+  } catch {
+    return undefined;
+  }
+}
+
+function tlsProblem(config: PoolConfig) {
+  const url = parseUrl(config.connectionString);
+  const host = config.host ?? (url?.hostname || undefined) ?? process.env.PGHOST ?? 'localhost';
+  const sslMode = url?.searchParams.get('sslmode');
+  const sslParam = url?.searchParams.get('ssl');
+  const ssl = config.ssl ?? (sslMode ? sslMode !== 'disable' : sslParam === 'true' || sslParam === '1');
+
+  if (typeof ssl === 'object' && ssl.rejectUnauthorized === false) {
+    return diagnostic('drizzle.unverifiedTls');
+  }
+  if (ssl || host.startsWith('/') || LOCAL_HOSTS.has(host)) return undefined;
+  return diagnostic('drizzle.insecureConnection', { host });
 }
 
 @Injectable()
@@ -42,6 +74,8 @@ export class DatabaseService implements OnModuleDestroy {
   }) as Database;
 
   constructor() {
+    const problem = tlsProblem(this.pool.options);
+    if (problem) this.logger.warn(problem);
     this.pool.on('error', (error) => {
       this.logger.error(diagnostic('drizzle.idleClientError'), error);
     });

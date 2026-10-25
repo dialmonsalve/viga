@@ -28,6 +28,12 @@ class BooksController {
     return page.result(BOOKS.slice(page.offset, page.offset + page.limit), BOOKS.length);
   }
 
+  @Get('shallow')
+  @Paginate({ maxOffset: 40 })
+  shallow({ page }: PageContext) {
+    return page.result([], BOOKS.length);
+  }
+
   @Get('filtered')
   @Paginate({ defaultLimit: 5, maxLimit: 10, maxPage: 50 })
   @Validate({ query: Filter })
@@ -158,7 +164,27 @@ describe('@Paginate', () => {
     assert.equal((await rawGet('/api/books/')).next, '/api/books?page=2&limit=20');
   });
 
+  it('por defecto limita el OFFSET a 10.000 filas según el limit pedido', async () => {
+    assert.equal((await server.request('/api/books?page=101&limit=100')).status, 200);
+    assert.equal((await server.request('/api/books?page=501')).status, 200);
+
+    const deep = await server.request<ApiErrorBody>('/api/books?page=102&limit=100');
+    assert.equal(deep.status, 400);
+    assert.equal(deep.body.code, 'errors.invalidPage');
+    assert.equal(deep.body.message, 'page must be an integer between 1 and 101');
+    assert.equal((await server.request('/api/books?page=502')).status, 400);
+  });
+
+  it('maxOffset cambia la profundidad permitida', async () => {
+    assert.equal((await server.request('/api/books/shallow?page=3')).status, 200);
+    const deep = await server.request<ApiErrorBody>('/api/books/shallow?page=4');
+
+    assert.equal(deep.status, 400);
+    assert.equal(deep.body.message, 'page must be an integer between 1 and 3');
+  });
+
   it('rechaza opciones inválidas al declarar el decorador', () => {
+    assert.throws(() => Paginate({ maxOffset: -1 }), /must be positive integers/);
     assert.throws(() => Paginate({ defaultLimit: 50, maxLimit: 10 }), /defaultLimit cannot exceed maxLimit/);
     assert.throws(() => Paginate({ maxPage: 0 }), /must be positive integers/);
   });

@@ -375,9 +375,9 @@ await app.listen(app.get(CONFIG).PORT);
 ```
 
 - The configuration is validated when the app starts (`init()` or `listen()`), with any Standard Schema library. If a variable is missing or invalid, the app doesn't start and the error lists every failing variable.
-- Errors never show a variable's value: if a custom message includes it, it's replaced with `***`.
+- Errors never show a variable's value: if a custom message includes it, it's replaced with `***`, even when it's short or nested inside the source. Only whole occurrences are replaced, so the rest of the message stays readable.
 - Declaring `Register` types `inject(CONFIG)`: `config.PORT` is a `number`, not the string `"3000"`.
-- The result is frozen. With a regular `z.object()`, it only contains the declared variables, not the rest of `process.env`.
+- The result is frozen deeply, nested objects and arrays included, so no code can change the configuration at runtime. With a regular `z.object()`, it only contains the declared variables, not the rest of `process.env`.
 - Outside the container (for example, to pass the port to `listen()`), use `app.get(CONFIG)` after `await app.init()`: `get()` can't be called before the app starts.
 - It reads `process.env` by default; `env` accepts any object, for example one loaded from a file or built in a test.
 - viga doesn't read `.env` files: Node does it with `node --env-file=.env`.
@@ -407,8 +407,8 @@ async list({ page, query }: PageContext<{ query: typeof BookFilter }>) {
 - `@Paginate` reads `?page` and `?limit`, and gives the handler `page.page`, `page.limit` and `page.offset` for your query. viga doesn't query the database: it works with any ORM.
 - `page.result(items, total)` builds the response. It's generic, so returning `Book[]` makes the handler return `PaginatedResult<Book>`; export that type to share it with your frontend.
 - `next` and `prev` are relative links that keep the other query parameters. They're never built from the `Host` header, so a forged host can't turn them into links to another domain.
-- A `limit` above `maxLimit` (100 by default) is capped instead of rejected, so `?limit=1000000` can't make the database return a whole table. `maxPage` (1000 by default) caps how deep a client can go, because a huge `OFFSET` is slow even when it returns nothing.
-- An invalid `page` (not an integer, below 1, above `maxPage` or repeated) responds 400 `errors.invalidPage`; an invalid `limit` responds 400 `errors.invalidLimit`.
+- A `limit` above `maxLimit` (100 by default) is capped instead of rejected, so `?limit=1000000` can't make the database return a whole table. `maxPage` (1000 by default) and `maxOffset` (10,000 rows by default) cap how deep a client can go, because a huge `OFFSET` is slow even when it returns nothing. The highest allowed page depends on the `limit`: with `limit=100` it's 101. For deeper lists, use cursor pagination (`WHERE id > :last`).
+- An invalid `page` (not an integer, below 1, beyond `maxPage` or `maxOffset`, or repeated) responds 400 `errors.invalidPage` with the highest allowed page in the message; an invalid `limit` responds 400 `errors.invalidLimit`.
 - With `@Validate({ query })`, the schema must accept `page` and `limit` (a non-strict `z.object()` does).
 
 ## viga/drizzle
@@ -440,6 +440,8 @@ class BooksRepository {
 
 - `DrizzleModule.forRoot()` is global and is registered once, in the root module.
 - `connection` accepts a URL or the full `pg` `Pool` configuration.
+- The pool has limits by default: `statement_timeout` of 30 seconds (the same as the request timeout), `connectionTimeoutMillis` of 10 seconds and `idle_in_transaction_session_timeout` of 60 seconds, so a slow query or a forgotten transaction can't hold connections forever. Your `connection` overrides any of them.
+- At startup, viga warns if it connects without TLS to a host that isn't local, or if TLS has `rejectUnauthorized: false`. In production use `?sslmode=verify-full` or `ssl: { ca }`.
 - Declaring `Register` types `database.db` with your schema.
 - The pool is closed by `app.close()`. Errors from idle connections go to the logger and don't crash the process.
 

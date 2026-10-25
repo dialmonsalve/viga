@@ -42,17 +42,17 @@ First public release.
 
 ### `viga/config`
 
-- `ConfigModule.forRoot({ schema, env? })` validates the configuration at startup with any Standard Schema library and fails listing every invalid variable, without showing their values.
-- `inject(CONFIG)` is typed through `Register` and returns a frozen object.
+- `ConfigModule.forRoot({ schema, env? })` validates the configuration at startup with any Standard Schema library and fails listing every invalid variable, without showing their values, even short or nested ones.
+- `inject(CONFIG)` is typed through `Register` and returns a deeply frozen object.
 
 ### `viga/pagination`
 
 - `@Paginate` with `page.offset`, `page.limit` and a generic `page.result(items, total)` that returns `PaginatedResult<T>` with `total`, `lastPage` and relative `next`/`prev` links that keep the query parameters.
-- Secure defaults: `maxLimit` caps the page size, `maxPage` caps the depth, invalid values respond 400, and links never use the `Host` header.
+- Secure defaults: `maxLimit` caps the page size, `maxPage` and `maxOffset` (10,000 rows) cap the depth, invalid values respond 400, and links never use the `Host` header.
 
 ### `viga/drizzle`
 
-- `DrizzleModule.forRoot()` and `DatabaseService` with pool shutdown.
+- `DrizzleModule.forRoot()` and `DatabaseService` with pool shutdown, default timeouts for statements, connections and idle transactions, and a startup warning for connections without verified TLS to a remote host.
 - Transactions with `database.transaction()` and `@Transactional()`, nested savepoints and isolation options.
 
 [0.1.0]: https://github.com/dialmonsalve/viga/releases/tag/v0.1.0

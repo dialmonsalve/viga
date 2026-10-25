@@ -44,13 +44,17 @@ export const DIAGNOSTICS = {
     'set("{key}") can only be called inside a request or inside runInNewContext()',
   'i18n.unknownDefaultLocale':
     'The default locale "{locale}" is not among the catalogs: {locales}',
+  'drizzle.insecureConnection':
+    'PostgreSQL connects to {host} without TLS, so credentials and data travel in clear text; set ssl in the connection or add sslmode=verify-full to the URL',
+  'drizzle.unverifiedTls':
+    'PostgreSQL uses TLS with rejectUnauthorized: false, so it does not verify the server certificate and a man in the middle can read the connection; pass the CA in ssl.ca instead',
   'drizzle.idleClientError': 'Unexpected error on an idle PostgreSQL connection',
   'drizzle.nestedTransactionConfig':
     'A nested transaction cannot change the configuration of the outer transaction',
   'config.invalid': 'Invalid configuration:\n{issues}',
   'config.asyncSchema': 'The configuration schema must validate synchronously',
   'pagination.invalidOptions':
-    'defaultLimit, maxLimit and maxPage must be positive integers and defaultLimit cannot exceed maxLimit, received defaultLimit={defaultLimit} maxLimit={maxLimit} maxPage={maxPage}',
+    'defaultLimit, maxLimit, maxPage and maxOffset must be positive integers and defaultLimit cannot exceed maxLimit, received defaultLimit={defaultLimit} maxLimit={maxLimit} maxPage={maxPage} maxOffset={maxOffset}',
   'ws.noAuthenticate':
     'No authenticate function is configured, so the {count} private gateways will reject every handshake with 401; set authenticate in WebSocketModule.forRoot() or mark public gateways with @Public()',
   'ws.publicGateways': 'Public gateways: {paths}',

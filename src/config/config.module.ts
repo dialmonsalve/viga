@@ -19,21 +19,43 @@ export interface ConfigOptions {
 export const CONFIG = new InjectionToken<Config>('CONFIG');
 
 const REDACTED = '***';
-const MIN_REDACTED_LENGTH = 4;
+
+function keyOf(segment: PropertyKey | StandardSchemaV1.PathSegment) {
+  return typeof segment === 'object' ? segment.key : segment;
+}
 
 function pathOf(issue: StandardSchemaV1.Issue) {
-  const path = (issue.path ?? [])
-    .map((segment) => String(typeof segment === 'object' ? segment.key : segment))
-    .join('.');
+  const path = (issue.path ?? []).map((segment) => String(keyOf(segment))).join('.');
   return path || '(root)';
 }
 
+function valueAt(source: unknown, path: readonly (PropertyKey | StandardSchemaV1.PathSegment)[]) {
+  let current = source;
+  for (const segment of path) {
+    if (current === null || typeof current !== 'object') return undefined;
+    current = (current as Record<PropertyKey, unknown>)[keyOf(segment)];
+  }
+  return current;
+}
+
 function redact(message: string, issue: StandardSchemaV1.Issue, env: ConfigSource) {
-  const [first] = issue.path ?? [];
-  const key = typeof first === 'object' ? first.key : first;
-  const value = key === undefined ? undefined : env[String(key)];
-  if (typeof value !== 'string' || value.length < MIN_REDACTED_LENGTH) return message;
-  return message.replaceAll(value, REDACTED);
+  if (!issue.path?.length) return message;
+  const value = valueAt(env, issue.path);
+  if (typeof value !== 'string' && typeof value !== 'number') return message;
+  const text = String(value);
+  if (!text) return message;
+  const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return message.replace(new RegExp(`(?<![\\w-])${escaped}(?![\\w-])`, 'g'), REDACTED);
+}
+
+function deepFreeze<T>(value: T): T {
+  if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const key of Reflect.ownKeys(value)) {
+      deepFreeze((value as Record<PropertyKey, unknown>)[key]);
+    }
+  }
+  return value;
 }
 
 function parseConfig({ schema, env = process.env }: ConfigOptions): Config {
@@ -46,7 +68,7 @@ function parseConfig({ schema, env = process.env }: ConfigOptions): Config {
       .join('\n');
     throw new Error(diagnostic('config.invalid', { issues }));
   }
-  return Object.freeze(result.value) as Config;
+  return deepFreeze(result.value) as Config;
 }
 
 export class ConfigModule {

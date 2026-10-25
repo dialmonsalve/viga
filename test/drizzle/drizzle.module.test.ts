@@ -83,4 +83,72 @@ describe('DrizzleModule', () => {
     assert.equal(logged.length, 1);
     await app.close();
   });
+
+  it('fija por defecto tiempos máximos para consultas, conexiones y transacciones inactivas', async () => {
+    @Module({ imports: [DrizzleModule.forRoot({ connection })] })
+    class DefaultModule {}
+
+    @Module({
+      imports: [
+        DrizzleModule.forRoot({ connection: { connectionString: connection, statement_timeout: 5_000 } }),
+      ],
+    })
+    class CustomModule {}
+
+    for (const [Root, statementTimeout] of [
+      [DefaultModule, 30_000],
+      [CustomModule, 5_000],
+    ] as const) {
+      const app = createApp({ rootModule: Root, logger: silentLogger });
+      await app.init();
+      const { options } = app.get(DatabaseService).pool;
+
+      assert.equal(options.statement_timeout, statementTimeout);
+      assert.equal(options.connectionTimeoutMillis, 10_000);
+      assert.equal(options.idle_in_transaction_session_timeout, 60_000);
+      await app.close();
+    }
+  });
+
+  describe('avisos de TLS', () => {
+    const warningsFor = async (connection: string | Record<string, unknown>) => {
+      const warnings: string[] = [];
+
+      @Module({ imports: [DrizzleModule.forRoot({ connection })] })
+      class AppModule {}
+
+      const app = createApp({
+        rootModule: AppModule,
+        logger: { ...silentLogger, warn: (message) => warnings.push(message) },
+      });
+      await app.init();
+      await app.close();
+      return warnings;
+    };
+
+    it('avisa si se conecta sin TLS a un host que no es local', async () => {
+      const warnings = await warningsFor('postgresql://viga:viga@db.example.com:1/viga');
+
+      assert.equal(warnings.length, 1);
+      assert.match(warnings[0]!, /db\.example\.com without TLS/);
+      assert.doesNotMatch(warnings[0]!, /viga:viga/);
+    });
+
+    it('avisa si TLS no verifica el certificado', async () => {
+      const unverified = { host: 'db.example.com', port: 1, ssl: { rejectUnauthorized: false } };
+      const warnings = await warningsFor(unverified);
+
+      assert.equal(warnings.length, 1);
+      assert.match(warnings[0]!, /does not verify the server certificate/);
+    });
+
+    it('no avisa con TLS verificado ni con una base de datos local', async () => {
+      const verified = 'postgresql://viga@db.example.com:1/viga?sslmode=verify-full';
+      assert.deepEqual(await warningsFor(verified), []);
+      assert.deepEqual(await warningsFor({ host: 'db.example.com', port: 1, ssl: true }), []);
+      assert.deepEqual(await warningsFor(connection), []);
+      assert.deepEqual(await warningsFor('postgresql://viga@localhost:1/viga'), []);
+      assert.deepEqual(await warningsFor({ host: '/var/run/postgresql' }), []);
+    });
+  });
 });

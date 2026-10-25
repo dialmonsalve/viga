@@ -375,9 +375,9 @@ await app.listen(app.get(CONFIG).PORT);
 ```
 
 - La configuración se valida al arrancar la app (`init()` o `listen()`), con cualquier librería Standard Schema. Si falta una variable o es inválida, la app no arranca y el error lista todas las que fallan.
-- Los errores nunca muestran el valor de una variable: si un mensaje personalizado lo incluye, se reemplaza por `***`.
+- Los errores nunca muestran el valor de una variable: si un mensaje personalizado lo incluye, se reemplaza por `***`, aunque sea corto o esté anidado en la fuente. Solo se reemplazan apariciones completas, así que el resto del mensaje sigue legible.
 - Declarar `Register` tipa `inject(CONFIG)`: `config.PORT` es un `number`, no el string `"3000"`.
-- El resultado se congela. Con un `z.object()` normal, solo contiene las variables declaradas, no el resto de `process.env`.
+- El resultado se congela en profundidad, con objetos y arrays anidados, así que ningún código puede cambiar la configuración en tiempo de ejecución. Con un `z.object()` normal, solo contiene las variables declaradas, no el resto de `process.env`.
 - Fuera del contenedor (por ejemplo, para pasar el puerto a `listen()`), usa `app.get(CONFIG)` después de `await app.init()`: `get()` no se puede llamar antes de que la app arranque.
 - Por defecto lee `process.env`; `env` acepta cualquier objeto, por ejemplo uno cargado de un archivo o creado en un test.
 - viga no lee archivos `.env`: Node lo hace con `node --env-file=.env`.
@@ -407,8 +407,8 @@ async list({ page, query }: PageContext<{ query: typeof BookFilter }>) {
 - `@Paginate` lee `?page` y `?limit`, y le da al handler `page.page`, `page.limit` y `page.offset` para tu consulta. viga no consulta la base de datos: funciona con cualquier ORM.
 - `page.result(items, total)` construye la respuesta. Es genérico, así que devolver `Book[]` hace que el handler devuelva `PaginatedResult<Book>`; exporta ese tipo para compartirlo con tu frontend.
 - `next` y `prev` son enlaces relativos que conservan los demás parámetros de la URL. Nunca se construyen con la cabecera `Host`, así que un host falsificado no puede convertirlos en enlaces a otro dominio.
-- Un `limit` mayor que `maxLimit` (100 por defecto) se recorta en lugar de rechazarse, así que `?limit=1000000` no puede hacer que la base de datos devuelva una tabla entera. `maxPage` (1000 por defecto) limita cuánto puede avanzar un cliente, porque un `OFFSET` enorme es lento aunque no devuelva nada.
-- Un `page` inválido (no entero, menor que 1, mayor que `maxPage` o repetido) responde 400 `errors.invalidPage`; un `limit` inválido responde 400 `errors.invalidLimit`.
+- Un `limit` mayor que `maxLimit` (100 por defecto) se recorta en lugar de rechazarse, así que `?limit=1000000` no puede hacer que la base de datos devuelva una tabla entera. `maxPage` (1000 por defecto) y `maxOffset` (10.000 filas por defecto) limitan cuánto puede avanzar un cliente, porque un `OFFSET` enorme es lento aunque no devuelva nada. La página máxima depende del `limit`: con `limit=100` es la 101. Para listas más profundas, usa paginación por cursor (`WHERE id > :ultimo`).
+- Un `page` inválido (no entero, menor que 1, más allá de `maxPage` o `maxOffset`, o repetido) responde 400 `errors.invalidPage` con la página máxima permitida en el mensaje; un `limit` inválido responde 400 `errors.invalidLimit`.
 - Con `@Validate({ query })`, el schema tiene que aceptar `page` y `limit` (un `z.object()` no estricto lo hace).
 
 ## viga/drizzle
@@ -440,6 +440,8 @@ class BooksRepository {
 
 - `DrizzleModule.forRoot()` es global y se registra una sola vez en el módulo raíz.
 - `connection` acepta una URL o la configuración completa del `Pool` de `pg`.
+- El pool trae límites por defecto: `statement_timeout` de 30 segundos (igual que el timeout de la petición), `connectionTimeoutMillis` de 10 segundos e `idle_in_transaction_session_timeout` de 60 segundos, así que una consulta lenta o una transacción olvidada no retienen conexiones para siempre. Tu `connection` sobrescribe cualquiera de ellos.
+- Al arrancar, viga avisa si se conecta sin TLS a un host que no es local, o si TLS tiene `rejectUnauthorized: false`. En producción usa `?sslmode=verify-full` o `ssl: { ca }`.
 - Declarar `Register` tipa `database.db` con tu schema.
 - El pool se cierra con `app.close()`. Los errores de conexiones inactivas van al logger y no tumban el proceso.
 
