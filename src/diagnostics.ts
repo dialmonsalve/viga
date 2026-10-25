@@ -36,6 +36,15 @@ export const DIAGNOSTICS = {
   'drizzle.idleClientError': 'Unexpected error on an idle PostgreSQL connection',
   'drizzle.nestedTransactionConfig':
     'A nested transaction cannot change the configuration of the outer transaction',
+  'ws.invalidEvent':
+    'Invalid event name "{event}": use 1 to 128 letters, digits, ".", ":", "_" or "-"',
+  'ws.duplicatePath': 'The gateways {first} and {second} use the same path {path}',
+  'ws.duplicateEvent': '{gateway} handles the event "{event}" more than once',
+  'ws.missingValidation':
+    '{gateway}.{method} handles "{event}" without a schema, required by requireValidation',
+  'ws.unhandledException': 'Unhandled exception in a WebSocket gateway',
+  'ws.missingPackage':
+    'The default WebSocket adapter needs the "ws" package: install it, or pass your own adapter in WebSocketModule.forRoot({ adapter })',
 } as const;
 
 export type DiagnosticKey = keyof typeof DIAGNOSTICS;
@@ -53,6 +62,7 @@ const PREFIXES: Record<string, string> = {
   context: 'Context',
   i18n: 'I18n',
   drizzle: 'Drizzle',
+  ws: 'WebSocket',
 };
 
 let overrides: DiagnosticDictionary = {};

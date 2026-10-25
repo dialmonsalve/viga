@@ -36,4 +36,13 @@ export const diagnosticsEs = {
   'drizzle.idleClientError': 'Error inesperado en una conexión inactiva de PostgreSQL',
   'drizzle.nestedTransactionConfig':
     'Una transacción anidada no puede cambiar la configuración de la transacción exterior',
+  'ws.invalidEvent':
+    'Nombre de evento inválido "{event}": usa de 1 a 128 letras, números, ".", ":", "_" o "-"',
+  'ws.duplicatePath': 'Los gateways {first} y {second} usan la misma ruta {path}',
+  'ws.duplicateEvent': '{gateway} maneja el evento "{event}" más de una vez',
+  'ws.missingValidation':
+    '{gateway}.{method} maneja "{event}" sin schema, obligatorio por requireValidation',
+  'ws.unhandledException': 'Excepción no controlada en un gateway de WebSocket',
+  'ws.missingPackage':
+    'El adaptador de WebSocket por defecto necesita el paquete "ws": instálalo, o pasa tu propio adaptador en WebSocketModule.forRoot({ adapter })',
 } as const satisfies Record<DiagnosticKey, string>;

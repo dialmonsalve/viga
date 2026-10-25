@@ -24,6 +24,7 @@
     "modules",
     "standard-schema",
     "validation",
+    "websocket",
     "i18n",
     "drizzle",
     "nestjs-alternative"
@@ -44,6 +45,10 @@
     "./drizzle": {
       "types": "./dist/drizzle/index.d.ts",
       "default": "./dist/drizzle/index.js"
+    },
+    "./websocket": {
+      "types": "./dist/websocket/index.d.ts",
+      "default": "./dist/websocket/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -85,7 +90,8 @@
     "@types/express": "^5.0.0",
     "drizzle-orm": ">=0.45.0 <1.0.0",
     "express": "^5.1.0",
-    "pg": "^8.13.0"
+    "pg": "^8.13.0",
+    "ws": "^8.18.0"
   },
   "peerDependenciesMeta": {
     "@types/express": {
@@ -96,17 +102,22 @@
     },
     "pg": {
       "optional": true
+    },
+    "ws": {
+      "optional": true
     }
   },
   "devDependencies": {
     "@types/express": "5.0.6",
     "@types/node": "24.13.3",
     "@types/pg": "8.23.1",
+    "@types/ws": "8.18.2",
     "drizzle-orm": "0.45.4",
     "express": "5.3.0",
     "pg": "8.23.1",
     "tsx": "4.23.15",
     "typescript": "7.0.2",
+    "ws": "8.22.0",
     "zod": "4.6.7"
   }
 }

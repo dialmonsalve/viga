@@ -1,0 +1,471 @@
+import type { Request } from 'express';
+import { randomUUID } from 'node:crypto';
+import type { IncomingMessage, Server } from 'node:http';
+import { runInNewContext } from '../context.ts';
+import { Injectable } from '../decorators/injectable.ts';
+import { validatedParts } from '../decorators/pipeline.ts';
+import { resolveGuard, runGuards, type GuardFn } from '../decorators/use-guards.ts';
+import {
+  resolveInterceptor,
+  runInterceptors,
+  type InterceptorFn,
+} from '../decorators/use-interceptors.ts';
+import { inject, injectorOf } from '../di/injector.ts';
+import { PROVIDER_INSTANCES, type OnServerClose, type OnServerListen } from '../di/lifecycle.ts';
+import { diagnostic } from '../diagnostics.ts';
+import { describeException, toHttpException } from '../http/error-handler.ts';
+import {
+  BadRequestException,
+  HttpException,
+  NotFoundException,
+  TooManyRequestsException,
+  UnsupportedMediaTypeException,
+} from '../http/exceptions.ts';
+import { DEFAULT_MESSAGES } from '../http/messages.ts';
+import { normalizePath } from '../http/router.ts';
+import { LOGGER } from '../logger.ts';
+import type { AnyConstructor } from '../metadata.ts';
+import type { WsConnection, WsVerdict } from './adapter.ts';
+import {
+  readGatewayDefinition,
+  type OnWsConnection,
+  type OnWsDisconnect,
+  type WsClient,
+  type WsContext,
+} from './gateway.ts';
+import { WEBSOCKET_OPTIONS, type WsMessageRateLimit } from './options.ts';
+
+const EVENT_NAME = /^[\w.:-]{1,128}$/;
+const MESSAGE_ID = /^[\w-]{1,64}$/;
+const POLICY_VIOLATION = 1008;
+const INTERNAL_ERROR = 1011;
+
+type MessageId = string | number;
+
+interface Envelope {
+  event: string;
+  data: unknown;
+  id?: MessageId;
+}
+
+interface Route {
+  gateway: Partial<OnWsConnection & OnWsDisconnect>;
+  isPublic: boolean;
+  guards: GuardFn<WsContext>[];
+  interceptors: InterceptorFn<WsContext>[];
+  handlers: Map<string, (ctx: WsContext) => unknown>;
+}
+
+interface Handshake {
+  route: Route;
+  state: Record<string, unknown>;
+}
+
+export interface WsBroadcastOptions {
+  except?: WsClient;
+}
+
+export interface WsBroadcast {
+  send(event: string, data?: unknown, options?: WsBroadcastOptions): void;
+}
+
+function serialize(event: string, data: unknown, id?: MessageId) {
+  return JSON.stringify({
+    event,
+    ...(data === undefined ? {} : { data }),
+    ...(id === undefined ? {} : { id }),
+  });
+}
+
+function isMessageId(value: unknown): value is MessageId {
+  return (
+    (typeof value === 'string' && MESSAGE_ID.test(value)) ||
+    (typeof value === 'number' && Number.isSafeInteger(value))
+  );
+}
+
+function parseEnvelope(message: string): Envelope {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(message);
+  } catch {
+    throw new BadRequestException();
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new BadRequestException();
+  }
+
+  const { event, data, id } = parsed as Record<string, unknown>;
+  if (typeof event !== 'string' || !EVENT_NAME.test(event)) throw new BadRequestException();
+  if (id !== undefined && !isMessageId(id)) throw new BadRequestException();
+  return { event, data, ...(id === undefined ? {} : { id }) };
+}
+
+function isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as Partial<AsyncIterable<unknown>>)[Symbol.asyncIterator] === 'function'
+  );
+}
+
+function pathOf(req: IncomingMessage) {
+  try {
+    return normalizePath(new URL(req.url ?? '/', 'http://localhost').pathname);
+  } catch {
+    return undefined;
+  }
+}
+
+class Rooms {
+  private readonly members = new Map<string, Set<Client>>();
+
+  join(client: Client, room: string) {
+    let clients = this.members.get(room);
+    if (!clients) {
+      clients = new Set();
+      this.members.set(room, clients);
+    }
+    clients.add(client);
+    client.rooms.add(room);
+  }
+
+  leave(client: Client, room: string) {
+    const clients = this.members.get(room);
+    clients?.delete(client);
+    if (clients?.size === 0) this.members.delete(room);
+    client.rooms.delete(room);
+  }
+
+  leaveAll(client: Client) {
+    for (const room of [...client.rooms]) this.leave(client, room);
+  }
+
+  of(room: string): ReadonlySet<Client> {
+    return this.members.get(room) ?? new Set();
+  }
+}
+
+class Client implements WsClient {
+  readonly id = randomUUID();
+  readonly rooms = new Set<string>();
+  private open = true;
+  private hits = 0;
+  private windowEndsAt = 0;
+
+  constructor(
+    readonly state: Record<string, unknown>,
+    private readonly connection: WsConnection,
+    private readonly roomRegistry: Rooms,
+    private readonly maxBufferedBytes: number
+  ) {}
+
+  get isOpen() {
+    return this.open;
+  }
+
+  send(event: string, data?: unknown) {
+    this.deliver(serialize(event, data));
+  }
+
+  deliver(message: string) {
+    if (!this.open) return;
+    if (this.connection.bufferedAmount > this.maxBufferedBytes) {
+      this.connection.terminate();
+      return;
+    }
+    this.connection.send(message);
+  }
+
+  join(room: string) {
+    if (this.open) this.roomRegistry.join(this, room);
+  }
+
+  leave(room: string) {
+    this.roomRegistry.leave(this, room);
+  }
+
+  close(code?: number, reason?: string) {
+    this.connection.close(code, reason);
+  }
+
+  markClosed() {
+    this.open = false;
+    this.roomRegistry.leaveAll(this);
+  }
+
+  allow(limit: WsMessageRateLimit | false) {
+    if (!limit) return true;
+    const now = Date.now();
+    if (now >= this.windowEndsAt) {
+      this.hits = 0;
+      this.windowEndsAt = now + limit.windowMs;
+    }
+    this.hits++;
+    return this.hits <= limit.max;
+  }
+}
+
+@Injectable()
+export class WsServer implements OnServerListen, OnServerClose {
+  private readonly options = inject(WEBSOCKET_OPTIONS);
+  private readonly instances = inject(PROVIDER_INSTANCES);
+  private readonly logger = inject(LOGGER);
+  private readonly rooms = new Rooms();
+  private readonly connected = new Set<Client>();
+  private readonly handshakes = new WeakMap<IncomingMessage, Handshake>();
+  private routes = new Map<string, Route>();
+  private attached = false;
+
+  get clients(): ReadonlySet<WsClient> {
+    return this.connected;
+  }
+
+  to(room: string): WsBroadcast {
+    return {
+      send: (event, data, options) => this.deliver(this.rooms.of(room), event, data, options),
+    };
+  }
+
+  broadcast(event: string, data?: unknown, options?: WsBroadcastOptions) {
+    this.deliver(this.connected, event, data, options);
+  }
+
+  async onServerListen(server: Server) {
+    this.routes = this.buildRoutes();
+    if (this.routes.size === 0) return;
+
+    await this.options.adapter.attach(server, {
+      maxPayload: this.options.maxPayload,
+      heartbeatMs: this.options.heartbeatMs,
+      verify: (req) => this.verify(req),
+      onConnection: (connection, req) => this.connect(connection, req),
+    });
+    this.attached = true;
+  }
+
+  async onServerClose() {
+    if (this.attached) await this.options.adapter.close();
+  }
+
+  private deliver(
+    clients: ReadonlySet<Client>,
+    event: string,
+    data: unknown,
+    { except }: WsBroadcastOptions = {}
+  ) {
+    const message = serialize(event, data);
+    for (const client of [...clients]) {
+      if (client !== except) client.deliver(message);
+    }
+  }
+
+  private buildRoutes() {
+    const routes = new Map<string, Route>();
+    const names = new Map<string, string>();
+
+    for (const instance of this.instances()) {
+      if (typeof instance !== 'object' || instance === null) continue;
+      const Gateway = instance.constructor as AnyConstructor;
+      const definition = readGatewayDefinition(Gateway);
+      if (!definition) continue;
+
+      const existing = names.get(definition.path);
+      if (existing) {
+        throw new Error(
+          diagnostic('ws.duplicatePath', {
+            first: existing,
+            second: Gateway.name,
+            path: definition.path,
+          })
+        );
+      }
+
+      const injector = injectorOf(instance);
+      const target = instance as Record<PropertyKey, unknown>;
+      const handlers = new Map<string, (ctx: WsContext) => unknown>();
+
+      for (const { event, handlerName } of definition.handlers) {
+        if (handlers.has(event)) {
+          throw new Error(diagnostic('ws.duplicateEvent', { gateway: Gateway.name, event }));
+        }
+        const method = target[handlerName] as (ctx: WsContext) => unknown;
+        if (this.options.requireValidation && !validatedParts(method).has('data')) {
+          throw new Error(
+            diagnostic('ws.missingValidation', {
+              gateway: Gateway.name,
+              method: String(handlerName),
+              event,
+            })
+          );
+        }
+        handlers.set(event, (ctx) => method.call(instance, ctx));
+      }
+
+      names.set(definition.path, Gateway.name);
+      routes.set(definition.path, {
+        gateway: instance as Route['gateway'],
+        isPublic: definition.isPublic,
+        guards: definition.guards.map((guard) => resolveGuard(guard, injector)),
+        interceptors: definition.interceptors.map((ref) => resolveInterceptor(ref, injector)),
+        handlers,
+      });
+    }
+    return routes;
+  }
+
+  private isAllowedOrigin(origin: string) {
+    const { allowedOrigins } = this.options;
+    return typeof allowedOrigins === 'function'
+      ? allowedOrigins(origin)
+      : allowedOrigins.includes(origin);
+  }
+
+  private async verify(req: IncomingMessage): Promise<WsVerdict> {
+    const path = pathOf(req);
+    const route = path === undefined ? undefined : this.routes.get(path);
+    if (!route) return { action: 'ignore' };
+
+    const { origin } = req.headers;
+    if (origin !== undefined && !this.isAllowedOrigin(origin)) {
+      return { action: 'reject', status: 403 };
+    }
+
+    let state: Record<string, unknown> = {};
+    if (!route.isPublic) {
+      try {
+        const result = await this.options.authenticate?.(req);
+        if (!result) return { action: 'reject', status: 401 };
+        if (typeof result === 'object') state = { ...result };
+      } catch (error) {
+        const exception = toHttpException(error);
+        if (exception.statusCode >= 500) {
+          this.logger.error(diagnostic('ws.unhandledException'), error);
+        }
+        return { action: 'reject', status: exception.statusCode };
+      }
+    }
+
+    this.handshakes.set(req, { route, state });
+    return { action: 'accept' };
+  }
+
+  private connect(connection: WsConnection, req: IncomingMessage) {
+    const handshake = this.handshakes.get(req);
+    this.handshakes.delete(req);
+    if (!handshake) {
+      connection.close(INTERNAL_ERROR);
+      return;
+    }
+
+    const { route, state } = handshake;
+    const client = new Client(state, connection, this.rooms, this.options.maxBufferedBytes);
+    this.connected.add(client);
+
+    const ready = Promise.resolve()
+      .then(() => route.gateway.onConnection?.(client))
+      .then(
+        () => true,
+        (error: unknown) => {
+          this.closeAfterFailure(client, error);
+          return false;
+        }
+      );
+
+    connection.onMessage((message, isBinary) => {
+      void ready.then((ok) => {
+        if (ok) return this.receive(route, client, req, message, isBinary);
+      });
+    });
+
+    connection.onClose((code, reason) => {
+      client.markClosed();
+      this.connected.delete(client);
+      void ready.then(async (ok) => {
+        if (!ok) return;
+        try {
+          await route.gateway.onDisconnect?.(client, code, reason);
+        } catch (error) {
+          this.logger.error(diagnostic('ws.unhandledException'), error);
+        }
+      });
+    });
+  }
+
+  private closeAfterFailure(client: Client, error: unknown) {
+    if (error instanceof HttpException && error.statusCode < 500) {
+      client.close(POLICY_VIOLATION);
+      return;
+    }
+    this.logger.error(diagnostic('ws.unhandledException'), error);
+    client.close(INTERNAL_ERROR);
+  }
+
+  private async receive(
+    route: Route,
+    client: Client,
+    req: IncomingMessage,
+    message: string,
+    isBinary: boolean
+  ) {
+    let id: MessageId | undefined;
+    try {
+      if (!client.allow(this.options.messageRateLimit)) throw new TooManyRequestsException();
+      if (isBinary) throw new UnsupportedMediaTypeException();
+
+      const envelope = parseEnvelope(message);
+      id = envelope.id;
+      const handler = route.handlers.get(envelope.event);
+      if (!handler) throw new NotFoundException();
+
+      const ctx: WsContext = { client, req, event: envelope.event, data: envelope.data };
+      const result = await runInNewContext(async () => {
+        await runGuards(route.guards, ctx);
+        return runInterceptors(route.interceptors, ctx, async () => handler(ctx));
+      });
+
+      if (isAsyncIterable(result)) {
+        for await (const item of result) {
+          if (!client.isOpen) break;
+          client.deliver(serialize(envelope.event, item, id));
+        }
+      } else if (result !== undefined) {
+        client.deliver(serialize(envelope.event, result, id));
+      }
+    } catch (error) {
+      this.replyError(client, req, error, id);
+    }
+  }
+
+  private replyError(client: Client, req: IncomingMessage, error: unknown, id?: MessageId) {
+    const exception = toHttpException(error);
+    if (exception.statusCode >= 500) {
+      this.logger.error(diagnostic('ws.unhandledException'), error);
+    }
+
+    try {
+      const { code, message } = describeException(
+        exception,
+        req as Request,
+        this.options.resolveMessage
+      );
+      const { statusCode, details } = exception;
+      client.deliver(
+        serialize(
+          'error',
+          { statusCode, code, message, ...(details === undefined ? {} : { details }) },
+          id
+        )
+      );
+    } catch (failure) {
+      this.logger.error(diagnostic('ws.unhandledException'), failure);
+      client.deliver(
+        serialize(
+          'error',
+          { statusCode: 500, code: 'errors.internal', message: DEFAULT_MESSAGES['errors.internal'] },
+          id
+        )
+      );
+    }
+  }
+}
