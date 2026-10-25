@@ -108,6 +108,7 @@ Providers can implement `OnModuleInit` and `OnModuleDestroy`:
 
 - Every route must pass the guard set with `app.useAuthGuard()`. If there is none, it responds 401: nothing is left open by accident.
 - `@Public()` on a method or on the whole controller opens the route.
+- `@Public` isn't inherited. A subclass of a public controller or gateway is private until it repeats `@Public()`, and an overridden method is private until the new one has `@Public()`. Routes, guards and interceptors are still inherited. That way, extending a public class never opens new routes by accident.
 - If there are private routes but no `useAuthGuard()`, the app logs a warning at startup saying how many will respond 401.
 - The public routes are listed in the startup log at `debug` level (`Public routes: GET /api/health, POST /api/auth/login`), so you can review what's exposed before a deploy or an audit.
 

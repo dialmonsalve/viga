@@ -4,8 +4,8 @@ import {
   HTTP_CODES,
   INTERCEPTORS,
   PUBLIC,
-  PUBLIC_ROUTES,
   ROUTES,
+  isPublicHandler,
   ownList,
   ownRecord,
   readMetadata,
@@ -70,12 +70,15 @@ export function readControllerDefinition(
   if (prefix === undefined) return undefined;
 
   const metadata = readMetadata(target);
+  const routes = (metadata[ROUTES] as RouteDefinition[] | undefined) ?? [];
   return {
     prefix,
-    routes: (metadata[ROUTES] as RouteDefinition[] | undefined) ?? [],
+    routes,
     httpCodes: (metadata[HTTP_CODES] as Record<PropertyKey, number> | undefined) ?? {},
-    isPublic: metadata[PUBLIC] === true,
-    publicRoutes: (metadata[PUBLIC_ROUTES] as Record<PropertyKey, boolean> | undefined) ?? {},
+    isPublic: readOwn<boolean>(target, PUBLIC) === true,
+    publicRoutes: Object.fromEntries(
+      routes.map((route) => [route.handlerName, isPublicHandler(target, route.handlerName)])
+    ),
     guards: (metadata[GUARDS] as Guard[] | undefined) ?? [],
     interceptors: (metadata[INTERCEPTORS] as InterceptorRef[] | undefined) ?? [],
   };

@@ -124,7 +124,7 @@ export function readGatewayDefinition(target: AnyConstructor): GatewayDefinition
   const metadata = readMetadata(target);
   return {
     path,
-    isPublic: metadata[PUBLIC] === true,
+    isPublic: readOwn<boolean>(target, PUBLIC) === true,
     handlers: (metadata[MESSAGE_HANDLERS] as MessageHandlerDefinition[] | undefined) ?? [],
     guards: (metadata[GUARDS] as Guard<WsContext>[] | undefined) ?? [],
     interceptors: (metadata[INTERCEPTORS] as InterceptorRef<WsContext>[] | undefined) ?? [],

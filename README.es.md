@@ -108,6 +108,7 @@ Los providers pueden implementar `OnModuleInit` y `OnModuleDestroy`:
 
 - Toda ruta exige pasar el guard configurado con `app.useAuthGuard()`. Si no hay ninguno, responde 401: nada queda abierto por olvido.
 - `@Public()` en un método o en el controlador entero deja la ruta abierta.
+- `@Public` no se hereda. Una subclase de un controlador o gateway público es privada hasta que repite `@Public()`, y un método sobrescrito es privado hasta que el nuevo lleve `@Public()`. Las rutas, guards e interceptores sí se heredan. Así, extender una clase pública nunca abre rutas nuevas por accidente.
 - Si hay rutas privadas pero ningún `useAuthGuard()`, la app avisa al arrancar de cuántas responderán 401.
 - Las rutas públicas se listan en el log de arranque con nivel `debug` (`Rutas públicas: GET /api/health, POST /api/auth/login`), para revisar qué queda expuesto antes de un despliegue o de una auditoría.
 

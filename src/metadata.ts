@@ -16,8 +16,22 @@ export function readMetadata(target: object): DecoratorMetadataObject {
 }
 
 export function readOwn<T>(target: object, key: symbol): T | undefined {
+  if (!Object.hasOwn(target, Symbol.metadata)) return undefined;
   const metadata = readMetadata(target);
   return Object.hasOwn(metadata, key) ? (metadata[key] as T) : undefined;
+}
+
+export function isPublicHandler(target: AnyConstructor, name: PropertyKey) {
+  let current: unknown = target;
+  while (typeof current === 'function') {
+    const prototype = (current as AnyConstructor).prototype as object | undefined;
+    if (prototype && Object.hasOwn(prototype, name)) {
+      const own = readOwn<Record<PropertyKey, boolean>>(current, PUBLIC_ROUTES);
+      return own?.[name] === true;
+    }
+    current = Object.getPrototypeOf(current);
+  }
+  return false;
 }
 
 export function ownList<T>(metadata: DecoratorMetadataObject, key: symbol): T[] {

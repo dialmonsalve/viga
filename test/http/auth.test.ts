@@ -167,3 +167,60 @@ describe('@UseGuards en el controlador', () => {
     assert.deepEqual(order, ['controlador', 'método']);
   });
 });
+
+describe('@Public con herencia', () => {
+  @Public()
+  @Controller('/base')
+  class PublicBaseController {
+    @Get('/info')
+    info() {
+      return { info: true };
+    }
+  }
+
+  @Controller('/admin')
+  class AdminController extends PublicBaseController {
+    @Get('/users')
+    users() {
+      return [];
+    }
+  }
+
+  @Controller('/health')
+  class HealthController {
+    @Public()
+    @Get()
+    check() {
+      return { up: true };
+    }
+  }
+
+  @Controller('/health-v2')
+  class HealthV2Controller extends HealthController {
+    override check() {
+      return { up: true, secret: 'interno' };
+    }
+  }
+
+  @Module({ controllers: [PublicBaseController, AdminController, HealthController, HealthV2Controller] })
+  class InheritanceModule {}
+
+  let server: TestServer;
+
+  before(async () => {
+    server = await startTestServer(InheritanceModule, { configure: (app) => app.useAuthGuard(() => false) });
+  });
+
+  after(() => server.close());
+
+  it('una subclase de un controlador @Public exige autenticación', async () => {
+    assert.equal((await server.request('/base/info')).status, 200);
+    assert.equal((await server.request('/admin/info')).status, 401);
+    assert.equal((await server.request('/admin/users')).status, 401);
+  });
+
+  it('un método @Public sobrescrito exige autenticación', async () => {
+    assert.equal((await server.request('/health')).status, 200);
+    assert.equal((await server.request('/health-v2')).status, 401);
+  });
+});

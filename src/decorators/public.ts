@@ -1,4 +1,4 @@
-import { PUBLIC, PUBLIC_ROUTES, ownRecord } from '../metadata.ts';
+import { PUBLIC, PUBLIC_ROUTES } from '../metadata.ts';
 
 export function Public() {
   return function (
@@ -8,7 +8,8 @@ export function Public() {
     if (context.kind === 'class') {
       context.metadata[PUBLIC] = true;
     } else {
-      ownRecord<boolean>(context.metadata, PUBLIC_ROUTES)[context.name] = true;
+      if (!Object.hasOwn(context.metadata, PUBLIC_ROUTES)) context.metadata[PUBLIC_ROUTES] = {};
+      (context.metadata[PUBLIC_ROUTES] as Record<PropertyKey, boolean>)[context.name] = true;
     }
   };
 }

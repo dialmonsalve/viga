@@ -165,6 +165,20 @@ describe('viga/websocket', () => {
       socket.ws.close();
     });
 
+    it('una subclase de un gateway @Public es privada si no repite @Public', async () => {
+      @Gateway('/admin-echo')
+      class AdminEchoGateway extends EchoGateway {}
+
+      @Module({ providers: [AdminEchoGateway] })
+      class AdminEchoModule {}
+
+      const { url } = await start([EchoModule, AdminEchoModule]);
+
+      assert.equal(await handshakeStatus(`${url}/admin-echo`), 401);
+      const socket = await connect(`${url}/echo`);
+      socket.ws.close();
+    });
+
     it('rechaza con 401 un gateway privado si no hay authenticate', async () => {
       const { url } = await start([PrivateModule]);
 
