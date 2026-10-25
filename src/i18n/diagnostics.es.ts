@@ -20,6 +20,7 @@ export const diagnosticsEs = {
   'rateLimit.invalidOptions':
     'max y windowMs deben ser enteros positivos, se recibió max={max} windowMs={windowMs}',
   'lifecycle.destroyFailed': 'Falló el cierre de uno o más providers',
+  'lifecycle.serverCloseFailed': 'Uno o más providers fallaron mientras se cerraba el servidor',
   'app.getBeforeInit': 'get() solo puede llamarse después de init() o listen()',
   'app.alreadyListening': 'El servidor ya está escuchando',
   'app.configureAfterStart': '{method}() debe llamarse antes de init() o listen()',

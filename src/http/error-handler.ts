@@ -42,7 +42,7 @@ function isExposedClientError(error: unknown): error is ExposedHttpError {
   return expose === true && typeof status === 'number' && status >= 400 && status < 500;
 }
 
-function toHttpException(error: unknown): HttpException {
+export function toHttpException(error: unknown): HttpException {
   if (error instanceof HttpException) return error;
   if (isExposedClientError(error)) {
     const { status } = error;
@@ -55,7 +55,11 @@ function toHttpException(error: unknown): HttpException {
   return new HttpException(500, 'errors.internal', 'Internal Server Error');
 }
 
-function describe(exception: HttpException, req: Request, resolveMessage?: MessageResolver) {
+export function describeException(
+  exception: HttpException,
+  req: Request,
+  resolveMessage?: MessageResolver
+) {
   const { code, params, statusCode } = exception;
 
   const resolved = resolveMessage?.(code, params, req);
@@ -99,7 +103,7 @@ export function createErrorHandler(
 
     const body: ApiErrorBody = {
       statusCode,
-      ...describe(exception, req, resolveMessage),
+      ...describeException(exception, req, resolveMessage),
       error,
       ...(details === undefined ? {} : { details }),
       ...(requestId === undefined ? {} : { requestId }),

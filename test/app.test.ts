@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
+import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { after, before, describe, it } from 'node:test';
@@ -17,6 +18,8 @@ import {
   silentLogger,
   type OnModuleDestroy,
   type OnModuleInit,
+  type OnServerClose,
+  type OnServerListen,
 } from '../src/index.ts';
 import { startTestServer, type TestServer } from './helpers/http.ts';
 
@@ -258,6 +261,32 @@ describe('App', () => {
     await server.close();
 
     await assert.rejects(server.request('/'));
+  });
+
+  it('llama a onServerListen con el servidor y a onServerClose antes de onModuleDestroy', async () => {
+    const log: string[] = [];
+
+    @Injectable()
+    class Socket implements OnServerListen, OnServerClose, OnModuleDestroy {
+      onServerListen(server: Server) {
+        log.push(`listen:${server.listening}`);
+      }
+      onServerClose() {
+        log.push('server-close');
+      }
+      onModuleDestroy() {
+        log.push('destroy');
+      }
+    }
+
+    @Module({ providers: [Socket] })
+    class SocketModule {}
+
+    const app = createApp({ rootModule: SocketModule, logger: silentLogger });
+    await app.listen(0, '127.0.0.1');
+    await app.close();
+
+    assert.deepEqual(log, ['listen:false', 'server-close', 'destroy']);
   });
 
   describe('enableShutdownHooks()', () => {

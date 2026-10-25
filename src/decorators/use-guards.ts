@@ -4,25 +4,25 @@ import type { HttpContext } from '../http/context.ts';
 import { GUARDS, ownList, type AnyConstructor } from '../metadata.ts';
 import { addToPipeline } from './pipeline.ts';
 
-export interface CanActivate {
-  canActivate(ctx: HttpContext): boolean | Promise<boolean>;
+export interface CanActivate<C = HttpContext> {
+  canActivate(ctx: C): boolean | Promise<boolean>;
 }
 
-export type GuardFn = (ctx: HttpContext) => boolean | Promise<boolean>;
+export type GuardFn<C = HttpContext> = (ctx: C) => boolean | Promise<boolean>;
 
-export type Guard = AnyConstructor<CanActivate> | GuardFn;
+export type Guard<C = HttpContext> = AnyConstructor<CanActivate<C>> | GuardFn<C>;
 
-function isGuardClass(guard: Guard): guard is AnyConstructor<CanActivate> {
+function isGuardClass<C>(guard: Guard<C>): guard is AnyConstructor<CanActivate<C>> {
   return typeof guard.prototype?.canActivate === 'function';
 }
 
-export function resolveGuard(guard: Guard, injector: Injector): GuardFn {
+export function resolveGuard<C>(guard: Guard<C>, injector: Injector): GuardFn<C> {
   if (!isGuardClass(guard)) return guard;
   const instance = injector.getOrInstantiate(guard);
   return (ctx) => instance.canActivate(ctx);
 }
 
-export async function runGuards(guards: GuardFn[], ctx: HttpContext) {
+export async function runGuards<C>(guards: GuardFn<C>[], ctx: C) {
   for (const guard of guards) {
     if (!(await guard(ctx))) throw new ForbiddenException();
   }
@@ -38,13 +38,13 @@ export interface GuardDecorator {
   ): M;
 }
 
-export function UseGuards(...guards: Guard[]): GuardDecorator {
+export function UseGuards<C = HttpContext>(...guards: Guard<C>[]): GuardDecorator {
   return function (
     target: Handler<object>,
     context: ClassDecoratorContext | ClassMethodDecoratorContext
   ) {
     if (context.kind === 'class') {
-      ownList<Guard>(context.metadata, GUARDS).push(...guards);
+      ownList<Guard<C>>(context.metadata, GUARDS).push(...guards);
       return;
     }
 
@@ -52,7 +52,7 @@ export function UseGuards(...guards: Guard[]): GuardDecorator {
       guards: [
         async (self, ctx) => {
           const injector = injectorOf(self);
-          await runGuards(guards.map((guard) => resolveGuard(guard, injector)), ctx);
+          await runGuards(guards.map((guard) => resolveGuard(guard, injector)), ctx as C);
         },
       ],
     });

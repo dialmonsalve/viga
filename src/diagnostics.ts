@@ -20,6 +20,7 @@ export const DIAGNOSTICS = {
   'rateLimit.invalidOptions':
     'max and windowMs must be positive integers, received max={max} windowMs={windowMs}',
   'lifecycle.destroyFailed': 'One or more providers failed to shut down',
+  'lifecycle.serverCloseFailed': 'One or more providers failed while the server was closing',
   'app.getBeforeInit': 'get() can only be called after init() or listen()',
   'app.alreadyListening': 'The server is already listening',
   'app.configureAfterStart': '{method}() must be called before init() or listen()',

@@ -6,7 +6,13 @@ import { contextMiddleware } from './context.ts';
 import { resolveGuard, type Guard } from './decorators/use-guards.ts';
 import { resolveInterceptor, type InterceptorRef } from './decorators/use-interceptors.ts';
 import type { Injector, Token } from './di/injector.ts';
-import { runDestroyHooks, runInitHooks } from './di/lifecycle.ts';
+import {
+  PROVIDER_INSTANCES,
+  runDestroyHooks,
+  runInitHooks,
+  runServerCloseHooks,
+  runServerListenHooks,
+} from './di/lifecycle.ts';
 import { loadApplication } from './di/module-loader.ts';
 import {
   concealedNotFoundHandler,
@@ -149,6 +155,7 @@ export class App {
     server.headersTimeout = this.timeouts.headers;
     server.requestTimeout = this.timeouts.request;
     server.keepAliveTimeout = this.timeouts.keepAlive;
+    await runServerListenHooks(this.initialized, server);
     await new Promise<void>((resolve, reject) => {
       server.once('error', reject);
       server.listen(port, host, () => {
@@ -203,7 +210,10 @@ export class App {
 
   private async start(): Promise<Running> {
     const { controllers, injectors, root } = loadApplication(this.rootModule, {
-      platformProviders: [{ provide: LOGGER, useValue: this.logger }],
+      platformProviders: [
+        { provide: LOGGER, useValue: this.logger },
+        { provide: PROVIDER_INSTANCES, useValue: () => this.initialized },
+      ],
     });
 
     const instances = [
@@ -250,10 +260,14 @@ export class App {
   private async stop() {
     const server = this.server;
     if (server) {
-      await new Promise<void>((resolve, reject) => {
+      const closed = new Promise<void>((resolve, reject) => {
         server.close((error) => (error ? reject(error) : resolve()));
         server.closeIdleConnections();
       });
+      await runServerCloseHooks(this.initialized).catch((error: unknown) =>
+        this.logger.error(diagnostic('lifecycle.serverCloseFailed'), error)
+      );
+      await closed;
     }
 
     if (this.initializing) {

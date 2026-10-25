@@ -26,7 +26,7 @@ function codeOf(issue: StandardSchemaV1.Issue) {
   return typeof code === 'string' ? code : undefined;
 }
 
-function toValidationIssue(
+export function toValidationIssue(
   issue: StandardSchemaV1.Issue,
   options: ValidationOptions | undefined
 ): ValidationIssue {
@@ -75,7 +75,7 @@ export function Validate<const S extends RequestSchemas>(schemas: S) {
       pipes: [
         (self, ctx) => {
           const options = findInjectorOf(self)?.find(VALIDATION_OPTIONS);
-          return parseRequest(schemas, ctx, options) as Promise<HttpContext>;
+          return parseRequest(schemas, ctx as HttpContext, options);
         },
       ],
     });

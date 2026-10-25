@@ -6,27 +6,27 @@ import { addToPipeline } from './pipeline.ts';
 
 export type CallHandler = () => Promise<unknown>;
 
-export interface Interceptor {
-  intercept(ctx: HttpContext, next: CallHandler): unknown;
+export interface Interceptor<C = HttpContext> {
+  intercept(ctx: C, next: CallHandler): unknown;
 }
 
-export type InterceptorFn = (ctx: HttpContext, next: CallHandler) => unknown;
+export type InterceptorFn<C = HttpContext> = (ctx: C, next: CallHandler) => unknown;
 
-export type InterceptorRef = AnyConstructor<Interceptor> | InterceptorFn;
+export type InterceptorRef<C = HttpContext> = AnyConstructor<Interceptor<C>> | InterceptorFn<C>;
 
-function isInterceptorClass(ref: InterceptorRef): ref is AnyConstructor<Interceptor> {
+function isInterceptorClass<C>(ref: InterceptorRef<C>): ref is AnyConstructor<Interceptor<C>> {
   return typeof ref.prototype?.intercept === 'function';
 }
 
-export function resolveInterceptor(ref: InterceptorRef, injector: Injector): InterceptorFn {
+export function resolveInterceptor<C>(ref: InterceptorRef<C>, injector: Injector): InterceptorFn<C> {
   if (!isInterceptorClass(ref)) return ref;
   const instance = injector.getOrInstantiate(ref);
   return (ctx, next) => instance.intercept(ctx, next);
 }
 
-export function runInterceptors(
-  interceptors: InterceptorFn[],
-  ctx: HttpContext,
+export function runInterceptors<C>(
+  interceptors: InterceptorFn<C>[],
+  ctx: C,
   handler: CallHandler
 ): Promise<unknown> {
   const dispatch = async (index: number): Promise<unknown> => {
@@ -56,13 +56,15 @@ interface InterceptorDecorator {
   ): M;
 }
 
-export function UseInterceptors(...refs: InterceptorRef[]): InterceptorDecorator {
+export function UseInterceptors<C = HttpContext>(
+  ...refs: InterceptorRef<C>[]
+): InterceptorDecorator {
   return function (
     target: Handler<object>,
     context: ClassDecoratorContext | ClassMethodDecoratorContext
   ) {
     if (context.kind === 'class') {
-      ownList<InterceptorRef>(context.metadata, INTERCEPTORS).push(...refs);
+      ownList<InterceptorRef<C>>(context.metadata, INTERCEPTORS).push(...refs);
       return;
     }
 
@@ -71,7 +73,7 @@ export function UseInterceptors(...refs: InterceptorRef[]): InterceptorDecorator
         (self, ctx, next) => {
           const injector = injectorOf(self);
           const interceptors = refs.map((ref) => resolveInterceptor(ref, injector));
-          return runInterceptors(interceptors, ctx, next);
+          return runInterceptors(interceptors, ctx as C, next);
         },
       ],
     });

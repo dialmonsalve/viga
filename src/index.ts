@@ -26,7 +26,12 @@ export {
   type Provider,
   type Token,
 } from './di/injector.ts';
-export type { OnModuleDestroy, OnModuleInit } from './di/lifecycle.ts';
+export type {
+  OnModuleDestroy,
+  OnModuleInit,
+  OnServerClose,
+  OnServerListen,
+} from './di/lifecycle.ts';
 export type { HttpContext, RequestSchemas } from './http/context.ts';
 export * from './http/exceptions.ts';
 export type { ApiErrorBody } from './http/error-handler.ts';
