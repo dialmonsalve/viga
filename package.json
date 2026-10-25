@@ -25,6 +25,7 @@
     "standard-schema",
     "validation",
     "websocket",
+    "pagination",
     "i18n",
     "drizzle",
     "nestjs-alternative"
@@ -45,6 +46,10 @@
     "./drizzle": {
       "types": "./dist/drizzle/index.d.ts",
       "default": "./dist/drizzle/index.js"
+    },
+    "./pagination": {
+      "types": "./dist/pagination/index.d.ts",
+      "default": "./dist/pagination/index.js"
     },
     "./websocket": {
       "types": "./dist/websocket/index.d.ts",

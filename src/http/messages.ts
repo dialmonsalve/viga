@@ -20,6 +20,8 @@ export const DEFAULT_MESSAGES: Readonly<Record<string, string>> = {
   'errors.unsupportedMediaType': 'The content type is not allowed',
   'errors.tooManyRequests': 'Too many requests, try again later',
   'errors.tooManyRooms': 'You can be in at most {max} rooms at a time',
+  'errors.invalidPage': 'page must be an integer between 1 and {max}',
+  'errors.invalidLimit': 'limit must be a positive integer',
   'errors.internal': 'An unexpected error occurred',
   'errors.serviceUnavailable': 'The service is not available right now',
 };

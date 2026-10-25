@@ -21,6 +21,18 @@ export interface HttpContext<S extends RequestSchemas = RequestSchemas> {
   params: Parsed<S, 'params', Request['params']>;
 }
 
+export type AcceptsContext<M, Context> = M extends (...args: infer Args) => unknown
+  ? Args extends []
+    ? unknown
+    : Args extends [infer Ctx, ...unknown[]]
+      ? Context extends Ctx
+        ? unknown
+        : Ctx extends Context
+          ? unknown
+          : never
+      : never
+  : never;
+
 export function createContext(req: Request, res: Response): HttpContext {
   return {
     req,

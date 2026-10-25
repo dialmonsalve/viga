@@ -1,6 +1,6 @@
 import { addToPipeline } from '../decorators/pipeline.ts';
 import { findInjectorOf } from '../di/injector.ts';
-import type { HttpContext, RequestSchemas } from '../http/context.ts';
+import type { AcceptsContext, HttpContext, RequestSchemas } from '../http/context.ts';
 import { BadRequestException } from '../http/exceptions.ts';
 import { VALIDATION_OPTIONS, type ValidationOptions } from './validation.module.ts';
 import type { StandardSchemaV1 } from '../standard-schema.ts';
@@ -64,18 +64,6 @@ async function parseRequest<S extends RequestSchemas>(
 
   return parsed as unknown as HttpContext<S>;
 }
-
-export type AcceptsContext<M, Context> = M extends (...args: infer Args) => unknown
-  ? Args extends []
-    ? unknown
-    : Args extends [infer Ctx, ...unknown[]]
-      ? Context extends Ctx
-        ? unknown
-        : Ctx extends Context
-          ? unknown
-          : never
-      : never
-  : never;
 
 export function Validate<const S extends RequestSchemas>(schemas: S) {
   return function <This extends object, M extends (this: This, ...args: any[]) => unknown>(

@@ -41,6 +41,8 @@ export const DIAGNOSTICS = {
   'drizzle.idleClientError': 'Unexpected error on an idle PostgreSQL connection',
   'drizzle.nestedTransactionConfig':
     'A nested transaction cannot change the configuration of the outer transaction',
+  'pagination.invalidOptions':
+    'defaultLimit, maxLimit and maxPage must be positive integers and defaultLimit cannot exceed maxLimit, received defaultLimit={defaultLimit} maxLimit={maxLimit} maxPage={maxPage}',
   'ws.invalidEvent':
     'Invalid event name "{event}": use 1 to 128 letters, digits, ".", ":", "_" or "-"',
   'ws.duplicatePath': 'The gateways {first} and {second} use the same path {path}',
@@ -70,6 +72,7 @@ const PREFIXES: Record<string, string> = {
   context: 'Context',
   i18n: 'I18n',
   drizzle: 'Drizzle',
+  pagination: 'Pagination',
   ws: 'WebSocket',
 };
 

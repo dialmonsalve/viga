@@ -12,6 +12,7 @@ El core solo resuelve lo que todo servidor necesita. Lo demás son subrutas opci
 | `viga/validation` | `@Validate` y `ValidationModule` con cualquier librería [Standard Schema](https://standardschema.dev) | Nada (tú eliges Zod, Valibot, ArkType…) |
 | `viga/i18n` | Catálogos de mensajes, negociación de `Accept-Language`, mensajes del framework en es/en | Nada |
 | `viga/drizzle` | `DrizzleModule` y `DatabaseService` con cierre del pool | `drizzle-orm`, `pg` |
+| `viga/pagination` | `@Paginate` con resultados tipados, enlaces seguros y límites | Nada |
 | `viga/websocket` | Gateways, salas y una interfaz de adaptador pública, con seguridad por defecto | `ws` |
 
 ## Agradecimientos
@@ -326,6 +327,34 @@ const app = createApp({ rootModule: AppModule, resolveMessage: i18n.resolveMessa
 - `i18n.t(key, params)` e `i18n.locale()` usan el idioma de la petición en curso, en cualquier servicio.
 - `i18n.match(valor)` devuelve el idioma soportado que coincide con un valor (`'pt-BR'` → `'pt'`), o `undefined`; `i18n.negotiate(acceptLanguage)` usa `defaultLocale` si no hay coincidencia.
 - Combinado con validación: `ValidationModule.forRoot({ formatIssue: (issue) => traducir(issue, i18n.locale()) })`.
+
+## viga/pagination
+
+```ts
+import { Paginate, type PageContext } from 'viga/pagination';
+
+@Get()
+@Paginate({ defaultLimit: 20, maxLimit: 100 })
+@Validate({ query: BookFilter })
+async list({ page, query }: PageContext<{ query: typeof BookFilter }>) {
+  const [books, total] = await this.books.findPage(query, page.offset, page.limit);
+  return page.result(books, total);
+}
+```
+
+```json
+{
+  "data": [ … ],
+  "meta": { "total": 95, "page": 2, "lastPage": 5, "next": "/api/books?status=open&page=3&limit=20", "prev": "/api/books?status=open&page=1&limit=20" }
+}
+```
+
+- `@Paginate` lee `?page` y `?limit`, y le da al handler `page.page`, `page.limit` y `page.offset` para tu consulta. viga no consulta la base de datos: funciona con cualquier ORM.
+- `page.result(items, total)` construye la respuesta. Es genérico, así que devolver `Book[]` hace que el handler devuelva `PaginatedResult<Book>`; exporta ese tipo para compartirlo con tu frontend.
+- `next` y `prev` son enlaces relativos que conservan los demás parámetros de la URL. Nunca se construyen con la cabecera `Host`, así que un host falsificado no puede convertirlos en enlaces a otro dominio.
+- Un `limit` mayor que `maxLimit` (100 por defecto) se recorta en lugar de rechazarse, así que `?limit=1000000` no puede hacer que la base de datos devuelva una tabla entera. `maxPage` (1000 por defecto) limita cuánto puede avanzar un cliente, porque un `OFFSET` enorme es lento aunque no devuelva nada.
+- Un `page` inválido (no entero, menor que 1, mayor que `maxPage` o repetido) responde 400 `errors.invalidPage`; un `limit` inválido responde 400 `errors.invalidLimit`.
+- Con `@Validate({ query })`, el schema tiene que aceptar `page` y `limit` (un `z.object()` no estricto lo hace).
 
 ## viga/drizzle
 
