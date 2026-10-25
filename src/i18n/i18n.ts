@@ -1,15 +1,18 @@
-import type { RequestHandler } from 'express';
+import type { Request, RequestHandler } from 'express';
 import { createContextKey } from '../context.ts';
 import { interpolate, type MessageParams, type MessageResolver } from '../http/messages.ts';
 import { BUILT_IN_CATALOGS, BUILT_IN_DEFAULT_LOCALE } from './messages.ts';
-import { negotiateLocale } from './negotiate.ts';
+import { matchLocale, negotiateLocale } from './negotiate.ts';
 import { diagnostic } from '../diagnostics.ts';
 
 export type Catalog = { readonly [key: string]: string | Catalog };
 
+export type LocaleResolver = (req: Request) => string | readonly string[] | undefined;
+
 export interface I18nOptions {
   catalogs?: Readonly<Record<string, Catalog>>;
   defaultLocale?: string;
+  resolveLocale?: string | LocaleResolver;
 }
 
 const LOCALE = createContextKey<string>('locale');
@@ -37,9 +40,12 @@ export class I18n {
   readonly locales: readonly string[];
   readonly defaultLocale: string;
   private readonly catalogs: Readonly<Record<string, Catalog>>;
+  private readonly resolveLocale?: LocaleResolver;
 
-  constructor({ catalogs, defaultLocale }: I18nOptions = {}) {
+  constructor({ catalogs, defaultLocale, resolveLocale }: I18nOptions = {}) {
     this.catalogs = catalogs ?? {};
+    this.resolveLocale =
+      typeof resolveLocale === 'string' ? (req) => req.get(resolveLocale) : resolveLocale;
     this.locales = catalogs ? Object.keys(catalogs) : Object.keys(BUILT_IN_CATALOGS);
     this.defaultLocale = defaultLocale ?? this.locales[0] ?? BUILT_IN_DEFAULT_LOCALE;
 
@@ -54,7 +60,9 @@ export class I18n {
   }
 
   readonly middleware: RequestHandler = (req, res, next) => {
-    const locale = this.negotiate(req.headers['accept-language']);
+    const locale =
+      matchLocale(this.resolveLocale?.(req), this.locales) ??
+      this.negotiate(req.headers['accept-language']);
     res.setHeader('Content-Language', locale);
     runWithLocale(locale, next);
   };

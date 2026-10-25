@@ -94,6 +94,53 @@ describe('I18n', () => {
   });
 });
 
+describe('I18n.middleware', () => {
+  const catalogs = { es: {}, en: {}, pt: {} };
+
+  const localeOf = (instance: I18n, headers: Record<string, string> = {}, query = {}) => {
+    const req = { headers, query, get: (name: string) => headers[name.toLowerCase()] };
+    const res = { setHeader: () => undefined };
+    let locale: string | undefined;
+    instance.middleware(req as never, res as never, () => {
+      locale = currentLocale();
+    });
+    return locale;
+  };
+
+  it('sin resolveLocale usa Accept-Language y luego el idioma por defecto', () => {
+    const plain = new I18n({ defaultLocale: 'es', catalogs });
+
+    assert.equal(localeOf(plain, { 'accept-language': 'pt-BR' }), 'pt');
+    assert.equal(localeOf(plain, { 'x-lang': 'en' }), 'es');
+  });
+
+  it('con un string lee el idioma de esa cabecera antes que Accept-Language', () => {
+    const byHeader = new I18n({ defaultLocale: 'es', catalogs, resolveLocale: 'x-lang' });
+
+    assert.equal(localeOf(byHeader, { 'x-lang': 'pt', 'accept-language': 'en' }), 'pt');
+    assert.equal(localeOf(byHeader, { 'x-lang': 'EN-us' }), 'en');
+  });
+
+  it('con una función lee el idioma de donde ella decida', () => {
+    const byQuery = new I18n({
+      defaultLocale: 'es',
+      catalogs,
+      resolveLocale: (req) => (typeof req.query.lang === 'string' ? req.query.lang : undefined),
+    });
+
+    assert.equal(localeOf(byQuery, {}, { lang: 'pt' }), 'pt');
+    assert.equal(localeOf(byQuery, {}, { lang: ['pt'] }), 'es');
+  });
+
+  it('si el valor no es un idioma soportado, sigue con Accept-Language y luego el idioma por defecto', () => {
+    const byHeader = new I18n({ defaultLocale: 'es', catalogs, resolveLocale: 'x-lang' });
+
+    assert.equal(localeOf(byHeader, { 'x-lang': 'fr', 'accept-language': 'en' }), 'en');
+    assert.equal(localeOf(byHeader, { 'x-lang': '<script>' }), 'es');
+    assert.equal(localeOf(byHeader, { 'x-lang': '' }), 'es');
+  });
+});
+
 const CreateBook = z.object({ title: z.string().min(1) });
 
 @Controller('/books')

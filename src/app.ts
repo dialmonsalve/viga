@@ -41,6 +41,8 @@ export interface AppOptions {
   concealRoutes?: boolean;
 }
 
+const DEFAULT_PORT = 3000;
+
 const DEFAULT_TIMEOUTS: Required<ServerTimeouts> = {
   headers: 10_000,
   request: 30_000,
@@ -49,7 +51,6 @@ const DEFAULT_TIMEOUTS: Required<ServerTimeouts> = {
 
 interface Running {
   root: Injector;
-  instances: unknown[];
 }
 
 export class App {
@@ -66,6 +67,7 @@ export class App {
   private readonly resolveMessage?: MessageResolver;
   private readonly middlewares: RequestHandler[] = [];
   private readonly interceptors: InterceptorRef[] = [];
+  private readonly initialized: unknown[] = [];
   private globalPrefix = '';
   private authGuard?: Guard;
   private running?: Running;
@@ -138,7 +140,7 @@ export class App {
     return this.running.root.get(token);
   }
 
-  async listen(port: number, host?: string): Promise<Server> {
+  async listen(port = DEFAULT_PORT, host?: string): Promise<Server> {
     await this.init();
     if (this.server) throw new Error(diagnostic('app.alreadyListening'));
 
@@ -200,7 +202,7 @@ export class App {
     const instances = [
       ...new Set(injectors.flatMap((injector) => injector.resolveAll())),
     ];
-    await runInitHooks(instances);
+    await runInitHooks(instances, this.initialized);
 
     const pipeline: RoutePipeline = {
       authGuard: this.authGuard && resolveGuard(this.authGuard, root),
@@ -234,7 +236,7 @@ export class App {
     );
     this.express.use(createErrorHandler(this.logger, this.resolveMessage));
 
-    this.running = { root, instances };
+    this.running = { root };
     return this.running;
   }
 
@@ -248,8 +250,8 @@ export class App {
     }
 
     if (this.initializing) {
-      const { instances } = await this.initializing;
-      await runDestroyHooks(instances);
+      await this.initializing.catch(() => undefined);
+      await runDestroyHooks(this.initialized);
     }
   }
 }

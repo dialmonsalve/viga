@@ -16,9 +16,10 @@ function hasHook<K extends string>(value: unknown, hook: K): value is Record<K, 
   );
 }
 
-export async function runInitHooks(instances: readonly unknown[]) {
+export async function runInitHooks(instances: readonly unknown[], initialized: unknown[] = []) {
   for (const instance of instances) {
     if (hasHook(instance, 'onModuleInit')) await instance.onModuleInit();
+    initialized.push(instance);
   }
 }
 

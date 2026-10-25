@@ -85,6 +85,7 @@ await app.listen(3000);
 
 Los providers pueden implementar `OnModuleInit` y `OnModuleDestroy`:
 
+- `listen(port?, host?)` escucha en el puerto 3000 si no se indica otro. `listen(0)` usa un puerto libre aleatorio. viga no lee `process.env.PORT`; si lo necesitas, pásalo explícitamente: `app.listen(Number(process.env.PORT ?? 3000))`.
 - `init()` (o `listen()`) crea todos los providers y ejecuta `onModuleInit` en orden de dependencias. Si un hook devuelve una promesa, se espera.
 - `close()` cierra el servidor y ejecuta `onModuleDestroy` en orden inverso. Si alguno falla, intenta cerrar los demás y lanza un `AggregateError`.
 - `enableShutdownHooks()` llama a `close()` al recibir `SIGTERM` o `SIGINT`.
@@ -305,7 +306,8 @@ const app = createApp({ rootModule: AppModule, resolveMessage: i18n.resolveMessa
   .use(i18n.middleware);
 ```
 
-- `i18n.middleware` elige el idioma con `Accept-Language` y responde con `Content-Language`.
+- `i18n.middleware` elige el idioma con `Accept-Language` y responde con `Content-Language`. Sin cabecera o sin coincidencia, usa `defaultLocale`.
+- `resolveLocale` lee el idioma de otro sitio antes que de `Accept-Language`: el nombre de una cabecera (`resolveLocale: 'x-lang'`) o una función (`resolveLocale: (req) => req.cookies.lang`). Si no devuelve un idioma de tus catálogos, se sigue con `Accept-Language` y luego con `defaultLocale`; nunca se usa un valor desconocido.
 - `i18n.resolveMessage` traduce los códigos de las excepciones. Trae en español e inglés los mensajes del framework, y tus catálogos pueden reemplazarlos.
 - `i18n.t(key, params)` e `i18n.locale()` usan el idioma de la petición en curso, en cualquier servicio.
 - Combinado con validación: `ValidationModule.forRoot({ formatIssue: (issue) => traducir(issue, i18n.locale()) })`.

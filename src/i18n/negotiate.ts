@@ -11,11 +11,10 @@ function parseAcceptLanguage(header: string): string[] {
     .map(({ tag }) => tag);
 }
 
-export function negotiateLocale(
+export function matchLocale(
   preferences: string | readonly string[] | null | undefined,
-  supported: readonly string[],
-  fallback: string
-): string {
+  supported: readonly string[]
+): string | undefined {
   const tags =
     typeof preferences === 'string' ? parseAcceptLanguage(preferences) : (preferences ?? []);
 
@@ -23,5 +22,13 @@ export function negotiateLocale(
     const language = tag.toLowerCase().split('-')[0] ?? '';
     if (supported.includes(language)) return language;
   }
-  return fallback;
+  return undefined;
+}
+
+export function negotiateLocale(
+  preferences: string | readonly string[] | null | undefined,
+  supported: readonly string[],
+  fallback: string
+): string {
+  return matchLocale(preferences, supported) ?? fallback;
 }

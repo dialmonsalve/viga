@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import type { AddressInfo } from 'node:net';
 import { after, before, describe, it } from 'node:test';
 import {
   Controller,
@@ -7,6 +8,7 @@ import {
   InjectionToken,
   LOGGER,
   Module,
+  Patch,
   createApp,
   inject,
   silentLogger,
@@ -120,6 +122,78 @@ describe('App', () => {
       await assert.rejects(app.close(), AggregateError);
       assert.deepEqual(closed, ['healthy']);
     });
+
+    it('si un onModuleInit falla, close() cierra solo los providers ya iniciados', async () => {
+      const log: string[] = [];
+
+      @Injectable()
+      class Pool {
+        onModuleInit() {
+          log.push('pool:init');
+        }
+        onModuleDestroy() {
+          log.push('pool:destroy');
+        }
+      }
+
+      @Injectable()
+      class Cache {
+        onModuleInit() {
+          throw new Error('redis caído');
+        }
+        onModuleDestroy() {
+          log.push('cache:destroy');
+        }
+      }
+
+      @Injectable()
+      class Mailer {
+        onModuleDestroy() {
+          log.push('mailer:destroy');
+        }
+      }
+
+      @Module({ providers: [Pool, Cache, Mailer] })
+      class InfraModule {}
+
+      const app = createApp({ rootModule: InfraModule, logger: silentLogger });
+
+      await assert.rejects(app.init(), /redis caído/);
+      await app.close();
+
+      assert.deepEqual(log, ['pool:init', 'pool:destroy']);
+    });
+
+    it('si el arranque falla después de los onModuleInit, close() cierra todos los providers', async () => {
+      const log: string[] = [];
+
+      @Injectable()
+      class Pool {
+        onModuleDestroy() {
+          log.push('pool:destroy');
+        }
+      }
+
+      @Controller('loose')
+      class LooseController {
+        @Patch(':id')
+        update() {}
+      }
+
+      @Module({ providers: [Pool], controllers: [LooseController] })
+      class LooseModule {}
+
+      const app = createApp({
+        rootModule: LooseModule,
+        logger: silentLogger,
+        requireValidation: true,
+      });
+
+      await assert.rejects(app.init(), /has no @Validate/);
+      await app.close();
+
+      assert.deepEqual(log, ['pool:destroy']);
+    });
   });
 
   describe('configuración HTTP', () => {
@@ -181,5 +255,19 @@ describe('App', () => {
     await server.close();
 
     await assert.rejects(server.request('/'));
+  });
+
+  it('listen() sin puerto escucha en el 3000', async () => {
+    @Module({})
+    class EmptyModule {}
+
+    const app = createApp({ rootModule: EmptyModule, logger: silentLogger });
+    const server = await app.listen(undefined, '127.0.0.1');
+
+    try {
+      assert.equal((server.address() as AddressInfo).port, 3000);
+    } finally {
+      await app.close();
+    }
   });
 });
