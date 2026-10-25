@@ -80,28 +80,51 @@ export class MemoryRateLimitStore implements RateLimitStore {
   }
 }
 
-const byIp = (req: Request) => req.ip ?? req.socket.remoteAddress ?? 'unknown';
+export interface RateLimitResult {
+  limited: boolean;
+  remaining: number;
+  resetSeconds: number;
+}
 
-export function createLimiter({
-  max,
-  windowMs,
-  key = byIp,
-  store = new MemoryRateLimitStore(),
-}: RateLimitOptions) {
+export interface CounterOptions {
+  max: number;
+  windowMs: number;
+  store?: RateLimitStore;
+}
+
+export function secondsUntil(timestamp: number) {
+  return Math.max(0, Math.ceil((timestamp - Date.now()) / 1000));
+}
+
+export function createCounter({ max, windowMs, store = new MemoryRateLimitStore() }: CounterOptions) {
   if (!isPositiveInteger(max) || !isPositiveInteger(windowMs)) {
     throw new Error(diagnostic('rateLimit.invalidOptions', { max, windowMs }));
   }
 
+  return async (key: string): Promise<RateLimitResult> => {
+    const { count, resetAt } = await store.hit(key, windowMs);
+    return {
+      limited: count > max,
+      remaining: Math.max(0, max - count),
+      resetSeconds: secondsUntil(resetAt),
+    };
+  };
+}
+
+const byIp = (req: Request) => req.ip ?? req.socket.remoteAddress ?? 'unknown';
+
+export function createLimiter({ key = byIp, ...options }: RateLimitOptions) {
+  const count = createCounter(options);
+
   return async (req: Request, res: Response) => {
-    const { count, resetAt } = await store.hit(key(req), windowMs);
-    const reset = Math.max(0, Math.ceil((resetAt - Date.now()) / 1000));
+    const { limited, remaining, resetSeconds } = await count(key(req));
 
-    res.setHeader('RateLimit-Limit', String(max));
-    res.setHeader('RateLimit-Remaining', String(Math.max(0, max - count)));
-    res.setHeader('RateLimit-Reset', String(reset));
+    res.setHeader('RateLimit-Limit', String(options.max));
+    res.setHeader('RateLimit-Remaining', String(remaining));
+    res.setHeader('RateLimit-Reset', String(resetSeconds));
 
-    if (count > max) {
-      res.setHeader('Retry-After', String(reset));
+    if (limited) {
+      res.setHeader('Retry-After', String(resetSeconds));
       throw new TooManyRequestsException();
     }
   };

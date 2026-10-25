@@ -19,14 +19,15 @@ import {
   HttpException,
   NotFoundException,
   ServiceUnavailableException,
-  TooManyRequestsException,
   UnsupportedMediaTypeException,
 } from '../http/exceptions.ts';
+import { secondsUntil } from '../http/rate-limit.ts';
 import { DEFAULT_MESSAGES } from '../http/messages.ts';
 import { normalizePath } from '../http/router.ts';
 import { LOGGER } from '../logger.ts';
 import type { AnyConstructor } from '../metadata.ts';
 import type { WsConnection, WsVerdict } from './adapter.ts';
+import { tooManyMessages } from './errors.ts';
 import {
   readGatewayDefinition,
   type OnWsConnection,
@@ -207,15 +208,15 @@ class Client implements WsClient {
     this.roomRegistry.leaveAll(this);
   }
 
-  allow(limit: WsMessageRateLimit | false) {
-    if (!limit) return true;
+  consume(limit: WsMessageRateLimit | false) {
+    if (!limit) return;
     const now = Date.now();
     if (now >= this.windowEndsAt) {
       this.hits = 0;
       this.windowEndsAt = now + limit.windowMs;
     }
     this.hits++;
-    return this.hits <= limit.max;
+    if (this.hits > limit.max) throw tooManyMessages(secondsUntil(this.windowEndsAt));
   }
 }
 
@@ -451,7 +452,7 @@ export class WsServer implements OnServerListen, OnServerClose {
   ) {
     let id: MessageId | undefined;
     try {
-      if (!client.allow(this.options.messageRateLimit)) throw new TooManyRequestsException();
+      client.consume(this.options.messageRateLimit);
       if (isBinary) throw new UnsupportedMediaTypeException();
 
       const envelope = parseEnvelope(message);

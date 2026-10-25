@@ -15,6 +15,7 @@ export {
   type WsAuthenticate,
   type WsMessageRateLimit,
 } from './options.ts';
+export { RateLimit, type WsRateLimitOptions } from './rate-limit.ts';
 export { WsServer, type WsBroadcast, type WsBroadcastOptions } from './server.ts';
 export { WebSocketModule } from './websocket.module.ts';
 export { createWsAdapter } from './ws-adapter.ts';

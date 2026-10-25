@@ -449,6 +449,7 @@ class AppModule {}
 - Messages are JSON: `{ "event": "join", "data": { … }, "id": 1 }`. The handler's return value is sent back as `{ event, data, id }`; an `async function*` sends one message per yielded value. Errors arrive as `{ "event": "error", "data": { statusCode, code, message, details? }, id }`, with the same codes as HTTP and without leaking internal messages.
 - Rooms: `client.join(room)`, `client.leave(room)`, `client.rooms`, and `inject(WsServer).to(room).send(event, data, { except })` or `.broadcast(…)`. A client can be in several rooms and leaves all of them when it disconnects. Rooms live in memory: with several instances, a message doesn't reach clients connected to another one.
 - `client.state` holds connection data. Whatever `authenticate` returns (an object) is stored there.
+- `RateLimit` from `viga/websocket` limits one event (on the method) or every event of a gateway (on the class), on top of `messageRateLimit`. It counts per connection by default; `key: ({ client }) => String(client.state.userId)` counts per user across tabs. Above the limit it responds `errors.tooManyRequests` with `details.retryAfter` in seconds. The `@RateLimit` from `viga` is for HTTP routes only.
 - `@UseGuards` and `@UseInterceptors` work per message, on the method or the whole gateway. `OnWsConnection` and `OnWsDisconnect` are lifecycle hooks for each connection.
 - `ws` is loaded only when a gateway exists: `pnpm add ws`.
 
@@ -459,7 +460,7 @@ class AppModule {}
 | `allowedOrigins` | `[]` | List or function. A request with an `Origin` that isn't allowed responds 403 (prevents cross-site WebSocket hijacking). Requests without `Origin` (non-browser clients) are accepted |
 | `maxConnections` | `10_000` | Simultaneous connections across all gateways. Above it, the handshake responds 503. It's a global limit: a per-IP limit would need `trustProxy` behind a proxy |
 | `maxPayload` | 100 KiB | Larger messages close the connection with 1009 |
-| `messageRateLimit` | `{ max: 100, windowMs: 10_000 }` | Messages per connection; above it, responds `errors.tooManyRequests`. `false` disables it |
+| `messageRateLimit` | `{ max: 100, windowMs: 10_000 }` | Messages per connection, for every event; above it, responds `errors.tooManyRequests` with `details.retryAfter`. `false` disables it |
 | `requireValidation` | `true` | The app doesn't start if an `@OnMessage` has no schema. An event without data declares `z.undefined()` |
 | `heartbeatMs` | `30_000` | Pings each client; one that doesn't answer is disconnected |
 | `maxBufferedBytes` | 1 MiB | A client that doesn't read its messages is disconnected instead of filling the server's memory |

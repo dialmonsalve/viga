@@ -35,6 +35,7 @@ First public release.
 
 - `WebSocketModule.forRoot()`, `@Gateway`, `@OnMessage` with Standard Schema validation, `WsContext` and `WsServer`.
 - Rooms with `join`, `leave`, `to(room).send()` and `broadcast()`, limited per connection by `maxRoomsPerClient`.
+- `RateLimit` per event or per gateway, keyed per connection by default or by any value of the context, sharing the bounded in-memory store with HTTP.
 - Public `WsAdapter` interface, with a default adapter on top of `ws` that is loaded only when needed.
 - Secure defaults: private gateways, handshake authentication with a timeout (`handshakeTimeoutMs`), a cap on simultaneous connections (`maxConnections`), `Origin` allowlist, `maxPayload`, per-connection message rate limit, heartbeat, slow-client protection and mandatory validation.
 

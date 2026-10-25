@@ -9,6 +9,7 @@ import {
   Get,
   Module,
   Public,
+  RateLimit as HttpRateLimit,
   UseGuards,
   createApp,
   inject,
@@ -19,6 +20,7 @@ import {
 import {
   Gateway,
   OnMessage,
+  RateLimit,
   WebSocketModule,
   WsServer,
   type OnWsConnection,
@@ -361,6 +363,8 @@ describe('viga/websocket', () => {
       const third = await socket.request('echo', { text: '3' });
 
       assert.equal(third.data.statusCode, 429);
+      assert.equal(third.data.code, 'errors.tooManyRequests');
+      assert.ok(third.data.details.retryAfter > 0);
       socket.ws.close();
     });
 
@@ -372,6 +376,127 @@ describe('viga/websocket', () => {
       const [code] = (await once(socket.ws, 'close')) as [number];
 
       assert.equal(code, 1009);
+    });
+  });
+
+  describe('@RateLimit por handler', () => {
+    const Query = z.object({ q: z.string() });
+
+    @Public()
+    @Gateway('/search')
+    class SearchGateway {
+      @OnMessage('search', Query)
+      @RateLimit({ max: 2, windowMs: 60_000 })
+      search({ data }: WsContext<typeof Query>) {
+        return data.q;
+      }
+
+      @OnMessage('ping', z.undefined())
+      ping() {
+        return 'pong';
+      }
+    }
+
+    @Module({ providers: [SearchGateway] })
+    class SearchModule {}
+
+    it('limita un evento sin afectar a los demás y devuelve retryAfter', async () => {
+      const { url } = await start([SearchModule]);
+      const socket = await connect(`${url}/search`);
+
+      await socket.request('search', { q: '1' });
+      await socket.request('search', { q: '2' });
+      const limited = await socket.request('search', { q: '3' }, 'r3');
+
+      assert.equal(limited.id, 'r3');
+      assert.equal(limited.data.statusCode, 429);
+      assert.ok(limited.data.details.retryAfter > 0);
+      assert.deepEqual(await socket.request('ping'), { event: 'ping', data: 'pong' });
+      socket.ws.close();
+    });
+
+    it('por defecto cuenta por conexión', async () => {
+      const { url } = await start([SearchModule]);
+      const first = await connect(`${url}/search`);
+      const second = await connect(`${url}/search`);
+
+      await first.request('search', { q: '1' });
+      await first.request('search', { q: '2' });
+
+      assert.equal((await second.request('search', { q: '1' })).data, '1');
+      first.ws.close();
+      second.ws.close();
+    });
+
+    it('con key cuenta por usuario aunque abra varias conexiones', async () => {
+      @Gateway('/inbox')
+      class InboxGateway {
+        @OnMessage('invite', z.undefined())
+        @RateLimit({ max: 1, windowMs: 60_000, key: ({ client }) => String(client.state.userId) })
+        invite() {
+          return 'sent';
+        }
+      }
+
+      @Module({ providers: [InboxGateway] })
+      class InboxModule {}
+
+      const { url } = await start([InboxModule], { authenticate: () => ({ userId: 7 }) });
+      const tabA = await connect(`${url}/inbox`);
+      const tabB = await connect(`${url}/inbox`);
+
+      assert.equal((await tabA.request('invite')).data, 'sent');
+      assert.equal((await tabB.request('invite')).data.statusCode, 429);
+      tabA.ws.close();
+      tabB.ws.close();
+    });
+
+    it('en el gateway limita todos sus eventos', async () => {
+      @Public()
+      @Gateway('/limited')
+      @RateLimit({ max: 1, windowMs: 60_000 })
+      class LimitedGateway {
+        @OnMessage('a', z.undefined())
+        a() {
+          return 'a';
+        }
+
+        @OnMessage('b', z.undefined())
+        b() {
+          return 'b';
+        }
+      }
+
+      @Module({ providers: [LimitedGateway] })
+      class LimitedModule {}
+
+      const { url } = await start([LimitedModule]);
+      const socket = await connect(`${url}/limited`);
+
+      assert.equal((await socket.request('a')).data, 'a');
+      assert.equal((await socket.request('b')).data.statusCode, 429);
+      socket.ws.close();
+    });
+
+    it('el @RateLimit de HTTP en un gateway responde errors.internal en lugar de romper', async () => {
+      @Public()
+      @Gateway('/wrong')
+      class WrongGateway {
+        @OnMessage('x', z.undefined())
+        @HttpRateLimit({ max: 1, windowMs: 60_000 })
+        x() {
+          return 'x';
+        }
+      }
+
+      @Module({ providers: [WrongGateway] })
+      class WrongModule {}
+
+      const { url } = await start([WrongModule]);
+      const socket = await connect(`${url}/wrong`);
+
+      assert.equal((await socket.request('x')).data.code, 'errors.internal');
+      socket.ws.close();
     });
   });
 
