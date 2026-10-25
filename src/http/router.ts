@@ -6,7 +6,7 @@ import {
   runInterceptors,
   type InterceptorFn,
 } from '../decorators/use-interceptors.ts';
-import { validatedParts } from '../decorators/pipeline.ts';
+import { handlerSteps, validatedParts } from '../decorators/pipeline.ts';
 import { InjectionToken, type Injector } from '../di/injector.ts';
 import type { AnyConstructor } from '../metadata.ts';
 import { createContext, type HttpContext } from './context.ts';
@@ -84,6 +84,7 @@ export function mountController(
       );
     }
 
+    const steps = handlerSteps(handler);
     const isPublic = definition.isPublic || definition.publicRoutes[route.handlerName] === true;
     mounted.push({
       method: route.method,
@@ -96,10 +97,9 @@ export function mountController(
       const ctx = createContext(req, res);
       if (!isPublic) await authenticate(pipeline.authGuard, ctx);
       await runGuards(guards, ctx);
+      await steps.guard(instance, ctx);
 
-      const result = await runInterceptors(interceptors, ctx, async () =>
-        handler.call(instance, ctx)
-      );
+      const result = await runInterceptors(interceptors, ctx, () => steps.invoke(instance, ctx));
       if (res.headersSent) return;
 
       const status =

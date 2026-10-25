@@ -113,7 +113,9 @@ Los providers pueden implementar `OnModuleInit` y `OnModuleDestroy`:
 
 ### Orden de una petición
 
-Request id → cabeceras de seguridad → middlewares de la app (`app.use`) → body parser → autenticación (salvo `@Public`) → guards del controlador → interceptores globales → del controlador → `@UseGuards` → `@UseInterceptors` → `@Validate` → handler, y de vuelta en orden inverso.
+Request id → cabeceras de seguridad → middlewares de la app (`app.use`) → chequeo CSRF → body parser → autenticación (salvo `@Public`) → guards del controlador → `@UseGuards` del método (incluido `@RateLimit`) → interceptores globales → del controlador → `@UseInterceptors` del método → `@Validate` → handler, y de vuelta en orden inverso.
+
+Todos los guards corren antes que cualquier interceptor, así que un interceptor que responde sin llamar a `next()`, como una caché, no puede saltarse el guard ni el rate limit de un método. Los gateways de `viga/websocket` siguen la misma regla.
 
 Los decoradores del método siguen ese orden aunque los escribas en otro: un usuario sin permiso recibe 403 antes de que se valide su body. Entre varios del mismo tipo, se ejecuta primero el de arriba.
 

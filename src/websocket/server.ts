@@ -4,7 +4,7 @@ import type { IncomingMessage, Server } from 'node:http';
 import { runInNewContext } from '../context.ts';
 import { runWithLocale } from '../i18n/i18n.ts';
 import { Injectable } from '../decorators/injectable.ts';
-import { validatedParts } from '../decorators/pipeline.ts';
+import { handlerSteps, validatedParts } from '../decorators/pipeline.ts';
 import { resolveGuard, runGuards, type GuardFn } from '../decorators/use-guards.ts';
 import {
   resolveInterceptor,
@@ -57,12 +57,17 @@ interface Envelope {
   id?: MessageId;
 }
 
+interface EventHandler {
+  guard(ctx: WsContext): Promise<void>;
+  invoke(ctx: WsContext): Promise<unknown>;
+}
+
 interface Route {
   gateway: Partial<OnWsConnection & OnWsDisconnect>;
   isPublic: boolean;
   guards: GuardFn<WsContext>[];
   interceptors: InterceptorFn<WsContext>[];
-  handlers: Map<string, (ctx: WsContext) => unknown>;
+  handlers: Map<string, EventHandler>;
 }
 
 interface Slot {
@@ -313,7 +318,7 @@ export class WsServer implements OnServerListen, OnServerClose {
 
       const injector = injectorOf(instance);
       const target = instance as Record<PropertyKey, unknown>;
-      const handlers = new Map<string, (ctx: WsContext) => unknown>();
+      const handlers = new Map<string, EventHandler>();
 
       for (const { event, handlerName } of definition.handlers) {
         if (handlers.has(event)) {
@@ -329,7 +334,11 @@ export class WsServer implements OnServerListen, OnServerClose {
             })
           );
         }
-        handlers.set(event, (ctx) => method.call(instance, ctx));
+        const steps = handlerSteps(method);
+        handlers.set(event, {
+          guard: (ctx) => steps.guard(instance, ctx),
+          invoke: (ctx) => steps.invoke(instance, ctx),
+        });
       }
 
       names.set(definition.path, Gateway.name);
@@ -594,7 +603,8 @@ export class WsServer implements OnServerListen, OnServerClose {
 
       const ctx: WsContext = { client, req, event: envelope.event, data: envelope.data };
       await runGuards(route.guards, ctx);
-      const result = await runInterceptors(route.interceptors, ctx, async () => handler(ctx));
+      await handler.guard(ctx);
+      const result = await runInterceptors(route.interceptors, ctx, () => handler.invoke(ctx));
 
       if (isAsyncIterable(result)) {
         for await (const item of result) {

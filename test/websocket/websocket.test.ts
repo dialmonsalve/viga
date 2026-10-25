@@ -12,6 +12,7 @@ import {
   Public,
   RateLimit as HttpRateLimit,
   UseGuards,
+  UseInterceptors,
   createApp,
   inject,
   silentLogger,
@@ -551,6 +552,37 @@ describe('viga/websocket', () => {
       const [code] = (await once(socket.ws, 'close')) as [number];
 
       assert.equal(code, 1009);
+    });
+  });
+
+  describe('orden del pipeline', () => {
+    const Query = z.object({ q: z.string() });
+
+    const fromCache = async (ctx: WsContext, next: () => Promise<unknown>) =>
+      ctx.event === 'cached' ? 'desde caché' : next();
+
+    @Public()
+    @UseInterceptors(fromCache)
+    @Gateway('/cached')
+    class CachedGateway {
+      @OnMessage('cached', Query)
+      @UseGuards(() => false)
+      cached() {
+        return 'handler';
+      }
+    }
+
+    @Module({ providers: [CachedGateway] })
+    class CachedModule {}
+
+    it('un interceptor del gateway que responde sin llamar a next no se salta los guards del evento', async () => {
+      const { url } = await start([CachedModule]);
+      const socket = await connect(`${url}/cached`);
+
+      const reply = await socket.request('cached', { q: 'a' });
+      assert.equal(reply.event, 'error');
+      assert.equal(reply.data.statusCode, 403);
+      socket.ws.close();
     });
   });
 

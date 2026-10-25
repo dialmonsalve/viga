@@ -113,7 +113,9 @@ Providers can implement `OnModuleInit` and `OnModuleDestroy`:
 
 ### Request order
 
-Request id → security headers → app middlewares (`app.use`) → body parser → authentication (except `@Public`) → controller guards → global interceptors → controller interceptors → `@UseGuards` → `@UseInterceptors` → `@Validate` → handler, and back in reverse order.
+Request id → security headers → app middlewares (`app.use`) → CSRF check → body parser → authentication (except `@Public`) → controller guards → method `@UseGuards` (including `@RateLimit`) → global interceptors → controller interceptors → method `@UseInterceptors` → `@Validate` → handler, and back in reverse order.
+
+Every guard runs before any interceptor, so an interceptor that answers without calling `next()`, such as a cache, can't skip a method's guard or rate limit. Gateways in `viga/websocket` follow the same rule.
 
 Method decorators follow that order even if you write them in a different one: a user without permission gets 403 before their body is validated. Among several of the same kind, the topmost runs first.
 
