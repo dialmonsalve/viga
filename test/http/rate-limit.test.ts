@@ -109,6 +109,41 @@ describe('MemoryRateLimitStore', () => {
     assert.equal(store.hit('ip', 20).count, 1);
   });
 
+  it('no guarda más de maxKeys claves y desaloja la más antigua', () => {
+    const store = new MemoryRateLimitStore({ maxKeys: 3 });
+
+    store.hit('a', 60_000);
+    store.hit('a', 60_000);
+    store.hit('b', 60_000);
+    store.hit('c', 60_000);
+    store.hit('d', 60_000);
+
+    assert.equal(store.size, 3);
+    assert.equal(store.hit('b', 60_000).count, 2);
+    assert.equal(store.hit('a', 60_000).count, 1);
+  });
+
+  it('mantiene acotada la memoria con miles de claves únicas dentro de la ventana', () => {
+    const store = new MemoryRateLimitStore();
+
+    for (let i = 0; i < 50_000; i++) store.hit(`ip:${'x'.repeat(500)}${i}@mail.com`, 15 * 60_000);
+
+    assert.equal(store.size, 10_000);
+  });
+
+  it('cuenta por separado claves largas distintas y junta las iguales', () => {
+    const store = new MemoryRateLimitStore();
+    const long = 'x'.repeat(1_000);
+
+    store.hit(`${long}a`, 60_000);
+    assert.equal(store.hit(`${long}a`, 60_000).count, 2);
+    assert.equal(store.hit(`${long}b`, 60_000).count, 1);
+  });
+
+  it('rechaza un maxKeys que no es un entero positivo', () => {
+    assert.throws(() => new MemoryRateLimitStore({ maxKeys: 0 }), /maxKeys must be a positive integer/);
+  });
+
   it('rechaza opciones inválidas al crear el límite', () => {
     assert.throws(() => rateLimit({ max: 0, windowMs: 1000 }), /positive integers/);
     assert.throws(() => rateLimit({ max: 5, windowMs: 1.5 }), /positive integers/);

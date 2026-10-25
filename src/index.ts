@@ -7,6 +7,7 @@ export { REQUEST_ID, type RequestIdOptions } from './http/request-id.ts';
 export {
   MemoryRateLimitStore,
   rateLimit,
+  type MemoryRateLimitStoreOptions,
   type RateLimitHit,
   type RateLimitOptions,
   type RateLimitStore,

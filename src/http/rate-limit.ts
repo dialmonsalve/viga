@@ -1,4 +1,5 @@
 import type { Request, RequestHandler, Response } from 'express';
+import { createHash } from 'node:crypto';
 import { diagnostic } from '../diagnostics.ts';
 import { TooManyRequestsException } from './exceptions.ts';
 
@@ -18,11 +19,40 @@ export interface RateLimitOptions {
   store?: RateLimitStore;
 }
 
+function isPositiveInteger(value: number) {
+  return Number.isInteger(value) && value > 0;
+}
+
+export interface MemoryRateLimitStoreOptions {
+  maxKeys?: number;
+}
+
+const MAX_KEY_LENGTH = 128;
+
+function compactKey(key: string) {
+  return key.length > MAX_KEY_LENGTH
+    ? `#${createHash('sha256').update(key).digest('base64')}`
+    : `=${key}`;
+}
+
 export class MemoryRateLimitStore implements RateLimitStore {
   private readonly hits = new Map<string, RateLimitHit>();
+  private readonly maxKeys: number;
   private lastSweep = Date.now();
 
-  hit(key: string, windowMs: number): RateLimitHit {
+  constructor({ maxKeys = 10_000 }: MemoryRateLimitStoreOptions = {}) {
+    if (!isPositiveInteger(maxKeys)) {
+      throw new Error(diagnostic('rateLimit.invalidMaxKeys', { maxKeys }));
+    }
+    this.maxKeys = maxKeys;
+  }
+
+  get size() {
+    return this.hits.size;
+  }
+
+  hit(rawKey: string, windowMs: number): RateLimitHit {
+    const key = compactKey(rawKey);
     const now = Date.now();
     if (now - this.lastSweep >= windowMs) this.sweep(now);
 
@@ -30,6 +60,11 @@ export class MemoryRateLimitStore implements RateLimitStore {
     if (current && current.resetAt > now) {
       current.count++;
       return { ...current };
+    }
+
+    if (!current && this.hits.size >= this.maxKeys) {
+      const oldest = this.hits.keys().next().value;
+      if (oldest !== undefined) this.hits.delete(oldest);
     }
 
     const fresh = { count: 1, resetAt: now + windowMs };
@@ -46,10 +81,6 @@ export class MemoryRateLimitStore implements RateLimitStore {
 }
 
 const byIp = (req: Request) => req.ip ?? req.socket.remoteAddress ?? 'unknown';
-
-function isPositiveInteger(value: number) {
-  return Number.isInteger(value) && value > 0;
-}
 
 export function createLimiter({
   max,

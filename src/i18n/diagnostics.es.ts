@@ -19,6 +19,7 @@ export const diagnosticsEs = {
   'interceptor.nextCalledTwice': 'next() solo puede llamarse una vez',
   'rateLimit.invalidOptions':
     'max y windowMs deben ser enteros positivos, se recibió max={max} windowMs={windowMs}',
+  'rateLimit.invalidMaxKeys': 'maxKeys debe ser un entero positivo, se recibió {maxKeys}',
   'lifecycle.destroyFailed': 'Falló el cierre de uno o más providers',
   'lifecycle.serverCloseFailed': 'Uno o más providers fallaron mientras se cerraba el servidor',
   'app.getBeforeInit': 'get() solo puede llamarse después de init() o listen()',

@@ -19,6 +19,7 @@ export const DIAGNOSTICS = {
   'interceptor.nextCalledTwice': 'next() can only be called once',
   'rateLimit.invalidOptions':
     'max and windowMs must be positive integers, received max={max} windowMs={windowMs}',
+  'rateLimit.invalidMaxKeys': 'maxKeys must be a positive integer, received {maxKeys}',
   'lifecycle.destroyFailed': 'One or more providers failed to shut down',
   'lifecycle.serverCloseFailed': 'One or more providers failed while the server was closing',
   'app.getBeforeInit': 'get() can only be called after init() or listen()',

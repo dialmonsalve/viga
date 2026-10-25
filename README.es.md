@@ -220,7 +220,7 @@ class AuthController {
 - `rateLimit()` es un middleware para toda la app; `@RateLimit()` va en un método o en el controlador. Cada uno lleva su propio contador.
 - Al superar `max` dentro de `windowMs` responde 429 con `code: 'errors.tooManyRequests'` y `Retry-After`. Todas las respuestas llevan `RateLimit-Limit`, `RateLimit-Remaining` y `RateLimit-Reset`.
 - La clave por defecto es `req.ip`. Detrás de un proxy configura `trustProxy`, o todos los clientes compartirán el mismo contador.
-- El contador vive en memoria (`MemoryRateLimitStore`). Con varias instancias, implementa `RateLimitStore` sobre Redis u otro almacén compartido y pásalo en `store`.
+- El contador vive en memoria (`MemoryRateLimitStore`). Guarda como máximo 10.000 claves (`new MemoryRateLimitStore({ maxKeys })`) y desaloja la más antigua, y las claves de más de 128 caracteres se guardan como hash, así que una avalancha de claves únicas (por ejemplo, emails inventados) no puede agotar la memoria. Con varias instancias, implementa `RateLimitStore` sobre Redis u otro almacén compartido y pásalo en `store`.
 
 ### Checklist para pruebas de seguridad
 
