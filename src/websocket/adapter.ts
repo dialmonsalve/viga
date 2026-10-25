@@ -12,7 +12,7 @@ export interface WsConnection {
 export type WsVerdict =
   | { action: 'accept' }
   | { action: 'reject'; status: number }
-  | { action: 'ignore' };
+  | { action: 'ignore'; status?: number };
 
 export interface WsAdapterOptions {
   paths: readonly string[];

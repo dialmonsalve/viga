@@ -24,7 +24,7 @@ import {
 } from '../http/exceptions.ts';
 import { secondsUntil } from '../http/rate-limit.ts';
 import { DEFAULT_MESSAGES } from '../http/messages.ts';
-import { normalizePath } from '../http/router.ts';
+import { CONCEAL_ROUTES, normalizePath } from '../http/router.ts';
 import { LOGGER } from '../logger.ts';
 import type { AnyConstructor } from '../metadata.ts';
 import type { WsConnection, WsVerdict } from './adapter.ts';
@@ -230,6 +230,7 @@ export class WsServer implements OnServerListen, OnServerClose {
   private readonly options = inject(WEBSOCKET_OPTIONS);
   private readonly instances = inject(PROVIDER_INSTANCES);
   private readonly logger = inject(LOGGER);
+  private readonly concealRoutes = inject(CONCEAL_ROUTES);
   private readonly rooms = new Rooms();
   private readonly connected = new Set<Client>();
   private readonly handshakes = new WeakMap<IncomingMessage, Handshake>();
@@ -366,33 +367,48 @@ export class WsServer implements OnServerListen, OnServerClose {
   private async verify(req: IncomingMessage): Promise<WsVerdict> {
     const path = pathOf(req);
     const route = path === undefined ? undefined : this.routes.get(path);
-    if (!route) return { action: 'ignore' };
+    if (!route) return this.concealRoutes ? this.concealed(req) : { action: 'ignore' };
     if (this.isFull()) return { action: 'reject', status: 503 };
     const key = this.keyOf(req);
     if (this.isKeyFull(key)) return { action: 'reject', status: 429 };
-
-    const { origin } = req.headers;
-    if (origin !== undefined && !this.isAllowedOrigin(origin)) {
-      return { action: 'reject', status: 403 };
-    }
+    if (this.hasForbiddenOrigin(req)) return { action: 'reject', status: 403 };
 
     let state: Record<string, unknown> = {};
     if (!route.isPublic) {
-      try {
-        const result = await this.authenticate(req);
-        if (!result) return { action: 'reject', status: 401 };
-        if (typeof result === 'object') state = { ...result };
-      } catch (error) {
-        const exception = toHttpException(error);
-        if (exception.statusCode >= 500 && !(error instanceof ServiceUnavailableException)) {
-          this.logger.error(diagnostic('ws.unhandledException'), error);
-        }
-        return { action: 'reject', status: exception.statusCode };
-      }
+      const auth = await this.checkAuthentication(req);
+      if ('status' in auth) return { action: 'reject', status: auth.status };
+      state = auth.state;
     }
 
     this.handshakes.set(req, { route, state, key });
     return { action: 'accept' };
+  }
+
+  private async concealed(req: IncomingMessage): Promise<WsVerdict> {
+    if (this.hasForbiddenOrigin(req)) return { action: 'ignore', status: 403 };
+    const auth = await this.checkAuthentication(req);
+    return { action: 'ignore', status: 'status' in auth ? auth.status : 404 };
+  }
+
+  private hasForbiddenOrigin(req: IncomingMessage) {
+    const { origin } = req.headers;
+    return origin !== undefined && !this.isAllowedOrigin(origin);
+  }
+
+  private async checkAuthentication(
+    req: IncomingMessage
+  ): Promise<{ status: number } | { state: Record<string, unknown> }> {
+    try {
+      const result = await this.authenticate(req);
+      if (!result) return { status: 401 };
+      return { state: typeof result === 'object' ? { ...result } : {} };
+    } catch (error) {
+      const exception = toHttpException(error);
+      if (exception.statusCode >= 500 && !(error instanceof ServiceUnavailableException)) {
+        this.logger.error(diagnostic('ws.unhandledException'), error);
+      }
+      return { status: exception.statusCode };
+    }
   }
 
   private async authenticate(req: IncomingMessage) {

@@ -7,11 +7,13 @@ import {
   type InterceptorFn,
 } from '../decorators/use-interceptors.ts';
 import { validatedParts } from '../decorators/pipeline.ts';
-import type { Injector } from '../di/injector.ts';
+import { InjectionToken, type Injector } from '../di/injector.ts';
 import type { AnyConstructor } from '../metadata.ts';
 import { createContext, type HttpContext } from './context.ts';
 import { UnauthorizedException } from './exceptions.ts';
 import { diagnostic } from '../diagnostics.ts';
+
+export const CONCEAL_ROUTES = new InjectionToken<boolean>('CONCEAL_ROUTES');
 
 export interface RoutePipeline {
   authGuard?: GuardFn;

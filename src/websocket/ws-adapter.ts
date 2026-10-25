@@ -60,7 +60,9 @@ export function createWsAdapter(): WsAdapter {
         options.verify(req).then(
           (verdict) => {
             if (verdict.action === 'ignore') {
-              if (server.listenerCount('upgrade') === 1) rejectUpgrade(socket, 404);
+              if (server.listenerCount('upgrade') === 1) {
+                rejectUpgrade(socket, verdict.status ?? 404);
+              }
               return;
             }
             if (verdict.action === 'reject') return rejectUpgrade(socket, verdict.status);

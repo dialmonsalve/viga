@@ -20,7 +20,12 @@ import {
   notFoundHandler,
 } from './http/error-handler.ts';
 import type { MessageResolver } from './http/messages.ts';
-import { mountController, normalizePath, type RoutePipeline } from './http/router.ts';
+import {
+  CONCEAL_ROUTES,
+  mountController,
+  normalizePath,
+  type RoutePipeline,
+} from './http/router.ts';
 import { requestId, type RequestIdOptions } from './http/request-id.ts';
 import { securityHeaders, type SecurityHeaders } from './http/security-headers.ts';
 import { LOGGER, type Logger } from './logger.ts';
@@ -214,6 +219,7 @@ export class App {
       platformProviders: [
         { provide: LOGGER, useValue: this.logger },
         { provide: PROVIDER_INSTANCES, useValue: () => this.initialized },
+        { provide: CONCEAL_ROUTES, useValue: this.concealRoutes },
       ],
     });
 

@@ -16,6 +16,7 @@ import {
   silentLogger,
   type App,
   type AnyConstructor,
+  type AppOptions,
 } from '../../src/index.ts';
 import { I18n } from '../../src/i18n/index.ts';
 import {
@@ -53,12 +54,13 @@ afterEach(async () => {
 
 async function start(
   modules: AnyConstructor[],
-  options: WebSocketOptions = {}
+  options: WebSocketOptions = {},
+  appOptions: Omit<AppOptions, 'rootModule'> = {}
 ): Promise<{ app: App; url: string }> {
   @Module({ imports: [WebSocketModule.forRoot(options), ...modules] })
   class RootModule {}
 
-  const app = createApp({ rootModule: RootModule, logger: silentLogger });
+  const app = createApp({ rootModule: RootModule, logger: silentLogger, ...appOptions });
   const server = await app.listen(0, '127.0.0.1');
   running = app;
   const { port } = server.address() as AddressInfo;
@@ -241,6 +243,30 @@ describe('viga/websocket', () => {
       const { url } = await start([EchoModule]);
 
       assert.equal(await handshakeStatus(`${url}/echo`, { origin: 'https://app.example' }), 403);
+    });
+
+    describe('con concealRoutes', () => {
+      const options: WebSocketOptions = {
+        authenticate: (req) => req.headers.authorization === 'Bearer ok',
+        allowedOrigins: ['https://app.example'],
+      };
+
+      it('una ruta desconocida responde igual que un gateway privado', async () => {
+        const { url } = await start([PrivateModule], options, { concealRoutes: true });
+
+        assert.equal(await handshakeStatus(`${url}/private`), 401);
+        assert.equal(await handshakeStatus(`${url}/nope`), 401);
+        assert.equal(await handshakeStatus(`${url}/private`, { origin: 'https://evil.example' }), 403);
+        assert.equal(await handshakeStatus(`${url}/nope`, { origin: 'https://evil.example' }), 403);
+      });
+
+      it('con sesión válida, una ruta desconocida responde 404', async () => {
+        const { url } = await start([PrivateModule], options, { concealRoutes: true });
+
+        assert.equal(await handshakeStatus(`${url}/nope`, { authorization: 'Bearer ok' }), 404);
+        const socket = await connect(`${url}/private`, { authorization: 'Bearer ok' });
+        socket.ws.close();
+      });
     });
 
     it('responde 404 a una ruta sin gateway', async () => {

@@ -194,7 +194,7 @@ app.use(cors({ origin: 'https://my-frontend.com', credentials: true }));
 | `timeouts` | `{ headers: 10_000, request: 30_000, keepAlive: 5_000 }` | Milliseconds to receive the headers, the full request, and between requests on one connection. They limit slow-connection attacks |
 | `requestId` | `true` | Generates a UUID per request, sends it in `X-Request-Id`, includes it in errors (`requestId`) and in the 500 log. `{ trustIncoming: true }` reuses the one your gateway sends if it only has letters, digits, `.`, `_` or `-` (128 max); `{ header }` changes the header; `false` disables it |
 | `requireValidation` | `false` | With `true`, the app doesn't start if a `POST`, `PUT` or `PATCH` route has no `@Validate({ body })`. A route without a body declares it with `@Validate({ body: z.strictObject({}).optional() })`. In any other method (`GET`, `DELETE`…), a route without a body schema gets `ctx.body` and `ctx.req.body` as `undefined`, so an unvalidated body never reaches a handler |
-| `concealRoutes` | `false` | With `true`, an unknown route responds 401 to anyone without a session, just like a private route, so routes can't be discovered. With a valid session it responds 404; `@Public` routes don't change |
+| `concealRoutes` | `false` | With `true`, an unknown route responds 401 to anyone without a session, just like a private route, so routes can't be discovered. With a valid session it responds 404; `@Public` routes don't change. It also applies to `viga/websocket` handshakes: an unknown path answers like a private gateway (403 for a forbidden `Origin`, 401 without a session, 404 with one) |
 
 - The `X-Powered-By` header is always disabled.
 - The 404 for unknown routes doesn't echo the requested path.
