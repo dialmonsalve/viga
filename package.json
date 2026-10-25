@@ -1,17 +1,32 @@
 {
   "name": "viga",
   "version": "0.1.0",
-  "description": "Framework HTTP para Node.js con módulos, inyección de dependencias y decoradores estándar de JavaScript, sin reflect-metadata",
+  "description": "HTTP framework for Node.js with modules, dependency injection and standard JavaScript decorators (TC39), without reflect-metadata",
   "type": "module",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "author": "Diego Monsalve",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dialmonsalve/viga.git"
+  },
+  "homepage": "https://github.com/dialmonsalve/viga#readme",
+  "bugs": {
+    "url": "https://github.com/dialmonsalve/viga/issues"
+  },
   "keywords": [
     "framework",
+    "http",
     "express",
+    "typescript",
     "decorators",
+    "tc39-decorators",
     "dependency-injection",
+    "modules",
     "standard-schema",
-    "drizzle"
+    "validation",
+    "i18n",
+    "drizzle",
+    "nestjs-alternative"
   ],
   "exports": {
     ".": {
@@ -35,13 +50,18 @@
   "files": [
     "dist",
     "src",
-    "README.md"
+    "README.md",
+    "README.es.md",
+    "CHANGELOG.md"
   ],
   "sideEffects": [
     "./dist/polyfills.js"
   ],
   "engines": {
     "node": ">=24.13.0"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "devEngines": {
     "packageManager": {

@@ -1,48 +1,51 @@
 # viga
 
-Framework HTTP para Node.js sobre Express 5: módulos, inyección de dependencias, guards e interceptores con **decoradores estándar de JavaScript (TC39)**. Sin `reflect-metadata`, sin `experimentalDecorators` y sin `emitDecoratorMetadata`, así que no depende de cómo compile TypeScript.
+**English** · [Español](README.es.md)
 
-El core solo resuelve lo que todo servidor necesita. Lo demás son subrutas opcionales: si no las importas, no se instala nada extra.
+HTTP framework for Node.js on top of Express 5: modules, dependency injection, guards and interceptors with **standard JavaScript decorators (TC39)**. No `reflect-metadata`, no `experimentalDecorators` and no `emitDecoratorMetadata`.
 
-| Importación | Qué trae | Requiere |
+The core only covers what every server needs. Everything else lives in optional subpaths: if you don't import them, nothing extra gets installed.
+
+| Import | What it provides | Requires |
 |---|---|---|
-| `viga` | Módulos, DI, controladores, guards, interceptores, `@Public`, excepciones HTTP, ciclo de vida, logger | `express` |
-| `viga/validation` | `@Validate` y `ValidationModule` con cualquier librería [Standard Schema](https://standardschema.dev) | Nada (tú eliges Zod, Valibot, ArkType…) |
-| `viga/i18n` | Catálogos de mensajes, negociación de `Accept-Language`, mensajes del framework en es/en | Nada |
-| `viga/drizzle` | `DrizzleModule` y `DatabaseService` con cierre del pool | `drizzle-orm`, `pg` |
+| `viga` | Modules, DI, controllers, guards, interceptors, `@Public`, HTTP exceptions, lifecycle, logger | `express` |
+| `viga/validation` | `@Validate` and `ValidationModule` with any [Standard Schema](https://standardschema.dev) library | Nothing (you pick Zod, Valibot, ArkType…) |
+| `viga/i18n` | Message catalogs, `Accept-Language` negotiation, framework messages in en/es | Nothing |
+| `viga/drizzle` | `DrizzleModule` and `DatabaseService` with pool shutdown | `drizzle-orm`, `pg` |
 
-## Agradecimientos
+## Acknowledgements
 
-viga está inspirado en [NestJS](https://nestjs.com). Los módulos, la inyección de dependencias, los controladores con decoradores, los guards y los interceptores vienen de las ideas que Kamil Myśliwiec y la comunidad de Nest llevan años perfeccionando. Gracias por mostrar que en Node se puede construir backends con estructura.
+viga is inspired by [NestJS](https://nestjs.com). Modules, dependency injection, decorator-based controllers, guards and interceptors come from the ideas Kamil Myśliwiec and the Nest community have spent years refining. Thank you for showing that Node backends can have structure.
 
-viga no comparte código con Nest. Toma esas ideas y las lleva a otro terreno: decoradores estándar de JavaScript (TC39) en lugar de `experimentalDecorators` y `reflect-metadata`, promesas en lugar de RxJS y un core pequeño con todo lo demás opcional.
+viga shares no code with Nest. It takes those ideas somewhere else: standard JavaScript decorators (TC39) instead of `experimentalDecorators` and `reflect-metadata`, promises instead of RxJS, and a small core with everything else optional.
 
-También se apoya en el trabajo de [Express](https://expressjs.com), [Standard Schema](https://standardschema.dev) y [Drizzle ORM](https://orm.drizzle.team).
+It also builds on the work of [Express](https://expressjs.com), [Standard Schema](https://standardschema.dev) and [Drizzle ORM](https://orm.drizzle.team).
 
-## Requisitos
+## Requirements
 
-- Node.js 24.13 o superior
+- Node.js 24.13 or later
 - Express 5
-- TypeScript con decoradores estándar (sin `experimentalDecorators`) y `"lib": ["ES2024", "ESNext.Decorators"]`
+- TypeScript with standard decorators (no `experimentalDecorators`) and `"lib": ["ES2024", "ESNext.Decorators"]`
+- A compiler that transforms decorators, such as `tsc` or `tsx`. Node runs TypeScript by stripping types, but it doesn't support decorators yet: `node main.ts` fails at the first `@`.
 
-## Instalación
+## Installation
 
 ```bash
 pnpm add viga express
 pnpm add -D @types/express
 ```
 
-Solo si usas `viga/drizzle`:
+Only if you use `viga/drizzle`:
 
 ```bash
 pnpm add drizzle-orm pg
 pnpm add -D @types/pg
 ```
 
-## Ejemplo mínimo
+## Minimal example
 
 ```ts
-import { Controller, Get, Injectable, Module, createApp, inject } from 'viga';
+import { Controller, Get, Injectable, Module, Public, createApp, inject } from 'viga';
 
 @Injectable()
 class BooksService {
@@ -55,6 +58,7 @@ class BooksService {
 class BooksController {
   private readonly books = inject(BooksService);
 
+  @Public()
   @Get()
   list() {
     return this.books.list();
@@ -64,46 +68,46 @@ class BooksController {
 @Module({ controllers: [BooksController], providers: [BooksService] })
 class AppModule {}
 
-const app = createApp({ rootModule: AppModule, globalPrefix: '/api/v1' })
-  .useAuthGuard(AuthGuard)
-  .enableShutdownHooks();
+const app = createApp({ rootModule: AppModule, globalPrefix: '/api/v1' }).enableShutdownHooks();
 
 await app.listen(3000);
 ```
 
+Routes are private by default: without `@Public()`, `GET /api/v1/books` would respond 401 until you set a guard with `app.useAuthGuard()` (see [Private routes by default](#private-routes-by-default)).
+
 ## Core (`viga`)
 
-### Módulos e inyección de dependencias
+### Modules and dependency injection
 
-- Las dependencias se piden con `inject()` en los campos de la clase. Sin reflection no se pueden leer los tipos del constructor.
-- Cada módulo ve sus `providers` y lo que exportan los módulos que importa. Un módulo puede reexportar otro poniéndolo en `exports`.
-- `global: true` hace que los exports de un módulo estén disponibles en todos sin importarlo. Úsalo solo para infraestructura (base de datos, configuración). Un módulo global tiene que estar en los `imports` del módulo raíz; si solo lo importa otro módulo, la app no arranca. Así, eliminar ese módulo nunca deja sin registrar algo que otros usaban.
-- Providers: clase, `{ provide, useClass }`, `{ provide, useValue }` y `{ provide, useFactory }`. Para valores que no son clases, `new InjectionToken<T>('NOMBRE')`.
-- Detecta dependencias e importaciones circulares con la cadena completa en el error.
+- Dependencies are requested with `inject()` in class fields. Without reflection, constructor parameter types can't be read.
+- Each module sees its own `providers` and whatever the modules it imports export. A module can re-export another one by listing it in `exports`.
+- `global: true` makes a module's exports available everywhere without importing it. Use it only for infrastructure (database, configuration). A global module must be in the root module's `imports`; if only another module imports it, the app doesn't start. That way, removing that module never leaves something others relied on unregistered.
+- Providers: class, `{ provide, useClass }`, `{ provide, useValue }` and `{ provide, useFactory }`. For values that aren't classes, use `new InjectionToken<T>('NAME')`.
+- Circular dependencies and circular imports are detected, with the full chain in the error.
 
-### Ciclo de vida
+### Lifecycle
 
-Los providers pueden implementar `OnModuleInit` y `OnModuleDestroy`:
+Providers can implement `OnModuleInit` and `OnModuleDestroy`:
 
-- `listen(port?, host?)` escucha en el puerto 3000 si no se indica otro. `listen(0)` usa un puerto libre aleatorio. viga no lee `process.env.PORT`; si lo necesitas, pásalo explícitamente: `app.listen(Number(process.env.PORT ?? 3000))`.
-- `init()` (o `listen()`) crea todos los providers y ejecuta `onModuleInit` en orden de dependencias. Si un hook devuelve una promesa, se espera.
-- `close()` cierra el servidor y ejecuta `onModuleDestroy` en orden inverso. Si alguno falla, intenta cerrar los demás y lanza un `AggregateError`.
-- `enableShutdownHooks()` llama a `close()` al recibir `SIGTERM` o `SIGINT`.
+- `listen(port?, host?)` listens on port 3000 unless told otherwise. `listen(0)` picks a random free port. viga doesn't read `process.env.PORT`; if you need it, pass it explicitly: `app.listen(Number(process.env.PORT ?? 3000))`.
+- `init()` (or `listen()`) creates every provider and runs `onModuleInit` in dependency order. If a hook returns a promise, it is awaited.
+- `close()` closes the server and runs `onModuleDestroy` in reverse order. If one fails, it still tries to close the rest and throws an `AggregateError`. If startup failed halfway, only the providers that finished `onModuleInit` are closed.
+- `enableShutdownHooks()` calls `close()` on `SIGTERM` or `SIGINT`.
 
-### Rutas privadas por defecto
+### Private routes by default
 
-- Toda ruta exige pasar el guard configurado con `app.useAuthGuard()`. Si no hay ninguno, responde 401: nada queda abierto por olvido.
-- `@Public()` en un método o en el controlador entero deja la ruta abierta.
+- Every route must pass the guard set with `app.useAuthGuard()`. If there is none, it responds 401: nothing is left open by accident.
+- `@Public()` on a method or on the whole controller opens the route.
 
-### Orden de una petición
+### Request order
 
-Request id → cabeceras de seguridad → middlewares de la app (`app.use`) → body parser → autenticación (salvo `@Public`) → guards del controlador → interceptores globales → del controlador → `@UseGuards` → `@UseInterceptors` → `@Validate` → handler, y de vuelta en orden inverso.
+Request id → security headers → app middlewares (`app.use`) → body parser → authentication (except `@Public`) → controller guards → global interceptors → controller interceptors → `@UseGuards` → `@UseInterceptors` → `@Validate` → handler, and back in reverse order.
 
-Los decoradores del método siguen ese orden aunque los escribas en otro: un usuario sin permiso recibe 403 antes de que se valide su body. Entre varios del mismo tipo, se ejecuta primero el de arriba.
+Method decorators follow that order even if you write them in a different one: a user without permission gets 403 before their body is validated. Among several of the same kind, the topmost runs first.
 
-El handler devuelve el resultado: el router responde 200, 201 en POST o 204 si no devuelve nada. `@HttpCode` lo cambia. Si el handler ya respondió con `ctx.res`, el router no toca la respuesta.
+The handler returns the result: the router responds 200, 201 for POST, or 204 if nothing is returned. `@HttpCode` changes it. If the handler already responded through `ctx.res`, the router leaves the response alone.
 
-### Guards e interceptores
+### Guards and interceptors
 
 ```ts
 @Injectable()
@@ -119,14 +123,14 @@ class TimingInterceptor implements Interceptor {
 app.useGlobalInterceptors(TimingInterceptor);
 ```
 
-- Guards e interceptores pueden ser clases (con `inject()`) o funciones.
-- `@UseGuards` va en el método o en el controlador. En el controlador protege todas sus rutas, incluidas las `@Public`: `@Public` solo omite la autenticación. Un guard que devuelve `false` responde 403.
-- `@UseInterceptors` va en el método o en el controlador. `next()` solo puede llamarse una vez.
-- Los globales se resuelven con el injector del módulo raíz.
+- Guards and interceptors can be classes (with `inject()`) or functions.
+- `@UseGuards` goes on the method or the controller. On the controller it protects all its routes, `@Public` ones included: `@Public` only skips authentication. A guard that returns `false` responds 403.
+- `@UseInterceptors` goes on the method or the controller. `next()` can only be called once.
+- Global ones are resolved with the root module's injector.
 
-### Contexto por petición
+### Request context
 
-`createContextKey` guarda valores que cualquier código alcanza durante una petición, sin pasarlos de función en función: el usuario autenticado, un id de petición, una transacción.
+`createContextKey` stores values that any code can reach during a request without passing them from function to function: the authenticated user, a request id, a transaction.
 
 ```ts
 import { createContextKey } from 'viga';
@@ -152,43 +156,42 @@ class ItemsService {
 }
 ```
 
-| Método | Qué hace |
+| Method | What it does |
 |---|---|
-| `get()` | Devuelve el valor o lanza un error si no hay ninguno |
-| `find()` | Devuelve el valor o `undefined` |
-| `set(value)` | Fija el valor para el resto de la petición. Sirve en middlewares, guards e interceptores |
-| `run(value, fn)` | Ejecuta `fn` con el valor; al terminar, vuelve el anterior |
+| `get()` | Returns the value, or throws if there is none |
+| `find()` | Returns the value or `undefined` |
+| `set(value)` | Sets the value for the rest of the request. Works in middlewares, guards and interceptors |
+| `run(value, fn)` | Runs `fn` with the value; when it finishes, the previous one is back |
 
-- Cada petición tiene su propio contexto, aunque el servidor atienda varias a la vez.
-- Fuera de HTTP (scripts, tareas programadas, tests), `runInNewContext(fn)` abre un contexto vacío donde `set()` funciona.
+- Each request has its own context, even when the server handles several at once.
+- Outside HTTP (scripts, scheduled jobs, tests), `runInNewContext(fn)` opens an empty context where `set()` works.
 
-### Middlewares de Express
+### Express middlewares
 
-Agrégalos con `app.use()` antes de `listen()`. Se ejecutan después de las cabeceras de seguridad, así que pueden sobrescribirlas:
+Add them with `app.use()` before `listen()`. They run after the security headers, so they can override them:
 
 ```ts
 import cors from 'cors';
 
-app.use(cors({ origin: 'https://mi-front.com', credentials: true }));
+app.use(cors({ origin: 'https://my-frontend.com', credentials: true }));
 ```
 
-### Seguridad por defecto
+### Secure by default
 
-| Opción de `createApp` | Por defecto | Qué controla |
+| `createApp` option | Default | What it controls |
 |---|---|---|
-| `securityHeaders` | `true` | `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy` y `Cache-Control: no-store`. Un objeto cambia (`{ 'Cache-Control': 'private' }`) o quita (`{ 'X-Frame-Options': false }`) cabeceras; `false` las desactiva todas |
-| `bodyLimit` | `'100kb'` | Tamaño máximo de un body JSON o urlencoded. Si se supera, responde 413 |
-| `trustProxy` | sin confiar | Igual que `trust proxy` de Express. Configúralo detrás de un proxy para que `req.ip` sea el del cliente |
-| `timeouts` | `{ headers: 10_000, request: 30_000, keepAlive: 5_000 }` | Milisegundos para recibir las cabeceras, la petición completa y entre peticiones de una conexión. Limitan ataques de conexiones lentas |
-| `requestId` | `true` | Genera un UUID por petición, lo envía en `X-Request-Id`, lo incluye en los errores (`requestId`) y en el log de los 500. `{ trustIncoming: true }` reutiliza el que envía tu gateway si solo tiene letras, números, `.`, `_` o `-` (máximo 128); `{ header }` cambia la cabecera; `false` lo desactiva |
+| `securityHeaders` | `true` | `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy` and `Cache-Control: no-store`. An object changes (`{ 'Cache-Control': 'private' }`) or removes (`{ 'X-Frame-Options': false }`) headers; `false` disables them all |
+| `bodyLimit` | `'100kb'` | Maximum size of a JSON or urlencoded body. Above it, responds 413 |
+| `trustProxy` | not trusted | Same as Express's `trust proxy`. Set it behind a proxy so `req.ip` is the client's |
+| `timeouts` | `{ headers: 10_000, request: 30_000, keepAlive: 5_000 }` | Milliseconds to receive the headers, the full request, and between requests on one connection. They limit slow-connection attacks |
+| `requestId` | `true` | Generates a UUID per request, sends it in `X-Request-Id`, includes it in errors (`requestId`) and in the 500 log. `{ trustIncoming: true }` reuses the one your gateway sends if it only has letters, digits, `.`, `_` or `-` (128 max); `{ header }` changes the header; `false` disables it |
+| `requireValidation` | `false` | With `true`, the app doesn't start if a `POST`, `PUT` or `PATCH` route has no `@Validate({ body })`. A route without a body declares it with `@Validate({ body: z.strictObject({}).optional() })` |
+| `concealRoutes` | `false` | With `true`, an unknown route responds 401 to anyone without a session, just like a private route, so routes can't be discovered. With a valid session it responds 404; `@Public` routes don't change |
 
-| `requireValidation` | `false` | Con `true`, la app no arranca si una ruta `POST`, `PUT` o `PATCH` no tiene `@Validate({ body })`. Una ruta sin body lo declara con `@Validate({ body: z.strictObject({}).optional() })` |
-| `concealRoutes` | `false` | Con `true`, una ruta inexistente responde 401 a quien no tiene sesión, igual que una ruta privada. Así no se puede descubrir qué rutas existen. Con sesión válida responde 404; las rutas `@Public` no cambian |
-
-- La cabecera `X-Powered-By` está siempre desactivada.
-- El 404 de rutas inexistentes no repite la ruta pedida en la respuesta.
-- `DEFAULT_SECURITY_HEADERS` exporta las cabeceras por defecto.
-- `REQUEST_ID.get()` devuelve el id de la petición en curso desde cualquier servicio.
+- The `X-Powered-By` header is always disabled.
+- The 404 for unknown routes doesn't echo the requested path.
+- `DEFAULT_SECURITY_HEADERS` exports the default headers.
+- `REQUEST_ID.get()` returns the current request id from any service.
 
 ### Rate limiting
 
@@ -206,16 +209,16 @@ class AuthController {
 }
 ```
 
-- `rateLimit()` es un middleware para toda la app; `@RateLimit()` va en un método o en el controlador. Cada uno lleva su propio contador.
-- Al superar `max` dentro de `windowMs` responde 429 con `code: 'errors.tooManyRequests'` y `Retry-After`. Todas las respuestas llevan `RateLimit-Limit`, `RateLimit-Remaining` y `RateLimit-Reset`.
-- La clave por defecto es `req.ip`. Detrás de un proxy configura `trustProxy`, o todos los clientes compartirán el mismo contador.
-- El contador vive en memoria (`MemoryRateLimitStore`). Con varias instancias, implementa `RateLimitStore` sobre Redis u otro almacén compartido y pásalo en `store`.
+- `rateLimit()` is an app-wide middleware; `@RateLimit()` goes on a method or a controller. Each one has its own counter.
+- When `max` is exceeded within `windowMs`, it responds 429 with `code: 'errors.tooManyRequests'` and `Retry-After`. Every response carries `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset`.
+- The default key is `req.ip`. Behind a proxy, set `trustProxy`, or every client will share the same counter.
+- The counter lives in memory (`MemoryRateLimitStore`). With several instances, implement `RateLimitStore` on Redis or another shared store and pass it as `store`.
 
-### Checklist para pruebas de seguridad
+### Security testing checklist
 
-El framework cubre las capas comunes; estas dependen de tu código y son lo primero que revisa una prueba de caja gris, con usuarios y roles reales:
+The framework covers the common layers; these depend on your code and are the first thing a gray-box test checks, with real users and roles:
 
-- **Autorización por recurso (IDOR).** Que una ruta exija sesión no basta: comprueba que el recurso pertenece al usuario. Filtra en el repositorio por el usuario actual y responde 404, no 403, cuando no es suyo, para no revelar qué ids existen:
+- **Per-resource authorization (IDOR).** Requiring a session isn't enough: check that the resource belongs to the user. Filter by the current user in the repository and respond 404, not 403, when it isn't theirs, so you don't reveal which ids exist:
   ```ts
   findOwned(id: number) {
     const { id: ownerId } = CURRENT_USER.get();
@@ -224,39 +227,39 @@ El framework cubre las capas comunes; estas dependen de tu código y son lo prim
     });
   }
   ```
-- **Asignación masiva.** Sin `@Validate`, `ctx.body` llega tal cual lo envía el cliente. Valida todo body de `POST`, `PUT` y `PATCH` (`requireValidation: true` lo garantiza), usa el valor parseado y nunca `ctx.req.body`. Con Zod, `z.strictObject()` rechaza campos de más (`"role": "admin"`) en lugar de ignorarlos.
-- **Roles.** Pon el guard de rol en el controlador con `@UseGuards` para que una ruta nueva no quede abierta por olvido.
-- **Fuerza bruta.** Limita login, registro, recuperación de contraseña y verificación de códigos con `@RateLimit`.
-- **CORS.** Lista los orígenes permitidos de forma explícita; nunca `origin: '*'` junto con `credentials: true`.
-- **Mensajes de error.** No distingas "usuario no existe" de "contraseña incorrecta": usa siempre `UnauthorizedException()`.
+- **Mass assignment.** Without `@Validate`, `ctx.body` arrives exactly as the client sent it. Validate every `POST`, `PUT` and `PATCH` body (`requireValidation: true` enforces it), use the parsed value and never `ctx.req.body`. With Zod, `z.strictObject()` rejects extra fields (`"role": "admin"`) instead of ignoring them.
+- **Roles.** Put the role guard on the controller with `@UseGuards` so a new route isn't left open by accident.
+- **Brute force.** Limit login, sign-up, password recovery and code verification with `@RateLimit`.
+- **CORS.** List the allowed origins explicitly; never `origin: '*'` together with `credentials: true`.
+- **Error messages.** Don't tell "user doesn't exist" apart from "wrong password": always use `UnauthorizedException()`.
 
-### Errores
+### Errors
 
 ```json
 {
   "statusCode": 404,
   "code": "books.notFound",
-  "message": "No existe el libro 7",
+  "message": "Book 7 does not exist",
   "error": "Not Found",
   "timestamp": "2026-10-22T12:00:00.000Z"
 }
 ```
 
-- Las excepciones reciben un código y parámetros opcionales: `throw new NotFoundException('books.notFound', { id })`.
-- El `message` lo decide `resolveMessage`, un hook opcional de `createApp`. Si no lo configuras o devuelve `undefined`, viga usa sus mensajes por defecto en inglés para sus códigos (`errors.*`).
-- Si el código no es conocido, se trata como texto libre: va tal cual en `message`, y `code` toma el del estado HTTP (`errors.notFound`).
-- Los errores inesperados responden 500 sin filtrar el mensaje interno. Un JSON mal formado responde 400.
+- Exceptions take a code and optional parameters: `throw new NotFoundException('books.notFound', { id })`.
+- The `message` is decided by `resolveMessage`, an optional `createApp` hook. If you don't set it or it returns `undefined`, viga uses its default English messages for its own codes (`errors.*`).
+- If the code isn't known, it is treated as free text: it goes as-is in `message`, and `code` takes the one for the HTTP status (`errors.notFound`).
+- Unexpected errors respond 500 without leaking the internal message. Malformed JSON responds 400.
 
 ```ts
 createApp({
   rootModule: AppModule,
-  resolveMessage: (code, params, req) => misMensajes[code],
+  resolveMessage: (code, params, req) => myMessages[code],
 });
 ```
 
-### Mensajes para desarrolladores
+### Developer messages
 
-Los errores y logs del propio framework (`[DI] BooksModule cannot resolve BooksService…`) están en inglés por defecto. Se adaptan con un diccionario, que se configura en `main.ts` antes de `createApp()`:
+The framework's own errors and logs (`[DI] BooksModule cannot resolve BooksService…`) are in English by default. They can be adapted with a dictionary, set in `main.ts` before `createApp()`:
 
 ```ts
 import { setDiagnostics } from 'viga';
@@ -265,16 +268,16 @@ import { diagnosticsEs } from 'viga/i18n';
 setDiagnostics(diagnosticsEs);
 ```
 
-- `viga/i18n` trae el diccionario completo en español.
-- Un diccionario puede ser parcial: las claves que no traduce siguen en inglés.
-- `DIAGNOSTICS` contiene los textos originales en inglés, para usar como referencia al crear otro diccionario. Los `{parámetros}` se interpolan solos y el prefijo (`[DI]`, `[App]`…) se agrega automáticamente.
-- `setDiagnostics({})` vuelve al inglés.
+- `viga/i18n` ships the full Spanish dictionary.
+- A dictionary can be partial: keys it doesn't translate stay in English.
+- `DIAGNOSTICS` holds the original English texts, to use as a reference for another dictionary. `{parameters}` are interpolated automatically and the prefix (`[DI]`, `[App]`…) is added for you.
+- `setDiagnostics({})` switches back to English.
 
-Estos mensajes son para quien programa. Los que ve el usuario final en las respuestas HTTP se configuran con `resolveMessage` o `viga/i18n`.
+These messages are for developers. The ones end users see in HTTP responses are configured with `resolveMessage` or `viga/i18n`.
 
 ### Logger
 
-`createApp({ logger })` acepta cualquier objeto con `info`, `warn`, `error` y `debug` (por defecto, `console`). Está disponible en todos los módulos con `inject(LOGGER)`.
+`createApp({ logger })` accepts any object with `info`, `warn`, `error` and `debug` (`console` by default). It is available in every module with `inject(LOGGER)`.
 
 ## viga/validation
 
@@ -291,26 +294,27 @@ create({ body }: HttpContext<{ body: typeof CreateBook }>) {
 }
 ```
 
-- Valida `body`, `query` y `params` con cualquier schema que implemente Standard Schema, incluso asíncrono. `HttpContext<{ body: typeof Schema }>` tipa los datos ya parseados.
-- Si falla, responde 400 con `code: 'errors.validation'` y en `details` los errores por parte de la petición: `{ path, code?, message }`.
-- `ValidationModule.forRoot({ formatIssue })` es opcional y personaliza el texto de cada error, por ejemplo para traducirlo.
+- Validates `body`, `query` and `params` with any schema that implements Standard Schema, async ones included. `HttpContext<{ body: typeof Schema }>` types the parsed data.
+- On failure it responds 400 with `code: 'errors.validation'` and, in `details`, the errors for each part of the request: `{ path, code?, message }`.
+- `ValidationModule.forRoot({ formatIssue })` is optional and customizes the text of each error, for example to translate it. `formatIssue` receives the library's original issue, so it can read any of its fields.
 
 ## viga/i18n
 
 ```ts
 import { I18n } from 'viga/i18n';
 
-const i18n = new I18n({ defaultLocale: 'es', catalogs: { es, en } });
+const i18n = new I18n({ defaultLocale: 'en', catalogs: { en, es } });
 
 const app = createApp({ rootModule: AppModule, resolveMessage: i18n.resolveMessage })
   .use(i18n.middleware);
 ```
 
-- `i18n.middleware` elige el idioma con `Accept-Language` y responde con `Content-Language`. Sin cabecera o sin coincidencia, usa `defaultLocale`.
-- `resolveLocale` lee el idioma de otro sitio antes que de `Accept-Language`: el nombre de una cabecera (`resolveLocale: 'x-lang'`) o una función (`resolveLocale: (req) => req.cookies.lang`). Si no devuelve un idioma de tus catálogos, se sigue con `Accept-Language` y luego con `defaultLocale`; nunca se usa un valor desconocido.
-- `i18n.resolveMessage` traduce los códigos de las excepciones. Trae en español e inglés los mensajes del framework, y tus catálogos pueden reemplazarlos.
-- `i18n.t(key, params)` e `i18n.locale()` usan el idioma de la petición en curso, en cualquier servicio.
-- Combinado con validación: `ValidationModule.forRoot({ formatIssue: (issue) => traducir(issue, i18n.locale()) })`.
+- `i18n.middleware` picks the language from `Accept-Language` and responds with `Content-Language`. With no header or no match, it uses `defaultLocale`.
+- `resolveLocale` reads the language from somewhere else before `Accept-Language`: a header name (`resolveLocale: 'x-lang'`) or a function (`resolveLocale: (req) => req.cookies.lang`). If it doesn't return a language from your catalogs, it falls back to `Accept-Language` and then `defaultLocale`; an unknown value is never used.
+- Catalog keys are nested: `'books.notFound'` looks up `{ books: { notFound: '…' } }`.
+- `i18n.resolveMessage` translates exception codes. It ships the framework messages in English and Spanish, and your catalogs can replace them.
+- `i18n.t(key, params)` and `i18n.locale()` use the language of the current request, in any service.
+- Combined with validation: `ValidationModule.forRoot({ formatIssue: (issue) => translate(issue, i18n.locale()) })`.
 
 ## viga/drizzle
 
@@ -339,14 +343,14 @@ class BooksRepository {
 }
 ```
 
-- `DrizzleModule.forRoot()` es global y se registra una sola vez en el módulo raíz.
-- `connection` acepta una URL o la configuración completa del `Pool` de `pg`.
-- Declarar `Register` tipa `database.db` con tu schema.
-- El pool se cierra con `app.close()`. Los errores de conexiones inactivas van al logger y no tumban el proceso.
+- `DrizzleModule.forRoot()` is global and is registered once, in the root module.
+- `connection` accepts a URL or the full `pg` `Pool` configuration.
+- Declaring `Register` types `database.db` with your schema.
+- The pool is closed by `app.close()`. Errors from idle connections go to the logger and don't crash the process.
 
-### Transacciones
+### Transactions
 
-Los repositorios usan siempre `database.db`. Fuera de una transacción es la conexión normal; dentro de una, es la transacción en curso, sin pasarla como parámetro.
+Repositories always use `database.db`. Outside a transaction it is the regular connection; inside one, it is the current transaction, without passing it as a parameter.
 
 ```ts
 @Injectable()
@@ -367,7 +371,7 @@ class ReceiptsService {
 }
 ```
 
-Si cualquier paso lanza un error, se revierte todo. También existe como decorador:
+If any step throws, everything is rolled back. It is also available as a decorator:
 
 ```ts
 @Transactional()
@@ -377,13 +381,13 @@ async receive(orderId: number, lines: ReceivedLine[]) { … }
 async adjustStock(…) { … }
 ```
 
-- **Anidadas:** una transacción dentro de otra crea un savepoint. Si la interior falla y capturas el error, solo se revierte lo suyo; si no lo capturas, se revierte todo.
-- **Configuración** (`isolationLevel`, `accessMode`, `deferrable`): solo en la transacción exterior. Una anidada que intente cambiarla lanza un error.
-- `database.inTransaction()` indica si hay una en curso. `database.root` es siempre la conexión fuera de cualquier transacción.
-- **SQL crudo:** usa `database.db.execute(sql\`…\`)`, que respeta la transacción en curso. Usar `database.pool` directamente se la salta.
-- No ejecutes transacciones anidadas en paralelo (`Promise.all`) dentro de la misma transacción: comparten una sola conexión.
+- **Nested:** a transaction inside another creates a savepoint. If the inner one fails and you catch the error, only its own work is rolled back; if you don't catch it, everything is.
+- **Configuration** (`isolationLevel`, `accessMode`, `deferrable`): only on the outer transaction. A nested one that tries to change it throws.
+- `database.inTransaction()` tells whether one is in progress. `database.root` is always the connection outside any transaction.
+- **Raw SQL:** use `database.db.execute(sql\`…\`)`, which respects the current transaction. Using `database.pool` directly bypasses it.
+- Don't run nested transactions in parallel (`Promise.all`) inside the same transaction: they share a single connection.
 
-¿Otro ORM? No hace falta un adaptador: regístralo como un provider con `onModuleDestroy`.
+Another ORM? No adapter needed: register it as a provider with `onModuleDestroy`.
 
 ```ts
 @Injectable()
@@ -396,15 +400,19 @@ class Database implements OnModuleDestroy {
 }
 ```
 
-## Desarrollo
+## Development
 
-| Script | Qué hace |
+| Script | What it does |
 |---|---|
-| `pnpm test` | Tests con el runner nativo de Node. Los de PostgreSQL se saltan |
-| `pnpm db:test:up` / `db:test:down` | Levanta o apaga un PostgreSQL desechable en el puerto 55432 (datos en memoria) |
-| `pnpm test:db` | Todos los tests, incluidos los de PostgreSQL (requiere `db:test:up`) |
-| `pnpm check-types` | Comprueba los tipos |
-| `pnpm build` | Compila a `dist/` con `tsc` (JS + tipos) |
-| `pnpm pack` | Genera el `.tgz` que se publicaría, para probarlo en otro proyecto |
+| `pnpm test` | Tests with Node's native runner. PostgreSQL tests are skipped |
+| `pnpm db:test:up` / `db:test:down` | Starts or stops a disposable PostgreSQL on port 55432 (in-memory data) |
+| `pnpm test:db` | All tests, PostgreSQL ones included (requires `db:test:up`) |
+| `pnpm check-types` | Type checks |
+| `pnpm build` | Compiles to `dist/` with `tsc` (JS + types) |
+| `pnpm pack` | Builds the `.tgz` that would be published, to try it in another project |
 
-`prepublishOnly` ejecuta tipos, todos los tests (con PostgreSQL) y build antes de cada `npm publish`.
+`prepublishOnly` runs type checks, every test (with PostgreSQL) and the build before each `npm publish`.
+
+## License
+
+[MIT](LICENSE)
