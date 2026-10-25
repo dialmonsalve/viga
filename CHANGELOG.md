@@ -15,7 +15,7 @@ First public release.
 - Lifecycle hooks `OnModuleInit` and `OnModuleDestroy`, `close()` that only closes providers that finished starting, and `enableShutdownHooks()`, which exits with the signal's standard code (also as PID 1 in a container).
 - Per-request context with `createContextKey` and `runInNewContext`.
 - Secure defaults: security headers, body size limit, server timeouts, request id, `X-Powered-By` disabled, and the optional `requireValidation` (which also drops unvalidated bodies in any other method) and `concealRoutes` (which also covers WebSocket handshakes). `trustProxy: true` logs a warning because it lets clients forge their IP.
-- Rate limiting with `rateLimit()` and `@RateLimit()`, with a pluggable store. The in-memory store is bounded (`maxKeys`) and hashes long keys.
+- Rate limiting with `rateLimit()` and `@RateLimit()`, with a pluggable store. The default key groups IPv6 clients by /56 network and IPv4-mapped addresses by their IPv4, through the exported `ipKey()`. The in-memory store is bounded (`maxKeys`), hashes long keys, and when full evicts only keys seen once, so a flood of new keys can't reset a counter under attack; with no room left it fails closed.
 - HTTP exceptions with stable codes, `resolveMessage` and developer diagnostics that can be translated with `setDiagnostics`. A failure after the response started is logged once and closes the connection.
 - `listen()` defaults to port 3000.
 - `OnServerListen` and `OnServerClose` lifecycle hooks.

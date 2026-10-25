@@ -20,6 +20,7 @@ export const DIAGNOSTICS = {
   'rateLimit.invalidOptions':
     'max and windowMs must be positive integers, received max={max} windowMs={windowMs}',
   'rateLimit.invalidMaxKeys': 'maxKeys must be a positive integer, received {maxKeys}',
+  'rateLimit.invalidIpv6Subnet': 'ipv6Subnet must be an integer between 1 and 128, received {ipv6Subnet}',
   'rateLimit.httpOnly':
     '@RateLimit from "viga" only works on HTTP routes; in a gateway use RateLimit from "viga/websocket"',
   'lifecycle.destroyFailed': 'One or more providers failed to shut down',

@@ -208,7 +208,7 @@ app.use(cors({ origin: 'https://mi-front.com', credentials: true }));
 ### Rate limiting
 
 ```ts
-import { RateLimit, rateLimit } from 'viga';
+import { RateLimit, ipKey, rateLimit } from 'viga';
 
 app.use(rateLimit({ max: 300, windowMs: 60_000 }));
 
@@ -216,16 +216,16 @@ app.use(rateLimit({ max: 300, windowMs: 60_000 }));
 @Controller('auth')
 class AuthController {
   @Post('login')
-  @RateLimit({ max: 5, windowMs: 15 * 60_000, key: (req) => `${req.ip}:${req.body?.email}` })
+  @RateLimit({ max: 5, windowMs: 15 * 60_000, key: (req) => `${ipKey(req.ip ?? '')}:${req.body?.email}` })
   login(ctx: HttpContext) {}
 }
 ```
 
 - `rateLimit()` es un middleware para toda la app; `@RateLimit()` va en un método o en el controlador. Cada uno lleva su propio contador.
 - Al superar `max` dentro de `windowMs` responde 429 con `code: 'errors.tooManyRequests'` y `Retry-After`. Todas las respuestas llevan `RateLimit-Limit`, `RateLimit-Remaining` y `RateLimit-Reset`.
-- La clave por defecto es `req.ip`. Detrás de un proxy, pon en `trustProxy` el número de proxies, o todos los clientes compartirán el mismo contador.
+- La clave por defecto es `req.ip` normalizada con `ipKey()`: una dirección IPv4-mapped (`::ffff:1.2.3.4`) cuenta como su IPv4, y una dirección IPv6 cuenta como su red /56, porque quien controla una suele controlar todo el bloque y, si no, conseguiría un contador nuevo por dirección. `ipKey(address, 64)` elige otra longitud de prefijo. Usa `ipKey()` también cuando armes tu propia clave a partir de la IP. Detrás de un proxy, pon en `trustProxy` el número de proxies, o todos los clientes compartirán el mismo contador.
 - En HTTP el rate limiting viene desactivado (en WebSocket hay un límite por conexión activado por defecto): añade tú `rateLimit()` o `@RateLimit()`. No se activa solo porque, detrás de un proxy sin `trustProxy`, todos los usuarios compartirían la IP del proxy y quedarían bloqueados a la vez.
-- El contador vive en memoria (`MemoryRateLimitStore`). Guarda como máximo 10.000 claves (`new MemoryRateLimitStore({ maxKeys })`) y desaloja la más antigua, y las claves de más de 128 caracteres se guardan como hash, así que una avalancha de claves únicas (por ejemplo, emails inventados) no puede agotar la memoria. Con varias instancias, implementa `RateLimitStore` sobre Redis u otro almacén compartido y pásalo en `store`.
+- El contador vive en memoria (`MemoryRateLimitStore`). Guarda como máximo 10.000 claves (`new MemoryRateLimitStore({ maxKeys })`), y las claves de más de 128 caracteres se guardan como hash, así que una avalancha de claves únicas (por ejemplo, emails inventados) no puede agotar la memoria. Al llenarse desaloja la clave más antigua que solo se vio una vez, así que una avalancha de claves nuevas no puede borrar el contador de una clave atacada. Si todas las claves guardadas están vivas y repetidas, una clave nueva se trata como limitada hasta que venza alguna: el almacén falla cerrado, no abierto. Sube `maxKeys` si el tráfico legítimo puede llenarlo. Con varias instancias, implementa `RateLimitStore` sobre Redis u otro almacén compartido y pásalo en `store`.
 
 ### Checklist para pruebas de seguridad
 

@@ -20,6 +20,7 @@ export const diagnosticsEs = {
   'rateLimit.invalidOptions':
     'max y windowMs deben ser enteros positivos, se recibió max={max} windowMs={windowMs}',
   'rateLimit.invalidMaxKeys': 'maxKeys debe ser un entero positivo, se recibió {maxKeys}',
+  'rateLimit.invalidIpv6Subnet': 'ipv6Subnet debe ser un entero entre 1 y 128, se recibió {ipv6Subnet}',
   'rateLimit.httpOnly':
     '@RateLimit de "viga" solo funciona en rutas HTTP; en un gateway usa RateLimit de "viga/websocket"',
   'lifecycle.destroyFailed': 'Falló el cierre de uno o más providers',

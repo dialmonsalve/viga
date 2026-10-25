@@ -2,6 +2,7 @@ import type { Request, RequestHandler, Response } from 'express';
 import { createHash } from 'node:crypto';
 import { diagnostic } from '../diagnostics.ts';
 import { TooManyRequestsException } from './exceptions.ts';
+import { ipKey } from './ip.ts';
 
 export interface RateLimitHit {
   count: number;
@@ -35,10 +36,14 @@ function compactKey(key: string) {
     : `=${key}`;
 }
 
+const SATURATED = Number.MAX_SAFE_INTEGER;
+
 export class MemoryRateLimitStore implements RateLimitStore {
-  private readonly hits = new Map<string, RateLimitHit>();
+  private readonly single = new Map<string, RateLimitHit>();
+  private readonly repeated = new Map<string, RateLimitHit>();
   private readonly maxKeys: number;
   private lastSweep = Date.now();
+  private nextExpiry = Number.POSITIVE_INFINITY;
 
   constructor({ maxKeys = 10_000 }: MemoryRateLimitStoreOptions = {}) {
     if (!isPositiveInteger(maxKeys)) {
@@ -48,7 +53,7 @@ export class MemoryRateLimitStore implements RateLimitStore {
   }
 
   get size() {
-    return this.hits.size;
+    return this.single.size + this.repeated.size;
   }
 
   hit(rawKey: string, windowMs: number): RateLimitHit {
@@ -56,27 +61,52 @@ export class MemoryRateLimitStore implements RateLimitStore {
     const now = Date.now();
     if (now - this.lastSweep >= windowMs) this.sweep(now);
 
-    const current = this.hits.get(key);
-    if (current && current.resetAt > now) {
-      current.count++;
-      return { ...current };
+    const live = this.repeated.get(key);
+    if (live && live.resetAt > now) {
+      live.count++;
+      return { ...live };
     }
 
-    if (!current && this.hits.size >= this.maxKeys) {
-      const oldest = this.hits.keys().next().value;
-      if (oldest !== undefined) this.hits.delete(oldest);
+    const first = this.single.get(key);
+    if (first && first.resetAt > now) {
+      this.single.delete(key);
+      first.count++;
+      this.repeated.set(key, first);
+      return { ...first };
+    }
+
+    this.single.delete(key);
+    this.repeated.delete(key);
+    if (this.size >= this.maxKeys && !this.makeRoom(now)) {
+      return { count: SATURATED, resetAt: this.nextExpiry };
     }
 
     const fresh = { count: 1, resetAt: now + windowMs };
-    this.hits.set(key, fresh);
+    this.single.set(key, fresh);
+    this.nextExpiry = Math.min(this.nextExpiry, fresh.resetAt);
     return { ...fresh };
   }
 
+  private makeRoom(now: number) {
+    const oldest = this.single.keys().next().value;
+    if (oldest !== undefined) {
+      this.single.delete(oldest);
+      return true;
+    }
+    if (now >= this.nextExpiry) this.sweep(now);
+    return this.size < this.maxKeys;
+  }
+
   private sweep(now: number) {
-    for (const [key, hit] of this.hits) {
-      if (hit.resetAt <= now) this.hits.delete(key);
+    let nextExpiry = Number.POSITIVE_INFINITY;
+    for (const hits of [this.single, this.repeated]) {
+      for (const [key, hit] of hits) {
+        if (hit.resetAt <= now) hits.delete(key);
+        else nextExpiry = Math.min(nextExpiry, hit.resetAt);
+      }
     }
     this.lastSweep = now;
+    this.nextExpiry = nextExpiry;
   }
 }
 
@@ -111,7 +141,7 @@ export function createCounter({ max, windowMs, store = new MemoryRateLimitStore(
   };
 }
 
-const byIp = (req: Request) => req.ip ?? req.socket.remoteAddress ?? 'unknown';
+const byIp = (req: Request) => ipKey(req.ip ?? req.socket.remoteAddress ?? 'unknown');
 
 export function createLimiter({ key = byIp, ...options }: RateLimitOptions) {
   const count = createCounter(options);
