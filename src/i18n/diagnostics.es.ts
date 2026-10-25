@@ -14,8 +14,6 @@ export const diagnosticsEs = {
     '{name} es global y se importa desde {importer}, pero no desde el módulo raíz; muévelo a los imports de {root}',
   'router.notController': '{name} debe estar decorada con @Controller()',
   'router.notMethod': '{controller}.{method} no es un método',
-  'router.missingBodyValidation':
-    '{controller}.{method} atiende {verb} pero no tiene @Validate({ body }), obligatorio con requireValidation',
   'interceptor.nextCalledTwice': 'next() solo puede llamarse una vez',
   'rateLimit.invalidOptions':
     'max y windowMs deben ser enteros positivos, se recibió max={max} windowMs={windowMs}',

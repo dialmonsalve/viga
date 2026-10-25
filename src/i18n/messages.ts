@@ -4,6 +4,7 @@ const es = {
   errors: {
     badRequest: 'La solicitud no es válida',
     validation: 'Datos de entrada inválidos',
+    unexpectedBody: 'Esta ruta no acepta un cuerpo en la solicitud',
     unauthorized: 'Debes iniciar sesión para continuar',
     forbidden: 'No tienes permiso para realizar esta acción',
     crossSiteRequest: 'Aquí no se permiten solicitudes desde otro sitio',
@@ -25,6 +26,7 @@ const en = {
   errors: {
     badRequest: 'The request is not valid',
     validation: 'Invalid input data',
+    unexpectedBody: 'This route does not accept a request body',
     unauthorized: 'You must sign in to continue',
     forbidden: 'You are not allowed to perform this action',
     crossSiteRequest: 'Requests from another site are not allowed here',

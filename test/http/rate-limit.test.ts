@@ -46,7 +46,7 @@ describe('rate limiting', () => {
   let server: TestServer;
 
   before(async () => {
-    server = await startTestServer(AppModule, { requireValidation: false });
+    server = await startTestServer(AppModule);
   });
 
   after(() => server.close());
@@ -88,7 +88,6 @@ describe('rateLimit global', () => {
 
   before(async () => {
     server = await startTestServer(AppModule, {
-      requireValidation: false,
       configure: (app) => app.use(rateLimit({ max: 1, windowMs: 60_000 })),
     });
   });
@@ -106,7 +105,6 @@ describe('rateLimit con IPv6', () => {
 
   before(async () => {
     server = await startTestServer(AppModule, {
-      requireValidation: false,
       trustProxy: 1,
       configure: (app) => app.use(rateLimit({ max: 1, windowMs: 60_000 })),
     });
@@ -201,7 +199,6 @@ describe('MemoryRateLimitStore', () => {
   it('responde 429 con un Retry-After finito cuando el almacén está saturado', async () => {
     const store = new MemoryRateLimitStore({ maxKeys: 1 });
     const server = await startTestServer(AppModule, {
-      requireValidation: false,
       configure: (app) =>
         app.use(
           rateLimit({ max: 5, windowMs: 60_000, store, key: (req) => String(req.headers['x-client']) })
