@@ -18,6 +18,8 @@ First public release.
 - Rate limiting with `rateLimit()` and `@RateLimit()`, with a pluggable store.
 - HTTP exceptions with stable codes, `resolveMessage` and developer diagnostics that can be translated with `setDiagnostics`.
 - `listen()` defaults to port 3000.
+- `OnServerListen` and `OnServerClose` lifecycle hooks.
+- Guards and interceptors accept a context type, so they can be used outside HTTP.
 
 ### `viga/validation`
 
@@ -28,6 +30,13 @@ First public release.
 
 - `I18n` with nested catalogs, `Accept-Language` negotiation, `resolveLocale` (header name or function), and framework messages in English and Spanish.
 - `diagnosticsEs`, the Spanish dictionary for developer messages.
+
+### `viga/websocket`
+
+- `WebSocketModule.forRoot()`, `@Gateway`, `@OnMessage` with Standard Schema validation, `WsContext` and `WsServer`.
+- Rooms with `join`, `leave`, `to(room).send()` and `broadcast()`.
+- Public `WsAdapter` interface, with a default adapter on top of `ws` that is loaded only when needed.
+- Secure defaults: private gateways, handshake authentication, `Origin` allowlist, `maxPayload`, per-connection message rate limit, heartbeat, slow-client protection and mandatory validation.
 
 ### `viga/drizzle`
 

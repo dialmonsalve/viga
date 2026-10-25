@@ -12,6 +12,7 @@ El core solo resuelve lo que todo servidor necesita. Lo demás son subrutas opci
 | `viga/validation` | `@Validate` y `ValidationModule` con cualquier librería [Standard Schema](https://standardschema.dev) | Nada (tú eliges Zod, Valibot, ArkType…) |
 | `viga/i18n` | Catálogos de mensajes, negociación de `Accept-Language`, mensajes del framework en es/en | Nada |
 | `viga/drizzle` | `DrizzleModule` y `DatabaseService` con cierre del pool | `drizzle-orm`, `pg` |
+| `viga/websocket` | Gateways, salas y una interfaz de adaptador pública, con seguridad por defecto | `ws` |
 
 ## Agradecimientos
 
@@ -40,6 +41,12 @@ Solo si usas `viga/drizzle`:
 ```bash
 pnpm add drizzle-orm pg
 pnpm add -D @types/pg
+```
+
+Solo si usas `viga/websocket` con el adaptador por defecto:
+
+```bash
+pnpm add ws
 ```
 
 ## Ejemplo mínimo
@@ -92,6 +99,7 @@ Los providers pueden implementar `OnModuleInit` y `OnModuleDestroy`:
 - `listen(port?, host?)` escucha en el puerto 3000 si no se indica otro. `listen(0)` usa un puerto libre aleatorio. viga no lee `process.env.PORT`; si lo necesitas, pásalo explícitamente: `app.listen(Number(process.env.PORT ?? 3000))`.
 - `init()` (o `listen()`) crea todos los providers y ejecuta `onModuleInit` en orden de dependencias. Si un hook devuelve una promesa, se espera.
 - `close()` cierra el servidor y ejecuta `onModuleDestroy` en orden inverso. Si alguno falla, intenta cerrar los demás y lanza un `AggregateError`. Si el arranque falló a medias, solo se cierran los providers que terminaron su `onModuleInit`.
+- `OnServerListen` (recibe el servidor HTTP antes de que empiece a escuchar) y `OnServerClose` (se ejecuta cuando el servidor empieza a cerrarse, antes de `onModuleDestroy`) permiten que un provider se enganche al servidor, como hace `viga/websocket`.
 - `enableShutdownHooks()` llama a `close()` al recibir `SIGTERM` o `SIGINT` y después termina el proceso con el código estándar de la señal (143 o 130), o con 1 si el cierre falló. Termina aunque algo mantenga vivo el event loop, y funciona también cuando Node es el PID 1 de un contenedor.
 
 ### Rutas privadas por defecto
@@ -400,6 +408,64 @@ class Database implements OnModuleDestroy {
 }
 ```
 
+## viga/websocket
+
+```ts
+import { z } from 'zod';
+import { Gateway, OnMessage, WebSocketModule, WsServer, type WsContext } from 'viga/websocket';
+
+const Join = z.object({ room: z.string().min(1) });
+const Say = z.object({ room: z.string(), text: z.string().max(500) });
+
+@Gateway('/chat')
+class ChatGateway {
+  private readonly server = inject(WsServer);
+
+  @OnMessage('join', Join)
+  join({ client, data }: WsContext<typeof Join>) {
+    client.join(data.room);
+    return { joined: data.room };
+  }
+
+  @OnMessage('say', Say)
+  say({ client, data }: WsContext<typeof Say>) {
+    this.server.to(data.room).send('said', { from: client.state.userId, text: data.text }, { except: client });
+  }
+}
+
+@Module({
+  imports: [
+    WebSocketModule.forRoot({
+      authenticate: async (req) => verifyToken(req.headers.authorization),
+      allowedOrigins: ['https://mi-front.com'],
+    }),
+    ChatModule,
+  ],
+})
+class AppModule {}
+```
+
+- Los gateways son providers: van en los `providers` de un módulo. Usan el mismo puerto que HTTP e `inject()` como cualquier servicio.
+- Los mensajes son JSON: `{ "event": "join", "data": { … }, "id": 1 }`. Lo que devuelve el handler se envía como `{ event, data, id }`; un `async function*` envía un mensaje por cada valor. Los errores llegan como `{ "event": "error", "data": { statusCode, code, message, details? }, id }`, con los mismos códigos que HTTP y sin filtrar mensajes internos.
+- Salas: `client.join(sala)`, `client.leave(sala)`, `client.rooms`, e `inject(WsServer).to(sala).send(evento, datos, { except })` o `.broadcast(…)`. Un cliente puede estar en varias salas y sale de todas al desconectarse. Las salas viven en memoria: con varias instancias, un mensaje no llega a los clientes conectados a otra.
+- `client.state` guarda datos de la conexión. Lo que devuelve `authenticate` (un objeto) queda ahí.
+- `@UseGuards` y `@UseInterceptors` funcionan por mensaje, en el método o en todo el gateway. `OnWsConnection` y `OnWsDisconnect` son hooks del ciclo de vida de cada conexión.
+- `ws` solo se carga si hay algún gateway: `pnpm add ws`.
+
+| Opción de `WebSocketModule.forRoot` | Por defecto | Qué controla |
+|---|---|---|
+| `authenticate` | ninguna | Comprueba la petición del handshake. Los gateways son privados por defecto: sin `authenticate`, solo aceptan conexiones los `@Public()`. Si devuelve `false`, responde 401 |
+| `allowedOrigins` | `[]` | Lista o función. Una petición con un `Origin` no permitido responde 403 (evita el secuestro de WebSocket entre sitios). Las peticiones sin `Origin` (clientes que no son navegador) se aceptan |
+| `maxPayload` | 100 KiB | Un mensaje más grande cierra la conexión con 1009 |
+| `messageRateLimit` | `{ max: 100, windowMs: 10_000 }` | Mensajes por conexión; al superarlo responde `errors.tooManyRequests`. `false` lo desactiva |
+| `requireValidation` | `true` | La app no arranca si un `@OnMessage` no tiene schema. Un evento sin datos declara `z.undefined()` |
+| `heartbeatMs` | `30_000` | Hace ping a cada cliente; el que no responde se desconecta |
+| `maxBufferedBytes` | 1 MiB | Un cliente que no lee sus mensajes se desconecta en lugar de llenar la memoria del servidor |
+| `resolveMessage` | ninguna | Igual que en `createApp`, para los mensajes de error |
+| `adapter` | `ws` | Cualquier `WsAdapter`. La interfaz es pública, así que se pueden conectar otras librerías |
+
+Cambiar de adaptador no cambia tus gateways, pero sí el cliente: con `ws`, el `WebSocket` nativo del navegador funciona tal cual.
+
 ## Desarrollo
 
 | Script | Qué hace |
@@ -412,6 +478,10 @@ class Database implements OnModuleDestroy {
 | `pnpm pack` | Genera el `.tgz` que se publicaría, para probarlo en otro proyecto |
 
 `prepublishOnly` ejecuta tipos, todos los tests (con PostgreSQL) y build antes de cada `npm publish`.
+
+## Contribuciones
+
+viga es un proyecto personal que mantengo en mi tiempo libre, así que no acepto pull requests ni issues. Puedes hacer un fork bajo la licencia MIT.
 
 ## Licencia
 

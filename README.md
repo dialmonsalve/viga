@@ -12,6 +12,7 @@ The core only covers what every server needs. Everything else lives in optional 
 | `viga/validation` | `@Validate` and `ValidationModule` with any [Standard Schema](https://standardschema.dev) library | Nothing (you pick Zod, Valibot, ArkType…) |
 | `viga/i18n` | Message catalogs, `Accept-Language` negotiation, framework messages in en/es | Nothing |
 | `viga/drizzle` | `DrizzleModule` and `DatabaseService` with pool shutdown | `drizzle-orm`, `pg` |
+| `viga/websocket` | Gateways, rooms and a public adapter interface, with secure defaults | `ws` |
 
 ## Acknowledgements
 
@@ -40,6 +41,12 @@ Only if you use `viga/drizzle`:
 ```bash
 pnpm add drizzle-orm pg
 pnpm add -D @types/pg
+```
+
+Only if you use `viga/websocket` with the default adapter:
+
+```bash
+pnpm add ws
 ```
 
 ## Minimal example
@@ -92,6 +99,7 @@ Providers can implement `OnModuleInit` and `OnModuleDestroy`:
 - `listen(port?, host?)` listens on port 3000 unless told otherwise. `listen(0)` picks a random free port. viga doesn't read `process.env.PORT`; if you need it, pass it explicitly: `app.listen(Number(process.env.PORT ?? 3000))`.
 - `init()` (or `listen()`) creates every provider and runs `onModuleInit` in dependency order. If a hook returns a promise, it is awaited.
 - `close()` closes the server and runs `onModuleDestroy` in reverse order. If one fails, it still tries to close the rest and throws an `AggregateError`. If startup failed halfway, only the providers that finished `onModuleInit` are closed.
+- `OnServerListen` (receives the HTTP server before it starts listening) and `OnServerClose` (runs when the server starts closing, before `onModuleDestroy`) let a provider hook into the server, as `viga/websocket` does.
 - `enableShutdownHooks()` calls `close()` on `SIGTERM` or `SIGINT`, then exits with the signal's standard code (143 or 130), or 1 if closing failed. It exits even if something keeps the event loop alive, and also works when Node is PID 1 in a container.
 
 ### Private routes by default
@@ -400,6 +408,64 @@ class Database implements OnModuleDestroy {
 }
 ```
 
+## viga/websocket
+
+```ts
+import { z } from 'zod';
+import { Gateway, OnMessage, WebSocketModule, WsServer, type WsContext } from 'viga/websocket';
+
+const Join = z.object({ room: z.string().min(1) });
+const Say = z.object({ room: z.string(), text: z.string().max(500) });
+
+@Gateway('/chat')
+class ChatGateway {
+  private readonly server = inject(WsServer);
+
+  @OnMessage('join', Join)
+  join({ client, data }: WsContext<typeof Join>) {
+    client.join(data.room);
+    return { joined: data.room };
+  }
+
+  @OnMessage('say', Say)
+  say({ client, data }: WsContext<typeof Say>) {
+    this.server.to(data.room).send('said', { from: client.state.userId, text: data.text }, { except: client });
+  }
+}
+
+@Module({
+  imports: [
+    WebSocketModule.forRoot({
+      authenticate: async (req) => verifyToken(req.headers.authorization),
+      allowedOrigins: ['https://my-frontend.com'],
+    }),
+    ChatModule,
+  ],
+})
+class AppModule {}
+```
+
+- Gateways are providers: list them in a module's `providers`. They use the same port as HTTP and `inject()` like any service.
+- Messages are JSON: `{ "event": "join", "data": { … }, "id": 1 }`. The handler's return value is sent back as `{ event, data, id }`; an `async function*` sends one message per yielded value. Errors arrive as `{ "event": "error", "data": { statusCode, code, message, details? }, id }`, with the same codes as HTTP and without leaking internal messages.
+- Rooms: `client.join(room)`, `client.leave(room)`, `client.rooms`, and `inject(WsServer).to(room).send(event, data, { except })` or `.broadcast(…)`. A client can be in several rooms and leaves all of them when it disconnects. Rooms live in memory: with several instances, a message doesn't reach clients connected to another one.
+- `client.state` holds connection data. Whatever `authenticate` returns (an object) is stored there.
+- `@UseGuards` and `@UseInterceptors` work per message, on the method or the whole gateway. `OnWsConnection` and `OnWsDisconnect` are lifecycle hooks for each connection.
+- `ws` is loaded only when a gateway exists: `pnpm add ws`.
+
+| `WebSocketModule.forRoot` option | Default | What it controls |
+|---|---|---|
+| `authenticate` | none | Checks the handshake request. Gateways are private by default: without `authenticate`, only `@Public()` gateways accept connections. Returning `false` responds 401 |
+| `allowedOrigins` | `[]` | List or function. A request with an `Origin` that isn't allowed responds 403 (prevents cross-site WebSocket hijacking). Requests without `Origin` (non-browser clients) are accepted |
+| `maxPayload` | 100 KiB | Larger messages close the connection with 1009 |
+| `messageRateLimit` | `{ max: 100, windowMs: 10_000 }` | Messages per connection; above it, responds `errors.tooManyRequests`. `false` disables it |
+| `requireValidation` | `true` | The app doesn't start if an `@OnMessage` has no schema. An event without data declares `z.undefined()` |
+| `heartbeatMs` | `30_000` | Pings each client; one that doesn't answer is disconnected |
+| `maxBufferedBytes` | 1 MiB | A client that doesn't read its messages is disconnected instead of filling the server's memory |
+| `resolveMessage` | none | Same as in `createApp`, for error messages |
+| `adapter` | `ws` | Any `WsAdapter`. The interface is public, so other libraries can be plugged in |
+
+Switching adapter doesn't change your gateways, but it does change the client: with `ws`, the browser's native `WebSocket` works as is.
+
 ## Development
 
 | Script | What it does |
@@ -412,6 +478,10 @@ class Database implements OnModuleDestroy {
 | `pnpm pack` | Builds the `.tgz` that would be published, to try it in another project |
 
 `prepublishOnly` runs type checks, every test (with PostgreSQL) and the build before each `npm publish`.
+
+## Contributing
+
+viga is a personal project maintained in my spare time, so I'm not accepting pull requests or issues. You are welcome to fork it under the MIT license.
 
 ## License
 
