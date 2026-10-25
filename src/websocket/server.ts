@@ -44,6 +44,7 @@ const EVENT_NAME = /^[\w.:-]{1,128}$/;
 const MESSAGE_ID = /^[\w-]{1,64}$/;
 const POLICY_VIOLATION = 1008;
 const INTERNAL_ERROR = 1011;
+const TRY_AGAIN_LATER = 1013;
 
 type MessageId = string | number;
 
@@ -326,6 +327,10 @@ export class WsServer implements OnServerListen, OnServerClose {
     return routes;
   }
 
+  private isFull() {
+    return this.connected.size >= this.options.maxConnections;
+  }
+
   private isAllowedOrigin(origin: string) {
     const { allowedOrigins } = this.options;
     return typeof allowedOrigins === 'function'
@@ -337,6 +342,7 @@ export class WsServer implements OnServerListen, OnServerClose {
     const path = pathOf(req);
     const route = path === undefined ? undefined : this.routes.get(path);
     if (!route) return { action: 'ignore' };
+    if (this.isFull()) return { action: 'reject', status: 503 };
 
     const { origin } = req.headers;
     if (origin !== undefined && !this.isAllowedOrigin(origin)) {
@@ -386,6 +392,10 @@ export class WsServer implements OnServerListen, OnServerClose {
     this.handshakes.delete(req);
     if (!handshake) {
       connection.close(INTERNAL_ERROR);
+      return;
+    }
+    if (this.isFull()) {
+      connection.close(TRY_AGAIN_LATER);
       return;
     }
 

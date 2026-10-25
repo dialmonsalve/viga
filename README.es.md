@@ -457,6 +457,7 @@ class AppModule {}
 | `authenticate` | ninguna | Comprueba la petición del handshake. Los gateways son privados por defecto: sin `authenticate`, solo aceptan conexiones los `@Public()`. Si devuelve `false`, responde 401 |
 | `handshakeTimeoutMs` | `10_000` | Si `authenticate` tarda más, el handshake responde 503 y se registra un aviso, para que un servicio de autenticación lento no acumule sockets abiertos |
 | `allowedOrigins` | `[]` | Lista o función. Una petición con un `Origin` no permitido responde 403 (evita el secuestro de WebSocket entre sitios). Las peticiones sin `Origin` (clientes que no son navegador) se aceptan |
+| `maxConnections` | `10_000` | Conexiones simultáneas entre todos los gateways. Por encima, el handshake responde 503. Es un límite global: uno por IP necesitaría `trustProxy` detrás de un proxy |
 | `maxPayload` | 100 KiB | Un mensaje más grande cierra la conexión con 1009 |
 | `messageRateLimit` | `{ max: 100, windowMs: 10_000 }` | Mensajes por conexión; al superarlo responde `errors.tooManyRequests`. `false` lo desactiva |
 | `requireValidation` | `true` | La app no arranca si un `@OnMessage` no tiene schema. Un evento sin datos declara `z.undefined()` |

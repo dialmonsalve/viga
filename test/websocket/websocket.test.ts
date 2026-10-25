@@ -182,6 +182,20 @@ describe('viga/websocket', () => {
       assert.equal(await handshakeStatus(`${url}/private`), 503);
     });
 
+    it('rechaza con 503 cuando se alcanza maxConnections y acepta al liberarse', async () => {
+      const { url } = await start([EchoModule], { maxConnections: 1 });
+      const first = await connect(`${url}/echo`);
+
+      assert.equal(await handshakeStatus(`${url}/echo`), 503);
+
+      first.ws.close();
+      await once(first.ws, 'close');
+      await new Promise((resolve) => setImmediate(resolve));
+      const second = await connect(`${url}/echo`);
+      assert.equal(second.ws.readyState, WebSocket.OPEN);
+      second.ws.close();
+    });
+
     it('rechaza con 403 un Origin que no está permitido', async () => {
       const { url } = await start([EchoModule], { allowedOrigins: ['https://app.example'] });
 
@@ -449,6 +463,10 @@ describe('viga/websocket', () => {
       assert.throws(
         () => WebSocketModule.forRoot({ handshakeTimeoutMs: 1.5 }),
         /handshakeTimeoutMs must be a positive integer, received 1.5/
+      );
+      assert.throws(
+        () => WebSocketModule.forRoot({ maxConnections: -1 }),
+        /maxConnections must be a positive integer, received -1/
       );
     });
 
