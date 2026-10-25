@@ -476,6 +476,8 @@ class AppModule {}
 
 Switching adapter doesn't change your gateways, but it does change the client: with `ws`, the browser's native `WebSocket` works as is.
 
+An adapter receives the gateway `paths`, `maxPayload`, `heartbeatMs`, `verify(req)` (to accept or reject each handshake) and `onConnection(connection, req)`. [`test/websocket/socket-io-adapter.ts`](test/websocket/socket-io-adapter.ts) is a complete adapter on top of socket.io, used by the test suite to check that the interface isn't tied to `ws`. With socket.io, a rejected handshake doesn't keep viga's status code (socket.io answers with its own error), and the client must be `socket.io-client`.
+
 ## Development
 
 | Script | What it does |

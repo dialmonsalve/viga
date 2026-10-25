@@ -476,6 +476,8 @@ class AppModule {}
 
 Cambiar de adaptador no cambia tus gateways, pero sí el cliente: con `ws`, el `WebSocket` nativo del navegador funciona tal cual.
 
+Un adaptador recibe las rutas de los gateways (`paths`), `maxPayload`, `heartbeatMs`, `verify(req)` (para aceptar o rechazar cada handshake) y `onConnection(connection, req)`. [`test/websocket/socket-io-adapter.ts`](test/websocket/socket-io-adapter.ts) es un adaptador completo sobre socket.io, que los tests usan para comprobar que la interfaz no depende de `ws`. Con socket.io, un handshake rechazado no conserva el código de estado de viga (socket.io responde con su propio error), y el cliente tiene que ser `socket.io-client`.
+
 ## Desarrollo
 
 | Script | Qué hace |

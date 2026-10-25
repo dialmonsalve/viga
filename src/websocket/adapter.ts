@@ -15,6 +15,7 @@ export type WsVerdict =
   | { action: 'ignore' };
 
 export interface WsAdapterOptions {
+  paths: readonly string[];
   maxPayload: number;
   heartbeatMs: number;
   verify(req: IncomingMessage): Promise<WsVerdict>;

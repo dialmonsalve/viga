@@ -37,7 +37,7 @@ First public release.
 - Rooms with `join`, `leave`, `to(room).send()` and `broadcast()`, limited per connection by `maxRoomsPerClient`.
 - Per-connection language with `i18n` and `resolveLocale`, applied to every message and to error messages.
 - `RateLimit` per event or per gateway, keyed per connection by default or by any value of the context, sharing the bounded in-memory store with HTTP.
-- Public `WsAdapter` interface, with a default adapter on top of `ws` that is loaded only when needed.
+- Public `WsAdapter` interface, with a default adapter on top of `ws` that is loaded only when needed. Adapters receive the gateway paths; a socket.io adapter in the test suite checks that the interface works beyond `ws`.
 - Secure defaults: private gateways, handshake authentication with a timeout (`handshakeTimeoutMs`), a cap on simultaneous connections (`maxConnections`) and an optional one per client (`connectionsPerKey`), `Origin` allowlist, `maxPayload`, per-connection message rate limit, heartbeat, slow-client protection and mandatory validation.
 
 ### `viga/drizzle`

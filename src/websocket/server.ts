@@ -256,6 +256,7 @@ export class WsServer implements OnServerListen, OnServerClose {
     if (this.routes.size === 0) return;
 
     await this.options.adapter.attach(server, {
+      paths: [...this.routes.keys()],
       maxPayload: this.options.maxPayload,
       heartbeatMs: this.options.heartbeatMs,
       verify: (req) => this.verify(req),
