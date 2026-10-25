@@ -6,6 +6,7 @@ import { WebSocket } from 'ws';
 import { z } from 'zod';
 import {
   Controller,
+  ForbiddenException,
   Get,
   Module,
   Public,
@@ -788,6 +789,149 @@ describe('viga/websocket', () => {
 
       assert.equal(server.clients.size, 0);
       socket.ws.terminate();
+    });
+  });
+
+  describe('casos de error y variantes de configuración', () => {
+    const capture = () => {
+      const errors: unknown[] = [];
+      return { errors, logger: { ...silentLogger, error: (_message: string, error?: unknown) => errors.push(error) } };
+    };
+
+    it('broadcast envía a todos los clientes salvo al excluido', async () => {
+      @Public()
+      @Gateway('/news')
+      class NewsGateway {
+        private readonly server = inject(WsServer);
+
+        @OnMessage('publish', z.string())
+        publish({ client, data }: WsContext<z.ZodString>) {
+          this.server.broadcast('news', data, { except: client });
+        }
+      }
+
+      @Module({ providers: [NewsGateway] })
+      class NewsModule {}
+
+      const { url } = await start([NewsModule]);
+      const [author, reader] = await Promise.all([connect(`${url}/news`), connect(`${url}/news`)]);
+
+      author.send({ event: 'publish', data: 'hola a todos' });
+
+      assert.deepEqual(await reader.next(), { event: 'news', data: 'hola a todos' });
+      author.ws.close();
+      reader.ws.close();
+    });
+
+    it('si onConnection lanza un 4xx cierra con 1008 sin registrarlo, y con otro error cierra con 1011 y lo registra', async () => {
+      @Gateway('/strict')
+      class StrictGateway implements OnWsConnection {
+        onConnection(client: WsClient) {
+          if (client.state.kind === 'forbidden') throw new ForbiddenException();
+          throw new Error('fallo interno');
+        }
+      }
+
+      @Module({ providers: [StrictGateway] })
+      class StrictModule {}
+
+      const { errors, logger } = capture();
+      let kind = 'forbidden';
+      const { url } = await start(
+        [StrictModule],
+        { requireValidation: false, authenticate: () => ({ kind }) },
+        { logger }
+      );
+
+      const forbidden = new WebSocket(`${url}/strict`);
+      const [forbiddenCode] = (await once(forbidden, 'close')) as [number];
+      kind = 'broken';
+      const broken = new WebSocket(`${url}/strict`);
+      const [brokenCode] = (await once(broken, 'close')) as [number];
+
+      assert.equal(forbiddenCode, 1008);
+      assert.equal(brokenCode, 1011);
+      assert.equal(errors.length, 1);
+      assert.equal((errors[0] as Error).message, 'fallo interno');
+    });
+
+    it('registra el error si onDisconnect falla', async () => {
+      @Public()
+      @Gateway('/leaving')
+      class LeavingGateway implements OnWsDisconnect {
+        onDisconnect() {
+          throw new Error('no pude limpiar');
+        }
+      }
+
+      @Module({ providers: [LeavingGateway] })
+      class LeavingModule {}
+
+      const { errors, logger } = capture();
+      const { url } = await start([LeavingModule], { requireValidation: false }, { logger });
+      const socket = await connect(`${url}/leaving`);
+
+      socket.ws.close();
+      await once(socket.ws, 'close');
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      assert.equal((errors[0] as Error).message, 'no pude limpiar');
+    });
+
+    it('allowedOrigins acepta una función', async () => {
+      const { url } = await start([EchoModule], {
+        allowedOrigins: (origin) => new URL(origin).hostname.endsWith('.example.com'),
+      });
+
+      assert.equal(await handshakeStatus(`${url}/echo`, { origin: 'https://example.com.evil.io' }), 403);
+      const allowed = await connect(`${url}/echo`, { origin: 'https://app.example.com' });
+      allowed.ws.close();
+    });
+
+    it('resolveLocale acepta el nombre de una cabecera', async () => {
+      const i18n = new I18n({ defaultLocale: 'es', catalogs: { es: {}, en: {} } });
+
+      @Public()
+      @Gateway('/lang')
+      class LangGateway {
+        @OnMessage('locale', z.undefined())
+        locale({ client }: WsContext) {
+          return client.locale;
+        }
+      }
+
+      @Module({ providers: [LangGateway] })
+      class LangModule {}
+
+      const { url } = await start([LangModule], { i18n, resolveLocale: 'X-Lang' });
+      const socket = await connect(`${url}/lang`, { 'x-lang': 'en', 'accept-language': 'es' });
+
+      assert.equal((await socket.request('locale')).data, 'en');
+      socket.ws.close();
+    });
+
+    it('no arranca si un gateway maneja el mismo evento dos veces', async () => {
+      @Public()
+      @Gateway('/twice')
+      class TwiceGateway {
+        @OnMessage('ping', z.undefined())
+        first() {}
+
+        @OnMessage('ping', z.undefined())
+        second() {}
+      }
+
+      @Module({ providers: [TwiceGateway] })
+      class TwiceModule {}
+
+      await assert.rejects(start([TwiceModule]), /TwiceGateway handles the event "ping" more than once/);
+    });
+
+    it('rechaza un messageRateLimit inválido', () => {
+      assert.throws(
+        () => WebSocketModule.forRoot({ messageRateLimit: { max: 0, windowMs: 1000 } }),
+        /max and windowMs must be positive integers/
+      );
     });
   });
 

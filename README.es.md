@@ -557,6 +557,7 @@ Un adaptador recibe las rutas de los gateways (`paths`), `maxPayload`, `heartbea
 | `pnpm test` | Tests con el runner nativo de Node. Los de PostgreSQL se saltan |
 | `pnpm db:test:up` / `db:test:down` | Levanta o apaga un PostgreSQL desechable en el puerto 55432 (datos en memoria) |
 | `pnpm test:db` | Todos los tests, incluidos los de PostgreSQL (requiere `db:test:up`) |
+| `pnpm test:coverage` | Tests con un informe de cobertura de `src/` (ejecútalo con `VIGA_TEST_DATABASE_URL` para incluir PostgreSQL). Las líneas que solo contienen tipos pueden aparecer como no cubiertas |
 | `pnpm check-types` | Comprueba los tipos |
 | `pnpm build` | Compila a `dist/` con `tsc` (JS + tipos) |
 | `pnpm pack` | Genera el `.tgz` que se publicaría, para probarlo en otro proyecto |

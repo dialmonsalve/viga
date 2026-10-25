@@ -557,6 +557,7 @@ An adapter receives the gateway `paths`, `maxPayload`, `heartbeatMs`, `verify(re
 | `pnpm test` | Tests with Node's native runner. PostgreSQL tests are skipped |
 | `pnpm db:test:up` / `db:test:down` | Starts or stops a disposable PostgreSQL on port 55432 (in-memory data) |
 | `pnpm test:db` | All tests, PostgreSQL ones included (requires `db:test:up`) |
+| `pnpm test:coverage` | Tests with a coverage report of `src/` (run it with `VIGA_TEST_DATABASE_URL` set to include PostgreSQL). Lines that only contain types can show as uncovered |
 | `pnpm check-types` | Type checks |
 | `pnpm build` | Compiles to `dist/` with `tsc` (JS + types) |
 | `pnpm pack` | Builds the `.tgz` that would be published, to try it in another project |

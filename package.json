@@ -91,7 +91,7 @@
     "test": "node --import tsx --import ./test/setup.ts --test \"test/**/*.test.ts\"",
     "test:db": "VIGA_TEST_DATABASE_URL=postgresql://viga@127.0.0.1:55432/viga_test pnpm test",
     "test:watch": "node --import tsx --import ./test/setup.ts --test --watch \"test/**/*.test.ts\"",
-    "test:coverage": "node --import tsx --import ./test/setup.ts --test --experimental-test-coverage \"test/**/*.test.ts\"",
+    "test:coverage": "node --enable-source-maps --import tsx --import ./test/setup.ts --test --experimental-test-coverage --test-coverage-exclude=\"test/**\" --test-coverage-exclude=\"node_modules/**\" \"test/**/*.test.ts\"",
     "prepublishOnly": "pnpm check-types && pnpm test:db && pnpm build",
     "db:test:up": "docker compose -f docker-compose.test.yml up -d --wait",
     "db:test:down": "docker compose -f docker-compose.test.yml down"

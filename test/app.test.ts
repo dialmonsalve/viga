@@ -263,6 +263,35 @@ describe('App', () => {
     await assert.rejects(server.request('/'));
   });
 
+  it('si un onServerClose falla, lo registra y sigue cerrando', async () => {
+    const log: string[] = [];
+    const errors: unknown[] = [];
+
+    @Injectable()
+    class Broken implements OnServerClose, OnModuleDestroy {
+      onServerClose() {
+        throw new Error('no cierra');
+      }
+      onModuleDestroy() {
+        log.push('destroy');
+      }
+    }
+
+    @Module({ providers: [Broken] })
+    class BrokenModule {}
+
+    const app = createApp({
+      rootModule: BrokenModule,
+      logger: { ...silentLogger, error: (message, error) => errors.push([message, error]) },
+    });
+    await app.listen(0, '127.0.0.1');
+    await app.close();
+
+    assert.deepEqual(log, ['destroy']);
+    assert.equal(errors.length, 1);
+    assert.match(String((errors[0] as [string])[0]), /failed while the server was closing/);
+  });
+
   it('llama a onServerListen con el servidor y a onServerClose antes de onModuleDestroy', async () => {
     const log: string[] = [];
 

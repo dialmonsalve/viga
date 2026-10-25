@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { z } from 'zod';
-import { Injectable, Module, createApp, inject, silentLogger } from '../../src/index.ts';
+import {
+  Injectable,
+  Module,
+  createApp,
+  inject,
+  silentLogger,
+  type StandardSchemaV1,
+} from '../../src/index.ts';
 import { CONFIG, ConfigModule } from '../../src/config/index.ts';
 
 const Env = z.object({
@@ -101,6 +108,58 @@ describe('ConfigModule', () => {
       assert.doesNotMatch(error.message, /changeme/);
       return true;
     });
+  });
+
+  it('identifica los errores de todo el objeto y no tapa valores demasiado cortos', async () => {
+    const Ports = z
+      .object({ FROM: z.coerce.number(), TO: z.coerce.number() })
+      .refine((env) => env.FROM < env.TO, { error: 'FROM must be lower than TO' });
+    const Short = z.object({
+      MODE: z.string().refine(() => false, { error: (issue) => `MODE "${String(issue.input)}" is not allowed` }),
+    });
+
+    @Module({ imports: [ConfigModule.forRoot({ schema: Ports, env: { FROM: '9', TO: '1' } })] })
+    class PortsModule {}
+
+    @Module({ imports: [ConfigModule.forRoot({ schema: Short, env: { MODE: 'ab' } })] })
+    class ShortModule {}
+
+    await assert.rejects(
+      createApp({ rootModule: PortsModule, logger: silentLogger }).init(),
+      /- \(root\): FROM must be lower than TO/
+    );
+    await assert.rejects(
+      createApp({ rootModule: ShortModule, logger: silentLogger }).init(),
+      /- MODE: MODE "ab" is not allowed/
+    );
+  });
+
+  it('entiende los errores de cualquier librería Standard Schema', async () => {
+    const custom: StandardSchemaV1 = {
+      '~standard': {
+        version: 1,
+        vendor: 'custom',
+        validate: () => ({
+          issues: [
+            { message: 'TOKEN supersecreto-123 is revoked', path: [{ key: 'TOKEN' }] },
+            { message: 'something else is wrong' },
+          ],
+        }),
+      },
+    };
+
+    @Module({ imports: [ConfigModule.forRoot({ schema: custom, env: { TOKEN: 'supersecreto-123' } })] })
+    class CustomModule {}
+
+    await assert.rejects(
+      createApp({ rootModule: CustomModule, logger: silentLogger }).init(),
+      (error: Error) => {
+        assert.match(error.message, /- TOKEN: TOKEN \*\*\* is revoked/);
+        assert.match(error.message, /- \(root\): something else is wrong/);
+        assert.doesNotMatch(error.message, /supersecreto/);
+        return true;
+      }
+    );
   });
 
   it('usa process.env si no se indica otra fuente', async () => {

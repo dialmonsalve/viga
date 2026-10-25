@@ -11,6 +11,7 @@ import {
   NotFoundException,
   Post,
   Public,
+  createApp,
   inject,
   silentLogger,
   type ApiErrorBody,
@@ -94,6 +95,33 @@ describe('normalizePath', () => {
     assert.equal(normalizePath('books'), '/books');
     assert.equal(normalizePath('//books///'), '/books');
     assert.equal(normalizePath('/books/:id/'), '/books/:id');
+  });
+});
+
+describe('errores al montar controladores', () => {
+  it('exige @Controller() en los controladores de un módulo', async () => {
+    class NotAController {}
+
+    @Module({ controllers: [NotAController] })
+    class BrokenModule {}
+
+    const app = createApp({ rootModule: BrokenModule, logger: silentLogger });
+    await assert.rejects(app.init(), /NotAController must be decorated with @Controller\(\)/);
+  });
+
+  it('exige que cada ruta sea un método', async () => {
+    @Controller('broken')
+    class BrokenController {
+      @Get()
+      list() {}
+    }
+    Object.defineProperty(BrokenController.prototype, 'list', { value: 'no soy un método' });
+
+    @Module({ controllers: [BrokenController] })
+    class BrokenModule {}
+
+    const app = createApp({ rootModule: BrokenModule, logger: silentLogger });
+    await assert.rejects(app.init(), /BrokenController\.list is not a method/);
   });
 });
 
