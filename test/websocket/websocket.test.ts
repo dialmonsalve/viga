@@ -413,6 +413,32 @@ describe('viga/websocket', () => {
       socket.ws.close();
     });
 
+    it('limita las salas por cliente con maxRoomsPerClient', async () => {
+      const { url } = await start([ChatModule], { maxRoomsPerClient: 2 });
+      const socket = await connect(`${url}/chat`);
+
+      await socket.request('join', { room: 'a' });
+      await socket.request('join', { room: 'b' });
+      assert.equal((await socket.request('join', { room: 'a' })).data, 2);
+
+      const rejected = await socket.request('join', { room: 'c' });
+      assert.equal(rejected.event, 'error');
+      assert.equal(rejected.data.statusCode, 400);
+      assert.equal(rejected.data.code, 'errors.tooManyRooms');
+      assert.equal(rejected.data.message, 'You can be in at most 2 rooms at a time');
+
+      await socket.request('leave', { room: 'a' });
+      assert.equal((await socket.request('join', { room: 'c' })).data, 2);
+      socket.ws.close();
+    });
+
+    it('rechaza un maxRoomsPerClient que no es un entero positivo', () => {
+      assert.throws(
+        () => WebSocketModule.forRoot({ maxRoomsPerClient: 0 }),
+        /maxRoomsPerClient must be a positive integer, received 0/
+      );
+    });
+
     it('al desconectarse sale de todas sus salas', async () => {
       const { app, url } = await start([ChatModule]);
       const socket = await connect(`${url}/chat`);

@@ -34,7 +34,7 @@ First public release.
 ### `viga/websocket`
 
 - `WebSocketModule.forRoot()`, `@Gateway`, `@OnMessage` with Standard Schema validation, `WsContext` and `WsServer`.
-- Rooms with `join`, `leave`, `to(room).send()` and `broadcast()`.
+- Rooms with `join`, `leave`, `to(room).send()` and `broadcast()`, limited per connection by `maxRoomsPerClient`.
 - Public `WsAdapter` interface, with a default adapter on top of `ws` that is loaded only when needed.
 - Secure defaults: private gateways, handshake authentication, `Origin` allowlist, `maxPayload`, per-connection message rate limit, heartbeat, slow-client protection and mandatory validation.
 

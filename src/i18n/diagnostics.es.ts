@@ -43,6 +43,7 @@ export const diagnosticsEs = {
   'ws.missingValidation':
     '{gateway}.{method} maneja "{event}" sin schema, obligatorio por requireValidation',
   'ws.unhandledException': 'Excepción no controlada en un gateway de WebSocket',
+  'ws.invalidOption': '{option} debe ser un entero positivo, se recibió {value}',
   'ws.missingPackage':
     'El adaptador de WebSocket por defecto necesita el paquete "ws": instálalo, o pasa tu propio adaptador en WebSocketModule.forRoot({ adapter })',
 } as const satisfies Record<DiagnosticKey, string>;

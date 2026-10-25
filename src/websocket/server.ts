@@ -33,7 +33,11 @@ import {
   type WsClient,
   type WsContext,
 } from './gateway.ts';
-import { WEBSOCKET_OPTIONS, type WsMessageRateLimit } from './options.ts';
+import {
+  WEBSOCKET_OPTIONS,
+  type ResolvedWebSocketOptions,
+  type WsMessageRateLimit,
+} from './options.ts';
 
 const EVENT_NAME = /^[\w.:-]{1,128}$/;
 const MESSAGE_ID = /^[\w-]{1,64}$/;
@@ -146,6 +150,8 @@ class Rooms {
   }
 }
 
+type ClientLimits = Pick<ResolvedWebSocketOptions, 'maxBufferedBytes' | 'maxRoomsPerClient'>;
+
 class Client implements WsClient {
   readonly id = randomUUID();
   readonly rooms = new Set<string>();
@@ -157,7 +163,7 @@ class Client implements WsClient {
     readonly state: Record<string, unknown>,
     private readonly connection: WsConnection,
     private readonly roomRegistry: Rooms,
-    private readonly maxBufferedBytes: number
+    private readonly limits: ClientLimits
   ) {}
 
   get isOpen() {
@@ -170,7 +176,7 @@ class Client implements WsClient {
 
   deliver(message: string) {
     if (!this.open) return;
-    if (this.connection.bufferedAmount > this.maxBufferedBytes) {
+    if (this.connection.bufferedAmount > this.limits.maxBufferedBytes) {
       this.connection.terminate();
       return;
     }
@@ -178,7 +184,12 @@ class Client implements WsClient {
   }
 
   join(room: string) {
-    if (this.open) this.roomRegistry.join(this, room);
+    if (!this.open || this.rooms.has(room)) return;
+    const max = this.limits.maxRoomsPerClient;
+    if (this.rooms.size >= max) {
+      throw new BadRequestException('errors.tooManyRooms', undefined, { max });
+    }
+    this.roomRegistry.join(this, room);
   }
 
   leave(room: string) {
@@ -359,7 +370,7 @@ export class WsServer implements OnServerListen, OnServerClose {
     }
 
     const { route, state } = handshake;
-    const client = new Client(state, connection, this.rooms, this.options.maxBufferedBytes);
+    const client = new Client(state, connection, this.rooms, this.options);
     this.connected.add(client);
 
     const ready = Promise.resolve()

@@ -20,6 +20,7 @@ export interface WebSocketOptions {
   allowedOrigins?: readonly string[] | ((origin: string) => boolean);
   maxPayload?: number;
   maxBufferedBytes?: number;
+  maxRoomsPerClient?: number;
   heartbeatMs?: number;
   messageRateLimit?: WsMessageRateLimit | false;
   requireValidation?: boolean;
@@ -43,11 +44,21 @@ export function resolveOptions(options: WebSocketOptions): ResolvedWebSocketOpti
     allowedOrigins: [],
     maxPayload: 100 * 1024,
     maxBufferedBytes: 1024 * 1024,
+    maxRoomsPerClient: 100,
     heartbeatMs: 30_000,
     messageRateLimit: { max: 100, windowMs: 10_000 },
     requireValidation: true,
     ...options,
   };
+
+  if (!isPositiveInteger(resolved.maxRoomsPerClient)) {
+    throw new Error(
+      diagnostic('ws.invalidOption', {
+        option: 'maxRoomsPerClient',
+        value: String(resolved.maxRoomsPerClient),
+      })
+    );
+  }
 
   const limit = resolved.messageRateLimit;
   if (limit && (!isPositiveInteger(limit.max) || !isPositiveInteger(limit.windowMs))) {

@@ -461,6 +461,7 @@ class AppModule {}
 | `requireValidation` | `true` | La app no arranca si un `@OnMessage` no tiene schema. Un evento sin datos declara `z.undefined()` |
 | `heartbeatMs` | `30_000` | Hace ping a cada cliente; el que no responde se desconecta |
 | `maxBufferedBytes` | 1 MiB | Un cliente que no lee sus mensajes se desconecta en lugar de llenar la memoria del servidor |
+| `maxRoomsPerClient` | `100` | Salas en las que puede estar una conexión a la vez. Unirse a una más responde `errors.tooManyRooms` |
 | `resolveMessage` | ninguna | Igual que en `createApp`, para los mensajes de error |
 | `adapter` | `ws` | Cualquier `WsAdapter`. La interfaz es pública, así que se pueden conectar otras librerías |
 
