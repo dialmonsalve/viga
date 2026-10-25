@@ -49,6 +49,8 @@ const MESSAGE_ID = /^[\w-]{1,64}$/;
 const POLICY_VIOLATION = 1008;
 const INTERNAL_ERROR = 1011;
 const MAX_TIMEOUT_MS = 2 ** 31 - 1;
+const MAX_QUEUED_MESSAGES = 100;
+const TOO_MANY_MESSAGES = 'Too many messages';
 
 type MessageId = string | number;
 
@@ -260,15 +262,25 @@ class Client implements WsClient {
     this.roomRegistry.leaveAll(this);
   }
 
-  consume(limit: WsMessageRateLimit | false) {
-    if (!limit) return;
+  consume(limit: WsMessageRateLimit | false): 'allowed' | 'limited' | 'abusive' {
+    if (!limit) return 'allowed';
     const now = Date.now();
     if (now >= this.windowEndsAt) {
       this.hits = 0;
       this.windowEndsAt = now + limit.windowMs;
     }
     this.hits++;
-    if (this.hits > limit.max) throw tooManyMessages(secondsUntil(this.windowEndsAt));
+    if (this.hits > limit.max * 2) return 'abusive';
+    return this.hits > limit.max ? 'limited' : 'allowed';
+  }
+
+  get retryAfter() {
+    return secondsUntil(this.windowEndsAt);
+  }
+
+  disconnect(reason: string) {
+    this.open = false;
+    this.connection.close(POLICY_VIOLATION, reason);
   }
 }
 
@@ -575,9 +587,24 @@ export class WsServer implements OnServerListen, OnServerClose {
         }
       );
 
+    let queued = 0;
     connection.onMessage((message, isBinary) => {
+      if (!client.isOpen) return;
+      const verdict = client.consume(this.options.messageRateLimit);
+      if (verdict === 'abusive' || ++queued > MAX_QUEUED_MESSAGES) {
+        client.disconnect(TOO_MANY_MESSAGES);
+        return;
+      }
+
       void ready.then((ok) => {
-        if (ok) return this.receive(route, client, req, message, isBinary);
+        queued--;
+        if (!ok) return;
+        if (verdict === 'limited') {
+          return this.inContext(client, async () =>
+            this.replyError(client, req, tooManyMessages(client.retryAfter))
+          );
+        }
+        return this.receive(route, client, req, message, isBinary);
       });
     });
 
@@ -642,7 +669,6 @@ export class WsServer implements OnServerListen, OnServerClose {
     if (!client.isOpen) return;
     let id: MessageId | undefined;
     try {
-      client.consume(this.options.messageRateLimit);
       if (isBinary) throw new UnsupportedMediaTypeException();
 
       const envelope = parseEnvelope(message);

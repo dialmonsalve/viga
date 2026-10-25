@@ -558,6 +558,89 @@ describe('viga/websocket', () => {
       socket.ws.close();
     });
 
+    it('desconecta con 1008 a quien sigue enviando hasta el doble del límite', async () => {
+      const { url } = await start([EchoModule], { messageRateLimit: { max: 2, windowMs: 60_000 } });
+      const socket = await connect(`${url}/echo`);
+      const received: string[] = [];
+      socket.ws.on('message', (raw) => received.push(String(raw)));
+      const closed = once(socket.ws, 'close');
+
+      for (let i = 0; i < 2; i++) await socket.request('echo', { text: String(i) });
+      assert.equal((await socket.request('echo', { text: '2' })).data.statusCode, 429);
+      socket.send({ event: 'echo', data: { text: '3' } });
+      socket.send({ event: 'echo', data: { text: '4' } });
+
+      const [code, reason] = (await closed) as [number, Buffer];
+      assert.ok(!received.some((message) => message.includes('"text":"4"')));
+      assert.equal(code, 1008);
+      assert.equal(reason.toString(), 'Too many messages');
+    });
+
+    it('cierra con 1008 si se acumulan demasiados mensajes mientras onConnection no termina', async () => {
+      const gate = Promise.withResolvers<void>();
+
+      @Public()
+      @Gateway('/slow')
+      class SlowGateway implements OnWsConnection {
+        onConnection() {
+          return gate.promise;
+        }
+
+        @OnMessage('echo', Echo)
+        echo({ data }: WsContext<typeof Echo>) {
+          return data;
+        }
+      }
+
+      @Module({ providers: [SlowGateway] })
+      class SlowModule {}
+
+      const { url } = await start([SlowModule], { messageRateLimit: false });
+      const socket = await connect(`${url}/slow`);
+      const closed = once(socket.ws, 'close');
+
+      for (let i = 0; i < 150; i++) socket.send({ event: 'echo', data: { text: String(i) } });
+
+      const [code, reason] = (await closed) as [number, Buffer];
+      gate.resolve();
+      assert.equal(code, 1008);
+      assert.equal(reason.toString(), 'Too many messages');
+    });
+
+    it('cuenta los mensajes al llegar aunque onConnection siga en curso', async () => {
+      const gate = Promise.withResolvers<void>();
+      const handled: string[] = [];
+
+      @Public()
+      @Gateway('/later')
+      class LaterGateway implements OnWsConnection {
+        onConnection() {
+          return gate.promise;
+        }
+
+        @OnMessage('echo', Echo)
+        echo({ data }: WsContext<typeof Echo>) {
+          handled.push(data.text);
+          return data;
+        }
+      }
+
+      @Module({ providers: [LaterGateway] })
+      class LaterModule {}
+
+      const { url } = await start([LaterModule], { messageRateLimit: { max: 2, windowMs: 60_000 } });
+      const socket = await connect(`${url}/later`);
+
+      for (let i = 0; i < 3; i++) socket.send({ event: 'echo', data: { text: String(i) } });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      gate.resolve();
+
+      const replies = [await socket.next(), await socket.next(), await socket.next()];
+      assert.deepEqual(handled, ['0', '1']);
+      assert.equal(replies.filter((reply) => reply.data.statusCode === 429).length, 1);
+      socket.ws.close();
+    });
+
     it('cierra la conexión si un mensaje supera maxPayload', async () => {
       const { url } = await start([EchoModule], { maxPayload: 64 });
       const socket = await connect(`${url}/echo`);
