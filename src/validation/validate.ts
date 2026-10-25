@@ -65,10 +65,22 @@ async function parseRequest<S extends RequestSchemas>(
   return parsed as unknown as HttpContext<S>;
 }
 
+export type AcceptsContext<M, Context> = M extends (...args: infer Args) => unknown
+  ? Args extends []
+    ? unknown
+    : Args extends [infer Ctx, ...unknown[]]
+      ? Context extends Ctx
+        ? unknown
+        : Ctx extends Context
+          ? unknown
+          : never
+      : never
+  : never;
+
 export function Validate<const S extends RequestSchemas>(schemas: S) {
-  return function <This extends object, M extends (this: This, ctx: HttpContext<S>) => unknown>(
+  return function <This extends object, M extends (this: This, ...args: any[]) => unknown>(
     method: M,
-    _context: ClassMethodDecoratorContext<This, M>
+    _context: ClassMethodDecoratorContext<This, M> & AcceptsContext<M, HttpContext<S>>
   ) {
     return addToPipeline(method, {
       validates: PARTS.filter((part) => schemas[part] !== undefined),

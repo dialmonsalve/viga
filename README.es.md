@@ -304,7 +304,7 @@ create({ body }: HttpContext<{ body: typeof CreateBook }>) {
 }
 ```
 
-- Valida `body`, `query` y `params` con cualquier schema que implemente Standard Schema, incluso asíncrono. `HttpContext<{ body: typeof Schema }>` tipa los datos ya parseados.
+- Valida `body`, `query` y `params` con cualquier schema que implemente Standard Schema, incluso asíncrono. `HttpContext<{ body: typeof Schema }>` tipa los datos ya parseados. El handler también puede recibir un contexto que lo extienda (por ejemplo, uno al que otro decorador le añade campos), y TypeScript sigue rechazando un schema que no coincide.
 - Si falla, responde 400 con `code: 'errors.validation'` y en `details` los errores por parte de la petición: `{ path, code?, message }`.
 - `ValidationModule.forRoot({ formatIssue })` es opcional y personaliza el texto de cada error, por ejemplo para traducirlo. `formatIssue` recibe el error original de la librería, así que puede leer cualquiera de sus campos.
 

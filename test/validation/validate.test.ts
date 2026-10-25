@@ -64,6 +64,33 @@ class SlugHandler {
 }
 
 describe('@Validate', () => {
+  it('acepta handlers con un contexto que extiende HttpContext o sin parámetros', async () => {
+    const Filter = z.object({ status: z.string() });
+
+    interface TenantContext extends HttpContext<{ query: typeof Filter }> {
+      tenant: string;
+    }
+
+    class ReportsHandler {
+      @Validate({ query: Filter })
+      byTenant({ query, tenant }: TenantContext) {
+        return `${tenant}:${query.status}`;
+      }
+
+      @Validate({ query: Filter })
+      ping() {
+        return 'pong';
+      }
+    }
+
+    const handler = new ReportsHandler();
+    const ctx = { ...createTestContext({ query: { status: 'open' } }), tenant: 'acme' };
+
+    assert.equal(await handler.byTenant(ctx as never), 'acme:open');
+    const ping = handler.ping as unknown as (ctx: HttpContext) => Promise<string>;
+    assert.equal(await ping.call(handler, ctx), 'pong');
+  });
+
   it('entrega al handler los datos ya parseados', async () => {
     const handler = new BooksHandler();
     const result = await handler.create(

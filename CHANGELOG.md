@@ -23,7 +23,7 @@ First public release.
 
 ### `viga/validation`
 
-- `@Validate` for `body`, `query` and `params` with any Standard Schema library.
+- `@Validate` for `body`, `query` and `params` with any Standard Schema library, typed against the handler's context (which may extend `HttpContext`).
 - `ValidationModule.forRoot({ formatIssue })` to customize or translate validation messages.
 
 ### `viga/i18n`
