@@ -11,7 +11,6 @@ import {
   Patch,
   Post,
   Public,
-  Put,
   UseGuards,
   createApp,
   rateLimit,
@@ -227,154 +226,111 @@ describe('seguridad HTTP', () => {
 describe('requireValidation', () => {
   const Title = z.strictObject({ title: z.string() });
 
+  @Public()
   @Controller('books')
-  class ValidatedController {
-    @Get()
-    list() {
-      return [];
-    }
-
+  class BooksController {
     @Post()
     @Validate({ body: Title })
     create({ body }: HttpContext) {
       return body;
     }
 
-    @Put(':id')
-    @Validate({ params: z.object({ id: z.string() }), body: Title })
-    replace({ body }: HttpContext) {
-      return body;
-    }
-
     @Post('logout')
-    @Validate({ body: z.strictObject({}).optional() })
     logout() {}
-  }
 
-  @Controller('loose')
-  class LooseController {
     @Patch(':id')
     @Validate({ params: z.object({ id: z.string() }) })
-    update({ body }: HttpContext) {
-      return body;
+    touch({ body, req }: HttpContext) {
+      return { body: body ?? null, raw: req.body ?? null };
+    }
+
+    @Delete(':id')
+    remove({ body }: HttpContext) {
+      return { body: body ?? null };
+    }
+
+    @Get()
+    list({ body }: HttpContext) {
+      return { body: body ?? null };
     }
   }
 
-  @Module({ controllers: [ValidatedController] })
-  class ValidatedModule {}
+  @Module({ controllers: [BooksController] })
+  class BooksModule {}
 
-  @Module({ controllers: [LooseController] })
-  class LooseModule {}
+  const getWithBody = (url: string, payload: string) =>
+    new Promise<{ status: number; body: ApiErrorBody }>((resolve, reject) => {
+      const req = httpRequest(
+        url,
+        {
+          method: 'GET',
+          agent: false,
+          headers: {
+            'content-type': 'application/json',
+            'content-length': String(Buffer.byteLength(payload)),
+          },
+        },
+        (res) => {
+          let text = '';
+          res.setEncoding('utf8');
+          res.on('data', (chunk: string) => (text += chunk));
+          res.on('end', () => resolve({ status: res.statusCode ?? 0, body: JSON.parse(text) }));
+        }
+      );
+      req.on('error', reject);
+      req.end(payload);
+    });
 
-  it('arranca cuando todas las rutas con body lo validan', async () => {
-    const server = await startTestServer(ValidatedModule, { requireValidation: true });
+  let server: TestServer;
+
+  before(async () => {
+    server = await startTestServer(BooksModule);
+  });
+
+  after(() => server.close());
+
+  it('una ruta que no recibe body no necesita @Validate', async () => {
+    assert.equal((await server.request('/books/logout', { method: 'POST' })).status, 204);
+    assert.equal((await server.request('/books/1', { method: 'PATCH' })).status, 200);
+  });
+
+  it('responde 400 si llega un body a una ruta sin esquema de body, en cualquier método', async () => {
+    const payload = { role: 'admin' };
+    const responses = [
+      await server.request<ApiErrorBody>('/books/logout', { method: 'POST', json: payload }),
+      await server.request<ApiErrorBody>('/books/1', { method: 'PATCH', json: payload }),
+      await server.request<ApiErrorBody>('/books/1', { method: 'DELETE', json: payload }),
+      await getWithBody(server.url('/books'), JSON.stringify(payload)),
+    ];
+
+    for (const response of responses) {
+      assert.equal(response.status, 400);
+      assert.equal(response.body.code, 'errors.unexpectedBody');
+    }
+  });
+
+  it('valida el body en las rutas que lo declaran', async () => {
+    const created = await server.request('/books', { method: 'POST', json: { title: 'Dune' } });
+    const invalid = await server.request<ApiErrorBody>('/books', {
+      method: 'POST',
+      json: { title: 'Dune', role: 'admin' },
+    });
+
+    assert.equal(created.status, 201);
+    assert.equal(invalid.status, 400);
+    assert.equal(invalid.body.code, 'errors.validation');
+  });
+
+  it('sin requireValidation, el body llega como antes', async () => {
+    const loose = await startTestServer(BooksModule, { requireValidation: false });
 
     try {
-      const { status } = await server.request('/books/logout', { method: 'POST' });
-      assert.equal(status, 204);
+      const touched = await loose.request('/books/1', { method: 'PATCH', json: { role: 'admin' } });
+
+      assert.deepEqual(touched.body, { body: { role: 'admin' }, raw: { role: 'admin' } });
     } finally {
-      await server.close();
+      await loose.close();
     }
-  });
-
-  it('falla al arrancar si una ruta POST, PUT o PATCH no valida el body', async () => {
-    const app = createApp({
-      rootModule: LooseModule,
-      logger: silentLogger,
-      requireValidation: true,
-    });
-
-    await assert.rejects(
-      app.init(),
-      /LooseController\.update handles PATCH but has no @Validate\(\{ body \}\)/
-    );
-  });
-
-  describe('rutas sin body validado en otros métodos', () => {
-    const getWithBody = (url: string, payload: string) =>
-      new Promise<unknown>((resolve, reject) => {
-        const req = httpRequest(
-          url,
-          {
-            method: 'GET',
-            agent: false,
-            headers: {
-              'content-type': 'application/json',
-              'content-length': String(Buffer.byteLength(payload)),
-            },
-          },
-          (res) => {
-            let text = '';
-            res.setEncoding('utf8');
-            res.on('data', (chunk: string) => (text += chunk));
-            res.on('end', () => resolve(JSON.parse(text)));
-          }
-        );
-        req.on('error', reject);
-        req.end(payload);
-      });
-
-    @Public()
-    @Controller('items')
-    class ItemsController {
-      @Delete(':id')
-      remove({ body, req }: HttpContext) {
-        return { body: body ?? null, raw: req.body ?? null };
-      }
-
-      @Get()
-      list({ body }: HttpContext) {
-        return { body: body ?? null };
-      }
-    }
-
-    @Module({ controllers: [ItemsController] })
-    class ItemsModule {}
-
-    it('con requireValidation, el handler no recibe el body ni en ctx.body ni en ctx.req.body', async () => {
-      const server = await startTestServer(ItemsModule, { requireValidation: true });
-
-      try {
-        const removed = await server.request('/items/1', {
-          method: 'DELETE',
-          json: { role: 'admin' },
-        });
-        const listed = await getWithBody(server.url('/items'), JSON.stringify({ role: 'admin' }));
-
-        assert.deepEqual(removed.body, { body: null, raw: null });
-        assert.deepEqual(listed, { body: null });
-      } finally {
-        await server.close();
-      }
-    });
-
-    it('sin requireValidation, el body llega como antes', async () => {
-      const server = await startTestServer(ItemsModule, { requireValidation: false });
-
-      try {
-        const removed = await server.request('/items/1', {
-          method: 'DELETE',
-          json: { role: 'admin' },
-        });
-
-        assert.deepEqual(removed.body, { body: { role: 'admin' }, raw: { role: 'admin' } });
-      } finally {
-        await server.close();
-      }
-    });
-  });
-
-  it('está activado por defecto', async () => {
-    const app = createApp({ rootModule: LooseModule, logger: silentLogger });
-
-    await assert.rejects(app.init(), /LooseController\.update handles PATCH but has no @Validate/);
-  });
-
-  it('no exige nada si la opción está desactivada', async () => {
-    const app = createApp({ rootModule: LooseModule, logger: silentLogger, requireValidation: false });
-
-    await app.init();
-    await app.close();
   });
 });
 

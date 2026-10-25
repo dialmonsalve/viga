@@ -181,22 +181,14 @@ describe('App', () => {
         }
       }
 
-      @Controller('loose')
-      class LooseController {
-        @Patch(':id')
-        update() {}
-      }
+      class NotAController {}
 
-      @Module({ providers: [Pool], controllers: [LooseController] })
-      class LooseModule {}
+      @Module({ providers: [Pool], controllers: [NotAController] })
+      class BrokenModule {}
 
-      const app = createApp({
-        rootModule: LooseModule,
-        logger: silentLogger,
-        requireValidation: true,
-      });
+      const app = createApp({ rootModule: BrokenModule, logger: silentLogger });
 
-      await assert.rejects(app.init(), /has no @Validate/);
+      await assert.rejects(app.init(), /NotAController must be decorated with @Controller/);
       await app.close();
 
       assert.deepEqual(log, ['pool:destroy']);
@@ -303,7 +295,6 @@ describe('App', () => {
       const app = createApp({
         rootModule,
         globalPrefix: '/api',
-        requireValidation: false,
         logger: {
           ...silentLogger,
           warn: (message) => warnings.push(message),

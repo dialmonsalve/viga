@@ -10,7 +10,7 @@ import { handlerSteps, validatedParts } from '../decorators/pipeline.ts';
 import { InjectionToken, type Injector } from '../di/injector.ts';
 import type { AnyConstructor } from '../metadata.ts';
 import { createContext, type HttpContext } from './context.ts';
-import { UnauthorizedException } from './exceptions.ts';
+import { BadRequestException, UnauthorizedException } from './exceptions.ts';
 import { diagnostic } from '../diagnostics.ts';
 
 export const CONCEAL_ROUTES = new InjectionToken<boolean>('CONCEAL_ROUTES');
@@ -28,10 +28,13 @@ export interface RoutePipeline {
   parseBody?: (req: Request, res: Response) => Promise<void>;
 }
 
-const METHODS_WITH_BODY: ReadonlySet<HttpMethod> = new Set(['post', 'put', 'patch']);
-
 export async function authenticate(guard: GuardFn | undefined, ctx: HttpContext) {
   if (!guard || !(await guard(ctx))) throw new UnauthorizedException();
+}
+
+function hasBody(req: Request) {
+  const length = req.headers['content-length'];
+  return req.headers['transfer-encoding'] !== undefined || (length !== undefined && length !== '0');
 }
 
 export function normalizePath(path: string) {
@@ -75,16 +78,6 @@ export function mountController(
     }
 
     const unvalidatedBody = pipeline.requireValidation && !validatedParts(handler).has('body');
-    if (unvalidatedBody && METHODS_WITH_BODY.has(route.method)) {
-      throw new Error(
-        diagnostic('router.missingBodyValidation', {
-          controller: ControllerClass.name,
-          method: String(route.handlerName),
-          verb: route.method.toUpperCase(),
-        })
-      );
-    }
-
     const steps = handlerSteps(handler);
     const isPublic = definition.isPublic || definition.publicRoutes[route.handlerName] === true;
     mounted.push({
@@ -97,8 +90,12 @@ export function mountController(
       const ctx = createContext(req, res);
       if (!isPublic) await authenticate(pipeline.authGuard, ctx);
 
-      if (unvalidatedBody) req.body = undefined;
-      else await pipeline.parseBody?.(req, res);
+      if (unvalidatedBody) {
+        if (hasBody(req)) throw new BadRequestException('errors.unexpectedBody');
+        req.body = undefined;
+      } else {
+        await pipeline.parseBody?.(req, res);
+      }
       ctx.body = req.body;
 
       await runGuards(guards, ctx);
