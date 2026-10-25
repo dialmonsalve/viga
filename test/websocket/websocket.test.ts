@@ -483,6 +483,55 @@ describe('viga/websocket', () => {
     });
   });
 
+  describe('conexiones muertas o lentas', () => {
+    const waitFor = async (condition: () => boolean, timeoutMs = 2_000) => {
+      const deadline = Date.now() + timeoutMs;
+      while (!condition()) {
+        if (Date.now() > deadline) throw new Error('la condición no se cumplió a tiempo');
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+    };
+
+    it('el heartbeat desconecta al cliente que no responde al ping y mantiene al que sí', { timeout: 5_000 }, async () => {
+      const { url } = await start([EchoModule], { heartbeatMs: 30 });
+      const silent = new WebSocket(`${url}/echo`, { autoPong: false });
+      await once(silent, 'open');
+      const healthy = await connect(`${url}/echo`);
+
+      const [code] = (await once(silent, 'close')) as [number];
+
+      assert.equal(code, 1006);
+      assert.equal(healthy.ws.readyState, WebSocket.OPEN);
+      healthy.ws.close();
+    });
+
+    it('desconecta al cliente que no lee sus mensajes al superar maxBufferedBytes', { timeout: 5_000 }, async () => {
+      @Public()
+      @Gateway('/flood')
+      class FloodGateway {
+        @OnMessage('flood', z.undefined())
+        flood({ client }: WsContext) {
+          const chunk = 'x'.repeat(64 * 1024);
+          for (let i = 0; i < 400; i++) client.send('chunk', chunk);
+        }
+      }
+
+      @Module({ providers: [FloodGateway] })
+      class FloodModule {}
+
+      const { app, url } = await start([FloodModule], { maxBufferedBytes: 64 * 1024 });
+      const socket = await connect(`${url}/flood`);
+      const server = app.get(WsServer);
+      (socket.ws as unknown as { _socket: { pause(): void } })._socket.pause();
+
+      socket.send({ event: 'flood' });
+      await waitFor(() => server.clients.size === 0);
+
+      assert.equal(server.clients.size, 0);
+      socket.ws.terminate();
+    });
+  });
+
   describe('ciclo de vida', () => {
     it('llama a onConnection y onDisconnect, y close() cierra los clientes con 1001', async () => {
       const events: string[] = [];
