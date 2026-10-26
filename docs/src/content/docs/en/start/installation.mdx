@@ -1,0 +1,158 @@
+---
+title: Installation
+description: Node.js and TypeScript requirements, and how to install viga with pnpm, npm or yarn.
+sidebar:
+  order: 2
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Requirements
+
+- Node.js 24.13 or later.
+- TypeScript, with standard JavaScript decorators.
+- Express 5, which you install alongside viga.
+
+## Install viga
+
+viga runs on top of Express, so you install it yourself alongside the framework. As development dependencies, add TypeScript, `tsx` to run the app while you code, and the Express and Node.js types.
+
+<Tabs syncKey="pkg">
+  <TabItem label="pnpm">
+    ```sh
+    pnpm add viga express
+    pnpm add -D typescript tsx @types/express @types/node
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```sh
+    npm install viga express
+    npm install -D typescript tsx @types/express @types/node
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```sh
+    yarn add viga express
+    yarn add -D typescript tsx @types/express @types/node
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```sh
+    bun add viga express
+    bun add -d typescript tsx @types/express @types/node
+    ```
+  </TabItem>
+</Tabs>
+
+:::note[Yarn 2 or later]
+By default, Yarn 2 and later versions install packages in Plug'n'Play mode, without a `node_modules` folder, and TypeScript 7 can't find them that way. Create a `.yarnrc.yml` file at the project root with this line before installing:
+
+```yaml title=".yarnrc.yml"
+nodeLinker: node-modules
+```
+:::
+
+## Configure TypeScript
+
+Create a `tsconfig.json` at the project root:
+
+```json title="tsconfig.json"
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "lib": ["ES2024", "ESNext.Decorators"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "rewriteRelativeImportExtensions": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src"]
+}
+```
+
+- `ESNext.Decorators` adds the types for standard decorators.
+- With `rewriteRelativeImportExtensions`, imports between your own files use their real extension, like `import { BooksService } from './books.service.ts'`, and `tsc` changes it to `.js` when compiling. Packages are imported by name, without an extension: `import { createApp } from 'viga'`.
+
+:::caution
+Don't enable `experimentalDecorators`. With that option, TypeScript uses the legacy decorators, which work differently, and viga's decorators stop working.
+:::
+
+## Configure the project
+
+viga is an ES module package, so your project must be one too. In your `package.json`, add `"type": "module"` and the scripts to develop, build and start:
+
+```json title="package.json"
+{
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc",
+    "start": "node dist/main.js"
+  }
+}
+```
+
+- `dev` runs the app with `tsx` and restarts it every time you save a file.
+- `build` compiles the project to JavaScript in the `dist` folder.
+- `start` runs the compiled version, the one you'll use in production.
+
+## Why you need to compile
+
+Node.js can run TypeScript files by stripping the types, but it doesn't understand decorators yet: `node src/main.ts` fails at the first `@`. That's why, while you develop, `tsx` transforms the decorators on the fly, and for production `tsc` generates JavaScript that Node.js runs directly.
+
+## Importing without extensions
+
+The configuration above uses ES modules, the standard Node.js format, which requires the extension in imports between your files. If you'd rather write them without an extension, as in NestJS, you have two alternatives.
+
+**With a bundler.** `tsc` only checks types, and a bundler like esbuild generates the JavaScript, resolving the imports for you. Install `esbuild` as a development dependency and change these options in your `tsconfig.json`:
+
+```json title="tsconfig.json"
+{
+  "compilerOptions": {
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "noEmit": true
+  }
+}
+```
+
+And the `build` script in your `package.json`:
+
+```json title="package.json"
+{
+  "scripts": {
+    "build": "tsc && esbuild src/main.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/main.js"
+  }
+}
+```
+
+**With CommonJS, the format NestJS uses.** Remove `"type": "module"` from your `package.json`, and `tsc` will generate `require(...)`, which doesn't need an extension. This works because Node.js 24 can load ES module packages like viga with `require`. CommonJS doesn't allow `await` outside a function, so the startup goes inside one:
+
+```ts title="src/main.ts"
+import { createApp } from 'viga';
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  const app = createApp({ rootModule: AppModule, globalPrefix: '/api' }).enableShutdownHooks();
+  await app.listen();
+}
+
+void bootstrap();
+```
+
+Keep in mind that CommonJS is the older Node.js format and that some new packages are already published only as ES modules.
+
+## Packages for the optional modules
+
+The core and most optional modules don't need anything else. Some depend on packages you install only if you use them:
+
+| Module | Packages it needs |
+|---|---|
+| `viga/validation` | A Standard Schema compatible library, like `zod`, `valibot` or `arktype` |
+| `viga/drizzle` | `drizzle-orm` and `pg`, and `@types/pg` as a development dependency |
+| `viga/websocket` | `ws`, if you use the default adapter |
+
+You install them the same way as viga, with your package manager.
