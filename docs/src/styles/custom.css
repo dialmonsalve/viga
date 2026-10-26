@@ -9,3 +9,15 @@
   --sl-color-accent: #3a4d6e;
   --sl-color-accent-high: #172443;
 }
+
+@media (min-width: 100rem) {
+  :root {
+    --sl-content-width: 54rem;
+  }
+}
+
+@media (min-width: 72rem) {
+  [data-has-sidebar][data-has-toc] .main-pane {
+    --sl-content-margin-inline: auto;
+  }
+}

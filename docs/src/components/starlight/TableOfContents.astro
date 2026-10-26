@@ -14,7 +14,8 @@ import eyes from '../../assets/mascot-peek-eyes.svg?raw';
 
 <script>
   const MAX_X = 22;
-  const MAX_Y = 10;
+  const MAX_UP = 26;
+  const MAX_DOWN = 6;
   const REACH = 240;
 
   const figure = document.querySelector<HTMLElement>('[data-peek]');
@@ -36,7 +37,7 @@ import eyes from '../../assets/mascot-peek-eyes.svg?raw';
       const distance = Math.hypot(dx, dy) || 1;
       const strength = Math.min(1, distance / REACH);
       const x = (dx / distance) * MAX_X * strength;
-      const y = (dy / distance) * MAX_Y * strength;
+      const y = (dy / distance) * (dy < 0 ? MAX_UP : MAX_DOWN) * strength;
       pupils.forEach((pupil) => {
         pupil.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
       });

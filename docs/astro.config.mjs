@@ -4,6 +4,7 @@ import starlight from '@astrojs/starlight';
 
 import sitemap from '@astrojs/sitemap';
 import { rename, rm } from 'node:fs/promises';
+import { sidebar } from './src/sidebar';
 
 const SITE = 'https://viga.dev';
 
@@ -40,21 +41,7 @@ export default defineConfig({
           href: 'https://github.com/dialmonsalve/viga',
         },
       ],
-      sidebar: [
-        {
-          label: 'Guías',
-          translations: { en: 'Guides', 'pt-BR': 'Guias' },
-          items: [
-            // Each item here is one entry in the navigation menu.
-            { label: 'Example Guide', slug: 'guides/example' },
-          ],
-        },
-        {
-          label: 'Referencia',
-          translations: { en: 'Reference', 'pt-BR': 'Referência' },
-          items: [{ autogenerate: { directory: 'reference' } }],
-        },
-      ],
+      sidebar,
     }),
     sitemap({
       filter: (page) => page !== `${SITE}/` && !page.endsWith('/404/'),
@@ -64,12 +51,23 @@ export default defineConfig({
       },
     }),
     {
+      name: 'watch-sidebar',
+      hooks: {
+        'astro:config:setup': ({ addWatchFile }) => {
+          addWatchFile(new URL('./src/sidebar.ts', import.meta.url));
+        },
+      },
+    },
+    {
       name: 'localized-not-found',
       hooks: {
         'astro:build:done': async ({ dir }) => {
           for (const lang of LANGS) {
             const folder = new URL(`${lang}/404/`, dir);
-            await rename(new URL('index.html', folder), new URL(`${lang}/404.html`, dir));
+            await rename(
+              new URL('index.html', folder),
+              new URL(`${lang}/404.html`, dir)
+            );
             await rm(folder, { recursive: true });
           }
         },
