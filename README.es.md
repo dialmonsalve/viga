@@ -89,11 +89,7 @@ Las rutas son privadas por defecto: sin `@Public()`, `GET /api/v1/books` respond
 
 ### Módulos e inyección de dependencias
 
-- Las dependencias se piden con `inject()` en los campos de la clase. Sin reflection no se pueden leer los tipos del constructor.
-- Cada módulo ve sus `providers` y lo que exportan los módulos que importa. Un módulo puede reexportar otro poniéndolo en `exports`.
-- `global: true` hace que los exports de un módulo estén disponibles en todos sin importarlo. Úsalo solo para infraestructura (base de datos, configuración). Un módulo global tiene que estar en los `imports` del módulo raíz; si solo lo importa otro módulo, la app no arranca. Así, eliminar ese módulo nunca deja sin registrar algo que otros usaban.
-- Providers: clase, `{ provide, useClass }`, `{ provide, useValue }` y `{ provide, useFactory }`. Para valores que no son clases, `new InjectionToken<T>('NOMBRE')`.
-- Detecta dependencias e importaciones circulares con la cadena completa en el error.
+Consulta [Módulos](https://vigajs.dev/es/core/modules/) y [Providers e inyección de dependencias](https://vigajs.dev/es/core/providers/) en la documentación.
 
 ### Ciclo de vida
 

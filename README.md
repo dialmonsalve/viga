@@ -89,11 +89,7 @@ Routes are private by default: without `@Public()`, `GET /api/v1/books` would re
 
 ### Modules and dependency injection
 
-- Dependencies are requested with `inject()` in class fields. Without reflection, constructor parameter types can't be read.
-- Each module sees its own `providers` and whatever the modules it imports export. A module can re-export another one by listing it in `exports`.
-- `global: true` makes a module's exports available everywhere without importing it. Use it only for infrastructure (database, configuration). A global module must be in the root module's `imports`; if only another module imports it, the app doesn't start. That way, removing that module never leaves something others relied on unregistered.
-- Providers: class, `{ provide, useClass }`, `{ provide, useValue }` and `{ provide, useFactory }`. For values that aren't classes, use `new InjectionToken<T>('NAME')`.
-- Circular dependencies and circular imports are detected, with the full chain in the error.
+See [Modules](https://vigajs.dev/en/core/modules/) and [Providers and dependency injection](https://vigajs.dev/en/core/providers/) in the documentation.
 
 ### Lifecycle
 
