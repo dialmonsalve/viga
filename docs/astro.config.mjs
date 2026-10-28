@@ -6,7 +6,7 @@ import sitemap from '@astrojs/sitemap';
 import { rename, rm } from 'node:fs/promises';
 import { sidebar } from './src/sidebar';
 
-const SITE = 'https://viga.dev';
+const SITE = 'https://vigajs.dev';
 
 const LANGS = ['es', 'en', 'pt'];
 
