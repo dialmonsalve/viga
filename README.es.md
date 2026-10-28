@@ -119,7 +119,7 @@ Todos los guards corren antes que cualquier interceptor, así que un interceptor
 
 Los decoradores del método siguen ese orden aunque los escribas en otro: un usuario sin permiso recibe 403 antes de que se valide su body. Entre varios del mismo tipo, se ejecuta primero el de arriba.
 
-El handler devuelve el resultado: el router responde 200, 201 en POST o 204 si no devuelve nada. `@HttpCode` lo cambia. Si el handler ya respondió con `ctx.res`, el router no toca la respuesta.
+Cómo el resultado del handler se convierte en la respuesta, con sus códigos de estado, se explica en [Controladores](https://vigajs.dev/es/core/controllers/#la-respuesta).
 
 ### Guards e interceptores
 

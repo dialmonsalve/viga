@@ -159,6 +159,5 @@ Si no aparece en ninguno, la app no arranca y el error nombra el módulo y el pr
 
 viga revisa el árbol de módulos al arrancar y falla antes de abrir el puerto:
 
-
 - **Importación circular.** Si `BooksModule` importa `AuthorsModule` y `AuthorsModule` importa `BooksModule`, el error muestra la cadena desde el módulo raíz: `[Module] Circular import: AppModule -> BooksModule -> AuthorsModule -> BooksModule`. Suele indicar que hay un provider que debería vivir en un tercer módulo que los dos importen.
 - **Clase sin `@Module()`.** Si pones en `imports` una clase que no es un módulo: `[Module] AuthorsService must be decorated with @Module()`.
