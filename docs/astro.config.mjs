@@ -26,6 +26,7 @@ export default defineConfig({
       title: { es: 'viga', en: 'viga', 'pt-BR': 'viga' },
       customCss: ['./src/styles/custom.css'],
       components: {
+        Head: './src/components/starlight/Head.astro',
         TableOfContents: './src/components/starlight/TableOfContents.astro',
         ThemeSelect: './src/components/starlight/ThemeSelect.astro',
         LanguageSelect: './src/components/starlight/LanguageSelect.astro',

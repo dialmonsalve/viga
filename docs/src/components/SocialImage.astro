@@ -1,0 +1,24 @@
+---
+import type { Lang } from '../i18n';
+
+interface Props {
+  lang: Lang;
+}
+
+const alt: Record<Lang, string> = {
+  es: 'viga, framework HTTP para Node.js, con su mascota: un castor que carga una viga de acero',
+  en: 'viga, HTTP framework for Node.js, with its mascot: a beaver carrying a steel beam',
+  pt: 'viga, framework HTTP para Node.js, com seu mascote: um castor carregando uma viga de aço',
+};
+
+const { lang } = Astro.props;
+const image = new URL(`/og-${lang}.png`, Astro.site).href;
+---
+
+<meta property="og:image" content={image} />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:alt" content={alt[lang]} />
+<meta name="twitter:image" content={image} />
+<meta name="twitter:image:alt" content={alt[lang]} />

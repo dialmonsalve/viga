@@ -1,0 +1,10 @@
+---
+import Default from '@astrojs/starlight/components/Head.astro';
+import type { Lang } from '../../i18n';
+import SocialImage from '../SocialImage.astro';
+
+const lang = (Astro.locals.starlightRoute.locale ?? 'es') as Lang;
+---
+
+<Default />
+<SocialImage lang={lang} />

@@ -1,6 +1,7 @@
 ---
 import { ClientRouter } from 'astro:transitions';
 import { LANGS, LANG_TAGS, type Lang } from '../i18n';
+import SocialImage from '../components/SocialImage.astro';
 
 interface Props {
   lang: Lang;
@@ -29,6 +30,14 @@ const pathFor = (target: Lang) => Astro.url.pathname.replace(new RegExp(`^/${lan
     }
     <link rel="alternate" hreflang="x-default" href={new URL(pathFor('es'), Astro.site)} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:locale" content={LANG_TAGS[lang]} />
+    <meta property="og:site_name" content="viga" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <SocialImage lang={lang} />
     <ClientRouter />
   </head>
   <body>
