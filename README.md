@@ -83,7 +83,7 @@ const app = createApp({ rootModule: AppModule, globalPrefix: '/api/v1' }).enable
 await app.listen(3000);
 ```
 
-Routes are private by default: without `@Public()`, `GET /api/v1/books` would respond 401 until you set a guard with `app.useAuthGuard()` (see [Private routes by default](#private-routes-by-default)).
+Routes are private by default: without `@Public()`, `GET /api/v1/books` would respond 401 until you set a guard with `app.useAuthGuard()` (see [Guards](https://vigajs.dev/en/core/guards/)).
 
 ## Core (`viga`)
 
@@ -103,11 +103,7 @@ Providers can implement `OnModuleInit` and `OnModuleDestroy`:
 
 ### Private routes by default
 
-- Every route must pass the guard set with `app.useAuthGuard()`. If there is none, it responds 401: nothing is left open by accident.
-- `@Public()` on a method or on the whole controller opens the route.
-- `@Public` isn't inherited. A subclass of a public controller or gateway is private until it repeats `@Public()`, and an overridden method is private until the new one has `@Public()`. Routes, guards and interceptors are still inherited. That way, extending a public class never opens new routes by accident.
-- If there are private routes but no `useAuthGuard()`, the app logs a warning at startup saying how many will respond 401.
-- The public routes are listed in the startup log at `debug` level (`Public routes: GET /api/health, POST /api/auth/login`), so you can review what's exposed before a deploy or an audit.
+See [Guards](https://vigajs.dev/en/core/guards/) in the documentation. The same rules, `@Public` not being inherited included, apply to `viga/websocket` gateways.
 
 ### Request order
 

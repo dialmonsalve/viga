@@ -169,4 +169,4 @@ export class BooksController {
 }
 ```
 
-Here anyone can list the books, but creating one requires being authenticated. How to set up authentication is covered on the guards page.
+Here anyone can list the books, but creating one requires being authenticated. How to set up authentication is covered in [guards](../guards/).

@@ -83,7 +83,7 @@ const app = createApp({ rootModule: AppModule, globalPrefix: '/api/v1' }).enable
 await app.listen(3000);
 ```
 
-Las rutas son privadas por defecto: sin `@Public()`, `GET /api/v1/books` respondería 401 hasta configurar un guard con `app.useAuthGuard()` (ver [Rutas privadas por defecto](#rutas-privadas-por-defecto)).
+Las rutas son privadas por defecto: sin `@Public()`, `GET /api/v1/books` respondería 401 hasta configurar un guard con `app.useAuthGuard()` (ver [Guards](https://vigajs.dev/es/core/guards/)).
 
 ## Core (`viga`)
 
@@ -103,11 +103,7 @@ Los providers pueden implementar `OnModuleInit` y `OnModuleDestroy`:
 
 ### Rutas privadas por defecto
 
-- Toda ruta exige pasar el guard configurado con `app.useAuthGuard()`. Si no hay ninguno, responde 401: nada queda abierto por olvido.
-- `@Public()` en un método o en el controlador entero deja la ruta abierta.
-- `@Public` no se hereda. Una subclase de un controlador o gateway público es privada hasta que repite `@Public()`, y un método sobrescrito es privado hasta que el nuevo lleve `@Public()`. Las rutas, guards e interceptores sí se heredan. Así, extender una clase pública nunca abre rutas nuevas por accidente.
-- Si hay rutas privadas pero ningún `useAuthGuard()`, la app avisa al arrancar de cuántas responderán 401.
-- Las rutas públicas se listan en el log de arranque con nivel `debug` (`Rutas públicas: GET /api/health, POST /api/auth/login`), para revisar qué queda expuesto antes de un despliegue o de una auditoría.
+Consulta [Guards](https://vigajs.dev/es/core/guards/) en la documentación. Las mismas reglas, incluido que `@Public` no se hereda, valen para los gateways de `viga/websocket`.
 
 ### Orden de una petición
 
