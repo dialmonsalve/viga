@@ -4,11 +4,14 @@ import starlight from '@astrojs/starlight';
 
 import sitemap from '@astrojs/sitemap';
 import { rename, rm } from 'node:fs/promises';
+import { pendingPaths } from './src/pending';
 import { sidebar } from './src/sidebar';
 
 const SITE = 'https://vigajs.dev';
 
 const LANGS = ['es', 'en', 'pt'];
+
+const PENDING = pendingPaths(new URL('./src/content/docs/', import.meta.url));
 
 // https://astro.build/config
 export default defineConfig({
@@ -45,7 +48,8 @@ export default defineConfig({
       sidebar,
     }),
     sitemap({
-      filter: (page) => page !== `${SITE}/` && !page.endsWith('/404/'),
+      filter: (page) =>
+        page !== `${SITE}/` && !page.endsWith('/404/') && !PENDING.has(new URL(page).pathname),
       i18n: {
         defaultLocale: 'es',
         locales: { es: 'es', en: 'en', pt: 'pt-BR' },

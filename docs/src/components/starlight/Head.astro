@@ -4,7 +4,9 @@ import type { Lang } from '../../i18n';
 import SocialImage from '../SocialImage.astro';
 
 const lang = (Astro.locals.starlightRoute.locale ?? 'es') as Lang;
+const { pending } = Astro.locals.starlightRoute.entry.data;
 ---
 
 <Default />
 <SocialImage lang={lang} />
+{pending && <meta name="robots" content="noindex, follow" />}

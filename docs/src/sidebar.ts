@@ -19,4 +19,7 @@ function section(directory: string, { es, en, pt }: Labels): Sidebar[number] {
 export const sidebar: Sidebar = [
   section('start', { es: 'Empezar', en: 'Getting started', pt: 'Começar' }),
   section('core', { es: 'Fundamentos', en: 'Fundamentals', pt: 'Fundamentos' }),
+  section('optional', { es: 'Módulos opcionales', en: 'Optional modules', pt: 'Módulos opcionais' }),
+  section('security', { es: 'Seguridad', en: 'Security', pt: 'Segurança' }),
+  section('guides', { es: 'Guías', en: 'Guides', pt: 'Guias' }),
 ];

@@ -1,0 +1,191 @@
+---
+title: viga/validation
+description: Valida el cuerpo, los parámetros y la query de cada ruta con Zod, Valibot o ArkType, y recibe los datos ya tipados.
+pending: true
+banner:
+  content: Esta página está en revisión y todavía no está traducida.
+sidebar:
+  order: 1
+---
+
+`viga/validation` comprueba que los datos de cada petición tienen la forma que esperas antes de que lleguen al método del controlador. Si no la tienen, responde 400 y el método no se ejecuta. Si la tienen, el método recibe los datos ya convertidos y con su tipo de TypeScript.
+
+No trae una librería de validación propia. Funciona con cualquier librería que implemente [Standard Schema](https://standardschema.dev), como Zod, Valibot o ArkType. Tú eliges cuál instalar.
+
+## Instalación
+
+`viga/validation` viene con viga; solo instala la librería de esquemas que prefieras. Los ejemplos de esta página usan Zod:
+
+```sh
+pnpm add zod
+```
+
+## Valida una ruta
+
+Define un esquema y pásalo a `@Validate`, indicando qué parte de la petición valida:
+
+```ts title="src/books/books.controller.ts"
+import { Controller, Post, type HttpContext } from 'viga';
+import { Validate } from 'viga/validation';
+import { z } from 'zod';
+
+const CreateBook = z.object({
+  title: z.string().min(1),
+  year: z.number().int(),
+});
+
+@Controller('/books')
+export class BooksController {
+  @Post()
+  @Validate({ body: CreateBook })
+  create({ body }: HttpContext<{ body: typeof CreateBook }>) {
+    return this.books.create(body);
+  }
+}
+```
+
+`HttpContext<{ body: typeof CreateBook }>` le dice a TypeScript que `body` tiene la forma del esquema: aquí, `{ title: string; year: number }`. El tipo sale del mismo esquema que valida, así que nunca pueden desincronizarse. Si el contexto del método no coincide con el esquema de `@Validate`, TypeScript marca el error.
+
+## Las tres partes de la petición
+
+`@Validate` acepta un esquema para cada parte:
+
+| Parte | Qué contiene | Llega como |
+| --- | --- | --- |
+| `body` | El cuerpo de la petición. | JSON con sus tipos: números, booleanos, objetos. |
+| `params` | Los parámetros de la ruta, como `:id`. | Texto. |
+| `query` | Los parámetros de la URL, como `?page=2`. | Texto. |
+
+Como `params` y `query` siempre llegan como texto, usa `z.coerce` para convertirlos:
+
+```ts
+const BookParams = z.object({ id: z.coerce.number().int().positive() });
+const ListBooks = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  search: z.string().optional(),
+});
+
+@Get()
+@Validate({ query: ListBooks })
+list({ query }: HttpContext<{ query: typeof ListBooks }>) {
+  return this.books.list(query.page, query.search);
+}
+
+@Put('/:id')
+@Validate({ params: BookParams, body: CreateBook })
+update({ params, body }: HttpContext<{ params: typeof BookParams; body: typeof CreateBook }>) {
+  return this.books.update(params.id, body);
+}
+```
+
+En `GET /books`, `query.page` vale `1` por el `default`. En `GET /books?page=3`, vale el número `3`, no el texto `'3'`.
+
+### Un alias para el contexto
+
+Si el tipo del contexto se hace largo, declara un alias una vez:
+
+```ts
+type UpdateBookContext = HttpContext<{ params: typeof BookParams; body: typeof CreateBook }>;
+
+@Put('/:id')
+@Validate({ params: BookParams, body: CreateBook })
+update({ params, body }: UpdateBookContext) {
+  return this.books.update(params.id, body);
+}
+```
+
+## Cuando los datos no son válidos
+
+viga valida todas las partes que declaraste y responde 400 con todos los errores juntos, agrupados por parte:
+
+```json
+{
+  "statusCode": 400,
+  "code": "errors.validation",
+  "message": "Invalid input data",
+  "error": "Bad Request",
+  "details": {
+    "body": [
+      { "path": "title", "code": "too_small", "message": "Too small: expected string to have >=1 characters" },
+      { "path": "year", "code": "invalid_type", "message": "Invalid input: expected number, received string" }
+    ],
+    "params": [
+      { "path": "id", "code": "invalid_type", "message": "Invalid input: expected number, received NaN" }
+    ]
+  }
+}
+```
+
+Cada error tiene:
+
+- `path`: el campo que falló. En objetos anidados, separado por puntos, como `author.name`.
+- `code`: el código de la librería, si lo da. Útil para que el frontend muestre su propio mensaje.
+- `message`: el mensaje de la librería.
+
+El resto del cuerpo sigue el formato de todas las [excepciones](../../core/exceptions/).
+
+## Los campos que sobran se descartan
+
+El método recibe lo que devuelve el esquema, no lo que envió el cliente. Con `z.object`, los campos que no están en el esquema se descartan:
+
+```json
+{ "title": "Dune", "year": 1965, "isAdmin": true }
+```
+
+El método recibe `{ title: 'Dune', year: 1965 }`. Así, aunque alguien añada `isAdmin` o `ownerId` al cuerpo, ese campo nunca llega a tu código ni a tu base de datos. Esto protege contra la asignación masiva, un ataque habitual cuando el cuerpo se guarda tal cual.
+
+viga también reemplaza `req.body` por el valor validado, de modo que el código que lo lea por error tampoco recibe los campos descartados.
+
+Si prefieres rechazar la petición cuando sobran campos en lugar de descartarlos, usa `z.strictObject`.
+
+## Toda ruta con cuerpo necesita `@Validate`
+
+Una ruta sin `@Validate({ body })` no acepta cuerpo: si alguien envía uno, viga responde 400 con el código `errors.unexpectedBody`. Así no puedes olvidar validar una ruta que recibe datos; lo verás en la primera prueba.
+
+Las rutas sin cuerpo, como un `POST /logout`, no necesitan nada.
+
+Este comportamiento se llama `requireValidation` y está activado por defecto. Puedes desactivarlo con `createApp({ requireValidation: false })`, y entonces todas las rutas reciben el cuerpo tal como llega. No te lo recomiendo.
+
+## Personaliza los mensajes
+
+`ValidationModule.forRoot` acepta `formatIssue`, una función que recibe cada error original de la librería y devuelve el mensaje. Si devuelve `undefined`, se usa el de la librería:
+
+```ts title="src/app.module.ts"
+import { Module } from 'viga';
+import { ValidationModule } from 'viga/validation';
+
+@Module({
+  imports: [
+    ValidationModule.forRoot({
+      formatIssue: (issue) => (issue.code === 'too_small' ? 'Demasiado corto' : undefined),
+    }),
+    BooksModule,
+  ],
+})
+export class AppModule {}
+```
+
+`formatIssue` recibe el error completo de la librería, así que puede leer cualquiera de sus campos, como los mínimos o máximos, para construir el mensaje. Es el lugar para traducir los mensajes de validación, junto con `viga/i18n`.
+
+`ValidationModule` es un módulo global, así que va en los `imports` del módulo raíz. No es obligatorio: sin él, `@Validate` funciona con los mensajes de la librería.
+
+## Otras librerías
+
+Cualquier librería compatible con Standard Schema funciona igual. Con Valibot:
+
+```ts
+import * as v from 'valibot';
+
+const CreateBook = v.object({
+  title: v.pipe(v.string(), v.minLength(1)),
+  year: v.pipe(v.number(), v.integer()),
+});
+
+@Post()
+@Validate({ body: CreateBook })
+create({ body }: HttpContext<{ body: typeof CreateBook }>) {
+  return this.books.create(body);
+}
+```
+
+Los esquemas asíncronos, por ejemplo con un `refine` que consulta la base de datos, también funcionan: viga espera a que terminen.
