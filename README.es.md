@@ -238,28 +238,7 @@ viga solo se encarga de algunas capas comunes. Estas dependen de tu código y so
 
 ### Errores
 
-```json
-{
-  "statusCode": 404,
-  "code": "books.notFound",
-  "message": "No existe el libro 7",
-  "error": "Not Found",
-  "timestamp": "2026-10-22T12:00:00.000Z"
-}
-```
-
-- Las excepciones reciben un código y parámetros opcionales: `throw new NotFoundException('books.notFound', { id })`.
-- El `message` lo decide `resolveMessage`, un hook opcional de `createApp`. Si no lo configuras o devuelve `undefined`, viga usa sus mensajes por defecto en inglés para sus códigos (`errors.*`).
-- Si el código no es conocido, se trata como texto libre: va tal cual en `message`, y `code` toma el del estado HTTP (`errors.notFound`).
-- Los errores inesperados responden 500 sin filtrar el mensaje interno. Un JSON mal formado responde 400.
-- Si un handler falla después de empezar a escribir la respuesta (por ejemplo, un stream), el error va al logger y la conexión se cierra, para que el cliente sepa que la respuesta está incompleta.
-
-```ts
-createApp({
-  rootModule: AppModule,
-  resolveMessage: (code, params, req) => misMensajes[code],
-});
-```
+Consulta [Excepciones](https://vigajs.dev/es/core/exceptions/) en la documentación.
 
 ### Mensajes para desarrolladores
 

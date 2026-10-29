@@ -131,7 +131,7 @@ findOne({ params }: HttpContext<{ params: typeof BookParams }>) {
 }
 ```
 
-O viga a converte em uma resposta 404 com um corpo de erro em JSON. As exceções disponíveis e o formato do corpo estão na página de exceções.
+O viga a converte em uma resposta 404 com um corpo de erro em JSON. As exceções disponíveis e o formato do corpo estão em [exceções](../exceptions/).
 
 ### Responda você mesmo
 

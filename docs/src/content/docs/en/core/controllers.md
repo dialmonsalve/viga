@@ -131,7 +131,7 @@ findOne({ params }: HttpContext<{ params: typeof BookParams }>) {
 }
 ```
 
-viga turns it into a 404 response with a JSON error body. The available exceptions and the body format are on the exceptions page.
+viga turns it into a 404 response with a JSON error body. The available exceptions and the body format are in [exceptions](../exceptions/).
 
 ### Respond yourself
 
