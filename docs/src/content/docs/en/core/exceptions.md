@@ -66,6 +66,18 @@ Use `code`, not `message`, to make decisions in the frontend: `message` can chan
 
 All of them are imported from `viga`. With no arguments, they use the default `code` and its English message.
 
+### Other status codes
+
+For an HTTP status that isn't in the table, like 402 or 422, use `HttpException` with the status, the `code` and the status name:
+
+```ts
+import { HttpException } from 'viga';
+
+throw new HttpException(402, 'billing.paymentRequired', 'Payment Required');
+```
+
+Define its message in `resolveMessage`, like any code of your own. If you don't, viga treats the `code` as free text and uses `errors.badRequest` for 4xx statuses and `errors.internal` for 5xx.
+
 ## Your own codes and messages
 
 The first argument of an exception is the `code`, and the second, optional parameters for the message:

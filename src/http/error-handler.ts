@@ -31,6 +31,10 @@ const CODE_BY_STATUS: Record<number, string> = {
   503: 'errors.serviceUnavailable',
 };
 
+function defaultCode(status: number) {
+  return CODE_BY_STATUS[status] ?? (status < 500 ? 'errors.badRequest' : 'errors.internal');
+}
+
 interface ExposedHttpError {
   status: number;
   expose: true;
@@ -46,11 +50,7 @@ export function toHttpException(error: unknown): HttpException {
   if (error instanceof HttpException) return error;
   if (isExposedClientError(error)) {
     const { status } = error;
-    return new HttpException(
-      status,
-      CODE_BY_STATUS[status] ?? 'errors.badRequest',
-      STATUS_CODES[status] ?? 'Error'
-    );
+    return new HttpException(status, defaultCode(status), STATUS_CODES[status] ?? 'Error');
   }
   return new HttpException(500, 'errors.internal', 'Internal Server Error');
 }
@@ -68,7 +68,7 @@ export function describeException(
   const fallback = DEFAULT_MESSAGES[code];
   if (fallback !== undefined) return { code, message: interpolate(fallback, params) };
 
-  return { code: CODE_BY_STATUS[statusCode] ?? 'errors.internal', message: code };
+  return { code: defaultCode(statusCode), message: code };
 }
 
 export const notFoundHandler: RequestHandler = (_req, _res, next) => {

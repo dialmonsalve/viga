@@ -66,6 +66,18 @@ Usa `code` y no `message` para tomar decisiones en el frontend: `message` puede 
 
 Todas se importan de `viga`. Sin argumentos, usan el `code` por defecto y su mensaje en inglés.
 
+### Otros códigos de estado
+
+Para un código HTTP que no está en la tabla, como 402 o 422, usa `HttpException` con el estado, el `code` y el nombre del estado:
+
+```ts
+import { HttpException } from 'viga';
+
+throw new HttpException(402, 'billing.paymentRequired', 'Payment Required');
+```
+
+Define su mensaje en `resolveMessage`, como cualquier código propio. Si no lo haces, viga trata el `code` como texto libre y usa `errors.badRequest` para los estados 4xx y `errors.internal` para los 5xx.
+
 ## Tus propios códigos y mensajes
 
 El primer argumento de una excepción es el `code`, y el segundo, parámetros opcionales para el mensaje:

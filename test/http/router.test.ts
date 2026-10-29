@@ -6,6 +6,7 @@ import {
   Delete,
   Get,
   HttpCode,
+  HttpException,
   Injectable,
   Module,
   NotFoundException,
@@ -62,6 +63,16 @@ class BooksController {
   @Get('/stable')
   stable() {
     throw new NotFoundException('books.notFound', { id: 7 });
+  }
+
+  @Get('/payment')
+  payment() {
+    throw new HttpException(402, 'Tu plan venció', 'Payment Required');
+  }
+
+  @Get('/storage')
+  storage() {
+    throw new HttpException(507, 'Sin espacio', 'Insufficient Storage');
   }
 
   @Get('/:id')
@@ -223,6 +234,23 @@ describe('mountController', () => {
 
     assert.equal(body.code, 'errors.notFound');
     assert.equal(body.message, 'Libro no encontrado');
+  });
+
+  it('usa un código de cliente para estados 4xx sin código propio', async () => {
+    const { status, body } = await server.request<ApiErrorBody>('/books/payment');
+
+    assert.equal(status, 402);
+    assert.equal(body.code, 'errors.badRequest');
+    assert.equal(body.message, 'Tu plan venció');
+    assert.equal(body.error, 'Payment Required');
+  });
+
+  it('usa el código interno para estados 5xx sin código propio', async () => {
+    const { status, body } = await server.request<ApiErrorBody>('/books/storage');
+
+    assert.equal(status, 507);
+    assert.equal(body.code, 'errors.internal');
+    assert.equal(body.message, 'Sin espacio');
   });
 });
 
