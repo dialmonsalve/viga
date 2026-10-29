@@ -119,24 +119,7 @@ Cómo el resultado del handler se convierte en la respuesta, con sus códigos de
 
 ### Guards e interceptores
 
-```ts
-@Injectable()
-class TimingInterceptor implements Interceptor {
-  async intercept(ctx: HttpContext, next: CallHandler) {
-    const start = performance.now();
-    const result = await next();
-    ctx.res.setHeader('Server-Timing', `app;dur=${performance.now() - start}`);
-    return result;
-  }
-}
-
-app.useGlobalInterceptors(TimingInterceptor);
-```
-
-- Guards e interceptores pueden ser clases (con `inject()`) o funciones.
-- `@UseGuards` va en el método o en el controlador. En el controlador protege todas sus rutas, incluidas las `@Public`: `@Public` solo omite la autenticación. Un guard que devuelve `false` responde 403.
-- `@UseInterceptors` va en el método o en el controlador. `next()` solo puede llamarse una vez.
-- Los globales se resuelven con el injector del módulo raíz.
+Consulta [Guards](https://vigajs.dev/es/core/guards/) e [Interceptores](https://vigajs.dev/es/core/interceptors/) en la documentación.
 
 ### Contexto por petición
 
