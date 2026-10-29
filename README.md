@@ -107,15 +107,7 @@ See [Guards](https://vigajs.dev/en/core/guards/) in the documentation. The same 
 
 ### Request order
 
-Request id → security headers → app middlewares (`app.use`) → CSRF check → authentication (except `@Public`) → body parser → controller guards → method `@UseGuards` (including `@RateLimit`) → global interceptors → controller interceptors → method `@UseInterceptors` → `@Validate` → handler, and back in reverse order.
-
-The body is parsed only after authentication, so an anonymous request to a private route gets 401 without the server reading its body, and an unknown route never parses one. Guards still see it, for example to rate limit by email.
-
-Every guard runs before any interceptor, so an interceptor that answers without calling `next()`, such as a cache, can't skip a method's guard or rate limit. Gateways in `viga/websocket` follow the same rule.
-
-Method decorators follow that order even if you write them in a different one: a user without permission gets 403 before their body is validated. Among several of the same kind, the topmost runs first.
-
-How the handler's result becomes the response, with its status codes, is explained in [Controllers](https://vigajs.dev/en/core/controllers/#the-response).
+See [Request lifecycle](https://vigajs.dev/en/core/request-lifecycle/) in the documentation.
 
 ### Guards and interceptors
 
@@ -123,51 +115,11 @@ See [Guards](https://vigajs.dev/en/core/guards/) and [Interceptors](https://viga
 
 ### Request context
 
-`createContextKey` stores values that any code can reach during a request without passing them from function to function: the authenticated user, a request id, a transaction.
-
-```ts
-import { createContextKey } from 'viga';
-
-export const CURRENT_USER = createContextKey<User>('currentUser');
-
-@Injectable()
-class JwtGuard implements CanActivate {
-  async canActivate({ req }: HttpContext) {
-    const user = await this.verify(req);
-    if (!user) return false;
-    CURRENT_USER.set(user);
-    return true;
-  }
-}
-
-@Injectable()
-class ItemsService {
-  create(data: NewItem) {
-    const { id } = CURRENT_USER.get();
-    return this.items.insert({ ...data, createdById: id, updatedById: id });
-  }
-}
-```
-
-| Method | What it does |
-|---|---|
-| `get()` | Returns the value, or throws if there is none |
-| `find()` | Returns the value or `undefined` |
-| `set(value)` | Sets the value for the rest of the request. Works in middlewares, guards and interceptors |
-| `run(value, fn)` | Runs `fn` with the value; when it finishes, the previous one is back |
-
-- Each request has its own context, even when the server handles several at once.
-- Outside HTTP (scripts, scheduled jobs, tests), `runInNewContext(fn)` opens an empty context where `set()` works.
+See [The request context](https://vigajs.dev/en/core/request-lifecycle/#the-request-context) in the documentation.
 
 ### Express middlewares
 
-Add them with `app.use()` before `listen()`. They run after the security headers, so they can override them:
-
-```ts
-import cors from 'cors';
-
-app.use(cors({ origin: 'https://my-frontend.com', credentials: true }));
-```
+See [Express middlewares](https://vigajs.dev/en/core/request-lifecycle/#express-middlewares) in the documentation.
 
 ### Security defaults
 

@@ -86,7 +86,7 @@ mine() {
 
 `CURRENT_USER.get()` returns a `User`, not a `User | undefined`, so you don't need to check it or write `!`. If you come from NestJS, this is what replaces `req.user!.id`: there, `req.user` is optional for TypeScript even though the guard already filled it. If a configuration mistake left no user, `get()` throws a clear error instead of letting an `undefined` through.
 
-Each request has its own value: two simultaneous requests never see each other's user. Context keys are explained in detail in the request lifecycle.
+Each request has its own value: two simultaneous requests never see each other's user. Context keys are explained in detail in the [request lifecycle](../request-lifecycle/#the-request-context).
 
 :::caution
 On a `@Public()` route the authentication guard doesn't run, so `CURRENT_USER` has no value even if the request carries a valid session. `CURRENT_USER.get()` throws if there is no value; in code that also runs on public routes, use `CURRENT_USER.find()`, which returns `undefined`.

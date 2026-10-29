@@ -86,7 +86,7 @@ mine() {
 
 `CURRENT_USER.get()` devolve um `User`, não um `User | undefined`, então você não precisa verificá-lo nem escrever `!`. Se você vem do NestJS, é o que substitui `req.user!.id`: lá `req.user` é opcional para o TypeScript mesmo que o guard já o tenha preenchido. Se por um erro de configuração não houver usuário, `get()` lança um erro claro em vez de deixar passar um `undefined`.
 
-Cada requisição tem seu próprio valor: duas requisições simultâneas nunca veem o usuário da outra. As chaves de contexto são explicadas em detalhe no ciclo de vida de uma requisição.
+Cada requisição tem seu próprio valor: duas requisições simultâneas nunca veem o usuário da outra. As chaves de contexto são explicadas em detalhe no [ciclo de vida de uma requisição](../request-lifecycle/#o-contexto-da-requisição).
 
 :::caution
 Em uma rota `@Public()` o guard de autenticação não é executado, então `CURRENT_USER` não tem valor mesmo que a requisição traga uma sessão válida. `CURRENT_USER.get()` lança um erro se não houver valor; em código que também roda em rotas públicas, use `CURRENT_USER.find()`, que devolve `undefined`.
