@@ -93,13 +93,7 @@ See [Modules](https://vigajs.dev/en/core/modules/) and [Providers and dependency
 
 ### Lifecycle
 
-Providers can implement `OnModuleInit` and `OnModuleDestroy`:
-
-- `listen(port?, host?)` listens on port 3000 unless told otherwise. `listen(0)` picks a random free port. viga doesn't read `process.env.PORT`; if you need it, pass it explicitly: `app.listen(Number(process.env.PORT ?? 3000))`.
-- `init()` (or `listen()`) creates every provider and runs `onModuleInit` in dependency order. If a hook returns a promise, it is awaited.
-- `close()` closes the server and runs `onModuleDestroy` in reverse order. If one fails, it still tries to close the rest and throws an `AggregateError`. If startup failed halfway, only the providers that finished `onModuleInit` are closed.
-- `OnServerListen` (receives the HTTP server before it starts listening) and `OnServerClose` (runs when the server starts closing, before `onModuleDestroy`) let a provider hook into the server, as `viga/websocket` does.
-- `enableShutdownHooks()` calls `close()` on `SIGTERM` or `SIGINT`, then exits with the signal's standard code (143 or 130), or 1 if closing failed. It exits even if something keeps the event loop alive, and also works when Node is PID 1 in a container.
+See [App lifecycle](https://vigajs.dev/en/core/app-lifecycle/) in the documentation.
 
 ### Private routes by default
 

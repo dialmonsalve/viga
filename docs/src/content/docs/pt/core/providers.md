@@ -144,7 +144,7 @@ export class SearchModule {}
 
 `SEARCH_CLIENT` é um `InjectionToken<SearchClient>` declarado em `search.client.ts`, e `some-search-library` representa a biblioteca que você usar.
 
-A função deve devolver o valor diretamente, não uma promise. Se você precisar de trabalho assíncrono ao iniciar, como conectar-se a um banco de dados, faça-o no hook `onModuleInit` do provider, que você verá no ciclo de vida da aplicação.
+A função deve devolver o valor diretamente, não uma promise. Se você precisar de trabalho assíncrono ao iniciar, como conectar-se a um banco de dados, faça-o no hook `onModuleInit` do provider, que você verá no [ciclo de vida da aplicação](../app-lifecycle/#os-hooks-dos-providers).
 
 ## Quando são criados
 
