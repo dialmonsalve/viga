@@ -8,6 +8,8 @@ sidebar:
   order: 1
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 `viga/validation` comprueba que los datos de cada petición tienen la forma que esperas antes de que lleguen al método del controlador. Si no la tienen, responde 400 y el método no se ejecuta. Si la tienen, el método recibe los datos ya convertidos y con su tipo de TypeScript.
 
 No trae una librería de validación propia. Funciona con cualquier librería que implemente [Standard Schema](https://standardschema.dev), como Zod, Valibot o ArkType. Tú eliges cuál instalar.
@@ -16,9 +18,28 @@ No trae una librería de validación propia. Funciona con cualquier librería qu
 
 `viga/validation` viene con viga; solo instala la librería de esquemas que prefieras. Los ejemplos de esta página usan Zod:
 
-```sh
-pnpm add zod
-```
+<Tabs syncKey="pkg">
+  <TabItem label="pnpm">
+    ```sh
+    pnpm add zod
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```sh
+    npm install zod
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```sh
+    yarn add zod
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```sh
+    bun add zod
+    ```
+  </TabItem>
+</Tabs>
 
 ## Valida una ruta
 
