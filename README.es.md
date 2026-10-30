@@ -237,31 +237,7 @@ Consulta [viga/config](https://vigajs.dev/es/optional/config/) en la documentaci
 
 ## viga/pagination
 
-```ts
-import { Paginate, type PageContext } from 'viga/pagination';
-
-@Get()
-@Paginate({ defaultLimit: 20, maxLimit: 100 })
-@Validate({ query: BookFilter })
-async list({ page, query }: PageContext<{ query: typeof BookFilter }>) {
-  const [books, total] = await this.books.findPage(query, page.offset, page.limit);
-  return page.result(books, total);
-}
-```
-
-```json
-{
-  "data": [ … ],
-  "meta": { "total": 95, "page": 2, "lastPage": 5, "next": "/api/books?status=open&page=3&limit=20", "prev": "/api/books?status=open&page=1&limit=20" }
-}
-```
-
-- `@Paginate` lee `?page` y `?limit`, y le da al handler `page.page`, `page.limit` y `page.offset` para tu consulta. viga no consulta la base de datos: funciona con cualquier ORM.
-- `page.result(items, total)` construye la respuesta. Es genérico, así que devolver `Book[]` hace que el handler devuelva `PaginatedResult<Book>`; exporta ese tipo para compartirlo con tu frontend.
-- `next` y `prev` son enlaces relativos que conservan los demás parámetros de la URL. Nunca se construyen con la cabecera `Host`, así que un host falsificado no puede convertirlos en enlaces a otro dominio.
-- Un `limit` mayor que `maxLimit` (100 por defecto) se recorta en lugar de rechazarse, así que `?limit=1000000` no puede hacer que la base de datos devuelva una tabla entera. `maxPage` (1000 por defecto) y `maxOffset` (10.000 filas por defecto) limitan cuánto puede avanzar un cliente, porque un `OFFSET` enorme es lento aunque no devuelva nada. La página máxima depende del `limit`: con `limit=100` es la 101. Para listas más profundas, usa paginación por cursor (`WHERE id > :ultimo`).
-- Un `page` inválido (no entero, menor que 1, más allá de `maxPage` o `maxOffset`, o repetido) responde 400 `errors.invalidPage` con la página máxima permitida en el mensaje; un `limit` inválido responde 400 `errors.invalidLimit`.
-- Con `@Validate({ query })`, el schema tiene que aceptar `page` y `limit` (un `z.object()` no estricto lo hace).
+Consulta [viga/pagination](https://vigajs.dev/es/optional/pagination/) en la documentación.
 
 ## viga/drizzle
 

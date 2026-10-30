@@ -237,31 +237,7 @@ See [viga/config](https://vigajs.dev/en/optional/config/) in the documentation.
 
 ## viga/pagination
 
-```ts
-import { Paginate, type PageContext } from 'viga/pagination';
-
-@Get()
-@Paginate({ defaultLimit: 20, maxLimit: 100 })
-@Validate({ query: BookFilter })
-async list({ page, query }: PageContext<{ query: typeof BookFilter }>) {
-  const [books, total] = await this.books.findPage(query, page.offset, page.limit);
-  return page.result(books, total);
-}
-```
-
-```json
-{
-  "data": [ … ],
-  "meta": { "total": 95, "page": 2, "lastPage": 5, "next": "/api/books?status=open&page=3&limit=20", "prev": "/api/books?status=open&page=1&limit=20" }
-}
-```
-
-- `@Paginate` reads `?page` and `?limit`, and gives the handler `page.page`, `page.limit` and `page.offset` for your query. viga doesn't query the database: it works with any ORM.
-- `page.result(items, total)` builds the response. It's generic, so returning `Book[]` makes the handler return `PaginatedResult<Book>`; export that type to share it with your frontend.
-- `next` and `prev` are relative links that keep the other query parameters. They're never built from the `Host` header, so a forged host can't turn them into links to another domain.
-- A `limit` above `maxLimit` (100 by default) is capped instead of rejected, so `?limit=1000000` can't make the database return a whole table. `maxPage` (1000 by default) and `maxOffset` (10,000 rows by default) cap how deep a client can go, because a huge `OFFSET` is slow even when it returns nothing. The highest allowed page depends on the `limit`: with `limit=100` it's 101. For deeper lists, use cursor pagination (`WHERE id > :last`).
-- An invalid `page` (not an integer, below 1, beyond `maxPage` or `maxOffset`, or repeated) responds 400 `errors.invalidPage` with the highest allowed page in the message; an invalid `limit` responds 400 `errors.invalidLimit`.
-- With `@Validate({ query })`, the schema must accept `page` and `limit` (a non-strict `z.object()` does).
+See [viga/pagination](https://vigajs.dev/en/optional/pagination/) in the documentation.
 
 ## viga/drizzle
 
