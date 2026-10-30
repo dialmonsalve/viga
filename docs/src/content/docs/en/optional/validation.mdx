@@ -1,0 +1,212 @@
+---
+title: viga/validation
+description: Validate each route's body, parameters and query with Zod, Valibot or ArkType, and get the data already typed.
+sidebar:
+  order: 1
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`viga/validation` checks that each request's data has the shape you expect before it reaches the controller method. If it doesn't, it responds 400 and the method doesn't run. If it does, the method receives the data already converted and with its TypeScript type.
+
+It ships no validation library of its own. It works with any library that implements [Standard Schema](https://standardschema.dev), like Zod, Valibot or ArkType. You pick which one to install.
+
+## Installation
+
+`viga/validation` comes with viga; just install the schema library you prefer. The examples on this page use Zod:
+
+<Tabs syncKey="pkg">
+  <TabItem label="pnpm">
+    ```sh
+    pnpm add zod
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```sh
+    npm install zod
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```sh
+    yarn add zod
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```sh
+    bun add zod
+    ```
+  </TabItem>
+</Tabs>
+
+## Validate a route
+
+Define a schema and pass it to `@Validate`, saying which part of the request it validates:
+
+```ts title="src/books/books.controller.ts"
+import { Controller, Post, type HttpContext } from 'viga';
+import { Validate } from 'viga/validation';
+import { z } from 'zod';
+
+const CreateBook = z.object({
+  title: z.string().min(1),
+  year: z.number().int(),
+});
+
+@Controller('/books')
+export class BooksController {
+  @Post()
+  @Validate({ body: CreateBook })
+  create({ body }: HttpContext<{ body: typeof CreateBook }>) {
+    return this.books.create(body);
+  }
+}
+```
+
+`HttpContext<{ body: typeof CreateBook }>` tells TypeScript that `body` has the schema's shape: here, `{ title: string; year: number }`. The type comes from the same schema that validates, so they can never drift apart. If the method's context doesn't match the `@Validate` schema, TypeScript flags the error.
+
+## The three parts of the request
+
+`@Validate` accepts a schema for each part:
+
+| Part | What it holds | Arrives as |
+| --- | --- | --- |
+| `body` | The request body. | JSON with its types: numbers, booleans, objects. |
+| `params` | The route parameters, like `:id`. | Text. |
+| `query` | The URL query parameters, like `?page=2`. | Text. |
+
+Since `params` and `query` always arrive as text, use `z.coerce` to convert them:
+
+```ts
+const BookParams = z.object({ id: z.coerce.number().int().positive() });
+const ListBooks = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  search: z.string().optional(),
+});
+
+@Get()
+@Validate({ query: ListBooks })
+list({ query }: HttpContext<{ query: typeof ListBooks }>) {
+  return this.books.list(query.page, query.search);
+}
+
+@Put('/:id')
+@Validate({ params: BookParams, body: CreateBook })
+update({ params, body }: HttpContext<{ params: typeof BookParams; body: typeof CreateBook }>) {
+  return this.books.update(params.id, body);
+}
+```
+
+On `GET /books`, `query.page` is `1` because of the `default`. On `GET /books?page=3`, it's the number `3`, not the text `'3'`.
+
+### An alias for the context
+
+If the context type gets long, declare an alias once:
+
+```ts
+type UpdateBookContext = HttpContext<{ params: typeof BookParams; body: typeof CreateBook }>;
+
+@Put('/:id')
+@Validate({ params: BookParams, body: CreateBook })
+update({ params, body }: UpdateBookContext) {
+  return this.books.update(params.id, body);
+}
+```
+
+## When the data isn't valid
+
+viga validates every part you declared and responds 400 with all the errors together, grouped by part:
+
+```json
+{
+  "statusCode": 400,
+  "code": "errors.validation",
+  "message": "Invalid input data",
+  "error": "Bad Request",
+  "details": {
+    "body": [
+      { "path": "title", "code": "too_small", "message": "Too small: expected string to have >=1 characters" },
+      { "path": "year", "code": "invalid_type", "message": "Invalid input: expected number, received string" }
+    ],
+    "params": [
+      { "path": "id", "code": "invalid_type", "message": "Invalid input: expected number, received NaN" }
+    ]
+  }
+}
+```
+
+Each error has:
+
+- `path`: the field that failed. In nested objects, separated by dots, like `author.name`.
+- `code`: the library's code, if it provides one. Useful for the frontend to show its own message.
+- `message`: the library's message.
+
+The rest of the body follows the format of every [exception](../../core/exceptions/).
+
+## Extra fields are dropped
+
+The method receives what the schema returns, not what the client sent. With `z.object`, fields that aren't in the schema are dropped:
+
+```json
+{ "title": "Dune", "year": 1965, "isAdmin": true }
+```
+
+The method receives `{ title: 'Dune', year: 1965 }`. So even if someone adds `isAdmin` or `ownerId` to the body, that field never reaches your code or your database. This protects against mass assignment, a common attack when the body is saved as-is.
+
+viga also replaces `req.body` with the validated value, so code that reads it by mistake doesn't get the dropped fields either.
+
+If you'd rather reject the request when there are extra fields instead of dropping them, use `z.strictObject`.
+
+## Every route with a body needs `@Validate`
+
+A route without `@Validate({ body })` doesn't accept a body: if someone sends one, viga responds 400 with the code `errors.unexpectedBody`. That way you can't forget to validate a route that receives data; you'll see it on the first test.
+
+Routes without a body, like a `POST /logout`, need nothing.
+
+This behavior is called `requireValidation` and is on by default. You can turn it off with `createApp({ requireValidation: false })`, and then every route receives the body as sent. I don't recommend it.
+
+## Customize the messages
+
+`ValidationModule.forRoot` accepts `formatIssue`, a function that receives each original error from the library and returns the message. If it returns `undefined`, the library's message is used:
+
+```ts title="src/app.module.ts"
+import { Module } from 'viga';
+import { ValidationModule } from 'viga/validation';
+
+@Module({
+  imports: [
+    ValidationModule.forRoot({
+      formatIssue: (issue) => {
+        const { code } = issue as { code?: string };
+        return code === 'too_small' ? 'Too short' : undefined;
+      },
+    }),
+    BooksModule,
+  ],
+})
+export class AppModule {}
+```
+
+`formatIssue` receives the library's full error, so it can read any of its fields, like minimums or maximums, to build the message. The Standard Schema type only guarantees `message` and `path`; each library's own fields, like Zod's `code`, are read with a type cast like the one in the example. It's the place to translate validation messages, together with `viga/i18n`.
+
+`ValidationModule` is a global module, so it goes in the root module's `imports`. It's not required: without it, `@Validate` works with the library's messages.
+
+## Other libraries
+
+Any library compatible with Standard Schema works the same. With Valibot:
+
+```ts
+import * as v from 'valibot';
+
+const CreateBook = v.object({
+  title: v.pipe(v.string(), v.minLength(1)),
+  year: v.pipe(v.number(), v.integer()),
+});
+
+@Post()
+@Validate({ body: CreateBook })
+create({ body }: HttpContext<{ body: typeof CreateBook }>) {
+  return this.books.create(body);
+}
+```
+
+Asynchronous schemas, for example with a `refine` that queries the database, also work: viga waits for them to finish.

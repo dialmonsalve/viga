@@ -1,9 +1,6 @@
 ---
 title: viga/validation
 description: Valida el cuerpo, los parámetros y la query de cada ruta con Zod, Valibot o ArkType, y recibe los datos ya tipados.
-pending: true
-banner:
-  content: Esta página está en revisión y todavía no está traducida.
 sidebar:
   order: 1
 ---
@@ -178,7 +175,10 @@ import { ValidationModule } from 'viga/validation';
 @Module({
   imports: [
     ValidationModule.forRoot({
-      formatIssue: (issue) => (issue.code === 'too_small' ? 'Demasiado corto' : undefined),
+      formatIssue: (issue) => {
+        const { code } = issue as { code?: string };
+        return code === 'too_small' ? 'Demasiado corto' : undefined;
+      },
     }),
     BooksModule,
   ],
@@ -186,7 +186,7 @@ import { ValidationModule } from 'viga/validation';
 export class AppModule {}
 ```
 
-`formatIssue` recibe el error completo de la librería, así que puede leer cualquiera de sus campos, como los mínimos o máximos, para construir el mensaje. Es el lugar para traducir los mensajes de validación, junto con `viga/i18n`.
+`formatIssue` recibe el error completo de la librería, así que puede leer cualquiera de sus campos, como los mínimos o máximos, para construir el mensaje. El tipo de Standard Schema solo garantiza `message` y `path`; los campos propios de cada librería, como el `code` de Zod, se leen con una conversión de tipo como la del ejemplo. Es el lugar para traducir los mensajes de validación, junto con `viga/i18n`.
 
 `ValidationModule` es un módulo global, así que va en los `imports` del módulo raíz. No es obligatorio: sin él, `@Validate` funciona con los mensajes de la librería.
 

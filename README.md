@@ -210,22 +210,7 @@ These messages are for developers. The ones end users see in HTTP responses are 
 
 ## viga/validation
 
-```ts
-import { Validate, ValidationModule } from 'viga/validation';
-import { z } from 'zod';
-
-const CreateBook = z.object({ title: z.string().min(1) });
-
-@Post()
-@Validate({ body: CreateBook })
-create({ body }: HttpContext<{ body: typeof CreateBook }>) {
-  return this.books.create(body);
-}
-```
-
-- Validates `body`, `query` and `params` with any schema that implements Standard Schema, async ones included. `HttpContext<{ body: typeof Schema }>` types the parsed data. The handler can also take a context that extends it (for example one that another decorator adds fields to), and TypeScript still rejects a schema that doesn't match.
-- On failure it responds 400 with `code: 'errors.validation'` and, in `details`, the errors for each part of the request: `{ path, code?, message }`.
-- `ValidationModule.forRoot({ formatIssue })` is optional and customizes the text of each error, for example to translate it. `formatIssue` receives the library's original issue, so it can read any of its fields.
+See [viga/validation](https://vigajs.dev/en/optional/validation/) in the documentation.
 
 ## viga/i18n
 
