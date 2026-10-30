@@ -110,4 +110,4 @@ const { body } = await app.request('/books');
 await app.close();
 ```
 
-`body` contém o livro de teste: o serviço e o controller são os reais, e só o repositório mudou. Você pode executar este arquivo com o `tsx` ou dentro da sua ferramenta de testes, como o `node:test`, que você verá na seção de testes.
+`body` contém o livro de teste: o serviço e o controller são os reais, e só o repositório mudou. Você pode executar este arquivo com o `tsx` ou dentro da sua ferramenta de testes, como o `node:test`, que você verá em [viga/testing](../../optional/testing/).

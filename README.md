@@ -423,35 +423,7 @@ An adapter receives the gateway `paths`, `maxPayload`, `heartbeatMs`, `verify(re
 
 ## viga/testing
 
-```ts
-import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
-import { createTestingApp } from 'viga/testing';
-
-describe('books', () => {
-  it('lists the books', async () => {
-    const app = await createTestingApp(AppModule, {
-      overrides: [{ provide: BooksRepository, useValue: { findAll: () => [{ id: 1 }] } }],
-      configure: (app) => app.useAuthGuard(() => true),
-    });
-
-    try {
-      const { status, body } = await app.request('/books');
-      assert.equal(status, 200);
-      assert.deepEqual(body, [{ id: 1 }]);
-    } finally {
-      await app.close();
-    }
-  });
-});
-```
-
-- `createTestingApp(Module, options)` starts the app on a free port of `127.0.0.1` with a silent logger. It accepts the same options as `createApp`.
-- It keeps the production defaults: private routes respond 401 until `configure` adds `useAuthGuard()`, and `requireValidation` and `csrf` stay on. That way tests catch the same mistakes production would.
-- `overrides` replaces providers wherever they're declared, in imported and global modules too, without changing which modules can see them. The original is never created, so a fake `DatabaseService` doesn't open a pool. An override that matches no provider throws, to catch typos.
-- To change the configuration without touching `process.env`, override `CONFIG`: `{ provide: CONFIG, useValue: { PORT: 0, DATABASE_URL: '...' } }`. That value isn't checked against the schema.
-- `app.request(path, { method, json, body, headers })` returns `status`, `headers` and `body`, parsed when the response is JSON. `app.url(path)` returns the full `http://` URL for other clients; for a WebSocket, change the scheme to `ws://`. `app.get(Token)` returns a provider the root module can see.
-- Call `app.close()` at the end of each test so the server and the providers shut down.
+See [viga/testing](https://vigajs.dev/en/optional/testing/) in the documentation.
 
 ## Development
 

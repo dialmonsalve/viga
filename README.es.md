@@ -423,35 +423,7 @@ Un adaptador recibe las rutas de los gateways (`paths`), `maxPayload`, `heartbea
 
 ## viga/testing
 
-```ts
-import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
-import { createTestingApp } from 'viga/testing';
-
-describe('books', () => {
-  it('lista los libros', async () => {
-    const app = await createTestingApp(AppModule, {
-      overrides: [{ provide: BooksRepository, useValue: { findAll: () => [{ id: 1 }] } }],
-      configure: (app) => app.useAuthGuard(() => true),
-    });
-
-    try {
-      const { status, body } = await app.request('/books');
-      assert.equal(status, 200);
-      assert.deepEqual(body, [{ id: 1 }]);
-    } finally {
-      await app.close();
-    }
-  });
-});
-```
-
-- `createTestingApp(Module, opciones)` arranca la app en un puerto libre de `127.0.0.1` con un logger silencioso. Acepta las mismas opciones que `createApp`.
-- Mantiene los valores por defecto de producción: las rutas privadas responden 401 hasta que `configure` añade `useAuthGuard()`, y `requireValidation` y `csrf` siguen activos. Así las pruebas detectan los mismos errores que verías en producción.
-- `overrides` reemplaza providers donde estén declarados, también en módulos importados y globales, sin cambiar qué módulos pueden verlos. El original nunca se crea, así que un `DatabaseService` falso no abre un pool. Un override que no coincide con ningún provider lanza un error, para detectar errores de escritura.
-- Para cambiar la configuración sin tocar `process.env`, sobrescribe `CONFIG`: `{ provide: CONFIG, useValue: { PORT: 0, DATABASE_URL: '...' } }`. Ese valor no se comprueba contra el schema.
-- `app.request(path, { method, json, body, headers })` devuelve `status`, `headers` y `body`, parseado cuando la respuesta es JSON. `app.url(path)` devuelve la URL `http://` completa para otros clientes; para un WebSocket, cambia el esquema a `ws://`. `app.get(Token)` devuelve un provider que el módulo raíz puede ver.
-- Llama a `app.close()` al final de cada prueba para que se cierren el servidor y los providers.
+Consulta [viga/testing](https://vigajs.dev/es/optional/testing/) en la documentación.
 
 ## Desarrollo
 
