@@ -1,0 +1,257 @@
+---
+title: viga/drizzle
+description: Conecte sua aplicação ao PostgreSQL com o Drizzle ORM, com transações que atravessam serviços e repositórios sem passá-las como parâmetro.
+sidebar:
+  order: 6
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`viga/drizzle` conecta sua aplicação ao PostgreSQL com o [Drizzle ORM](https://orm.drizzle.team). Ele cria o pool de conexões, o fecha ao parar a aplicação e dá a você um `DatabaseService` que pode ser injetado em qualquer repositório. Sua parte mais útil são as transações: vários repositórios escrevem dentro da mesma transação sem que você precise passá-la de um método para outro.
+
+## Instalação
+
+`viga/drizzle` usa o Drizzle ORM e o driver `pg`, que você instala:
+
+<Tabs syncKey="pkg">
+  <TabItem label="pnpm">
+    ```sh
+    pnpm add drizzle-orm pg
+    pnpm add -D @types/pg
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```sh
+    npm install drizzle-orm pg
+    npm install -D @types/pg
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```sh
+    yarn add drizzle-orm pg
+    yarn add -D @types/pg
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```sh
+    bun add drizzle-orm pg
+    bun add -d @types/pg
+    ```
+  </TabItem>
+</Tabs>
+
+O viga funciona com `drizzle-orm` a partir da versão 0.45 e antes da 1.0.
+
+## Defina o schema
+
+Descreva suas tabelas com o Drizzle e registre o schema em `viga/drizzle`:
+
+```ts title="src/database/schema.ts"
+import { integer, pgTable, serial, text } from 'drizzle-orm/pg-core';
+
+export const books = pgTable('books', {
+  id: serial('id').primaryKey(),
+  title: text('title').notNull(),
+  stock: integer('stock').notNull().default(0),
+});
+
+declare module 'viga/drizzle' {
+  interface Register {
+    schema: typeof import('./schema.ts');
+  }
+}
+```
+
+O bloco `declare module` faz `database.db` conhecer suas tabelas, igual em [`viga/config`](../config/). Só é preciso uma vez no projeto.
+
+## Registre o módulo
+
+`DrizzleModule.forRoot` é um módulo global e vai no módulo raiz:
+
+```ts title="src/app.module.ts"
+import { Module } from 'viga';
+import { ConfigModule } from 'viga/config';
+import { DrizzleModule } from 'viga/drizzle';
+import { BooksModule } from './books/books.module.ts';
+import { Env } from './config.ts';
+import * as schema from './database/schema.ts';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({ schema: Env }),
+    DrizzleModule.forRoot({ connection: { connectionString: process.env.DATABASE_URL }, schema }),
+    BooksModule,
+  ],
+})
+export class AppModule {}
+```
+
+As opções de `forRoot` são lidas quando o módulo é definido, antes de a aplicação iniciar, então a URL é tirada diretamente de `process.env`. Se você valida `DATABASE_URL` com `viga/config` e coloca `ConfigModule` antes nos `imports`, uma URL ausente ou inválida impede a aplicação de iniciar antes de o banco de dados ser usado.
+
+`connection` aceita uma URL ou a configuração completa do `Pool` do `pg`, com `host`, `user`, `max` e o resto das opções.
+
+## Consulte o banco de dados
+
+Peça `DatabaseService` nos seus repositórios e use `database.db`:
+
+```ts title="src/books/books.repository.ts"
+import { Injectable, inject } from 'viga';
+import { DatabaseService } from 'viga/drizzle';
+import { eq } from 'drizzle-orm';
+import { books } from '../database/schema.ts';
+
+@Injectable()
+export class BooksRepository {
+  private readonly database = inject(DatabaseService);
+
+  findAll() {
+    return this.database.db.select().from(books).orderBy(books.id);
+  }
+
+  findOne(id: number) {
+    return this.database.db.query.books.findFirst({ where: eq(books.id, id) });
+  }
+
+  create(title: string) {
+    return this.database.db.insert(books).values({ title }).returning();
+  }
+}
+```
+
+`database.db` é uma instância do Drizzle com o seu schema: você pode usar tanto o construtor de consultas (`select`, `insert`) quanto a API relacional (`query.books`). Use sempre `database.db` nos repositórios; o motivo está nas transações.
+
+## Transações
+
+`database.transaction()` executa uma função dentro de uma transação. Se qualquer passo lançar um erro, tudo é revertido:
+
+```ts title="src/receipts/receipts.service.ts"
+@Injectable()
+export class ReceiptsService {
+  private readonly database = inject(DatabaseService);
+  private readonly entries = inject(EntriesRepository);
+  private readonly stock = inject(StockRepository);
+  private readonly orders = inject(OrdersRepository);
+
+  receive(orderId: number, lines: ReceivedLine[]) {
+    return this.database.transaction(async () => {
+      const entry = await this.entries.create(orderId, lines);
+      await this.stock.add(lines);
+      await this.orders.markReceived(orderId);
+      return entry;
+    });
+  }
+}
+```
+
+Os três repositórios não recebem a transação como parâmetro: usam `database.db`, como sempre. Dentro de `transaction()`, `database.db` é a transação em andamento; fora, é a conexão normal. O viga sabe disso graças ao [contexto da requisição](../../core/request-lifecycle/#o-contexto-da-requisição), então duas transações simultâneas nunca se misturam.
+
+### Como decorator
+
+`@Transactional()` envolve um método inteiro em uma transação:
+
+```ts
+import { Transactional } from 'viga/drizzle';
+
+@Transactional()
+async receive(orderId: number, lines: ReceivedLine[]) {
+  const entry = await this.entries.create(orderId, lines);
+  await this.stock.add(lines);
+  await this.orders.markReceived(orderId);
+  return entry;
+}
+```
+
+### Nível de isolamento
+
+Tanto `transaction()` quanto `@Transactional()` aceitam a configuração do PostgreSQL:
+
+```ts
+@Transactional({ isolationLevel: 'serializable' })
+async adjustStock(bookId: number, quantity: number) { ... }
+```
+
+As opções são `isolationLevel`, `accessMode` e `deferrable`. Só podem ser usadas na transação externa: uma transação aninhada que tente mudá-las lança um erro.
+
+### Transações aninhadas
+
+Uma transação dentro de outra cria um ponto de salvamento (`SAVEPOINT`). Se a interna falhar:
+
+- **e você capturar o erro**, só o trabalho dela é revertido, e a externa continua;
+- **e você não o capturar**, o erro chega à externa e tudo é revertido.
+
+```ts
+await this.database.transaction(async () => {
+  await this.orders.create(order);
+
+  try {
+    await this.database.transaction(() => this.rewards.grant(order.userId));
+  } catch {
+    this.logger.warn('Não foi possível dar os pontos; o pedido é salvo mesmo assim');
+  }
+});
+```
+
+### Tenha em conta
+
+- **`database.inTransaction()`** diz se há uma transação em andamento. **`database.root`** é sempre a conexão normal, fora de qualquer transação.
+- **Para SQL direto**, use ``database.db.execute(sql`...`)``, que respeita a transação em andamento. `database.pool` fala com o PostgreSQL diretamente e a ignora.
+- **Não execute transações aninhadas em paralelo** com `Promise.all` dentro da mesma transação: elas compartilham uma única conexão, e seus pontos de salvamento se misturariam. Execute-as uma depois da outra.
+
+## A conexão
+
+### Tempos máximos
+
+O pool traz limites por padrão, para que uma consulta lenta ou uma transação esquecida não retenham conexões para sempre:
+
+| Opção | Padrão | O que limita |
+| --- | --- | --- |
+| `statement_timeout` | 30 segundos | Quanto uma consulta pode durar. |
+| `connectionTimeoutMillis` | 10 segundos | Quanto se espera para obter uma conexão. |
+| `idle_in_transaction_session_timeout` | 60 segundos | Quanto uma transação pode ficar aberta sem fazer nada. |
+
+Qualquer uma delas pode ser mudada em `connection`:
+
+```ts
+DrizzleModule.forRoot({
+  connection: { connectionString: process.env.DATABASE_URL, statement_timeout: 120_000 },
+  schema,
+});
+```
+
+### TLS
+
+Ao iniciar, o viga avisa no log se a conexão não for segura:
+
+- Se ela se conecta **sem TLS** a um servidor que não é local, porque as credenciais e os dados viajariam em texto puro.
+- Se ela usa TLS com **`rejectUnauthorized: false`**, porque não verifica o certificado do servidor e alguém no meio poderia ler a conexão.
+
+Em produção, adicione `?sslmode=verify-full` à URL ou passe o certificado do seu provedor em `ssl: { ca }`. As conexões a `localhost` não geram aviso.
+
+### Encerramento e erros
+
+- `app.close()` fecha o pool, então [`enableShutdownHooks()`](../../core/app-lifecycle/#ao-receber-um-sinal) basta para que as conexões sejam fechadas corretamente ao parar a aplicação.
+- Os erros das conexões inativas, por exemplo se o PostgreSQL reiniciar, vão para o log e não derrubam o processo.
+
+## Migrações
+
+`viga/drizzle` não gerencia as migrações. Use o [drizzle-kit](https://orm.drizzle.team/docs/kit-overview), a ferramenta do Drizzle, que gera e aplica as migrações a partir do mesmo schema.
+
+## Outro ORM
+
+O viga não precisa de um adaptador para outros ORMs, como Prisma ou Kysely. Registre-os como um provider que fecha sua conexão em `onModuleDestroy`:
+
+```ts title="src/database/prisma.service.ts"
+import { Injectable, type OnModuleDestroy } from 'viga';
+import { PrismaClient } from '@prisma/client';
+
+@Injectable()
+export class PrismaService implements OnModuleDestroy {
+  readonly client = new PrismaClient();
+
+  onModuleDestroy() {
+    return this.client.$disconnect();
+  }
+}
+```
+
+O que você perde em relação a `viga/drizzle` são as transações que atravessam repositórios sem passá-las como parâmetro; se precisar delas, pode construí-las com uma [chave de contexto](../../core/request-lifecycle/#o-contexto-da-requisição), assim como `viga/drizzle` faz.

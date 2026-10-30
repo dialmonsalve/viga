@@ -5,5 +5,5 @@ pending: true
 banner:
   content: Esta página está en construcción.
 sidebar:
-  order: 6
+  order: 8
 ---
