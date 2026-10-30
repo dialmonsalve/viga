@@ -188,21 +188,7 @@ Consulta [Excepciones](https://vigajs.dev/es/core/exceptions/) en la documentaci
 
 ### Mensajes para desarrolladores
 
-Los errores y logs del propio framework (`[DI] BooksModule cannot resolve BooksService…`) están en inglés por defecto. Se adaptan con un diccionario, que se configura en `main.ts` antes de `createApp()`:
-
-```ts
-import { setDiagnostics } from 'viga';
-import { diagnosticsEs } from 'viga/i18n';
-
-setDiagnostics(diagnosticsEs);
-```
-
-- `viga/i18n` trae el diccionario completo en español.
-- Un diccionario puede ser parcial: las claves que no traduce siguen en inglés.
-- `DIAGNOSTICS` contiene los textos originales en inglés, para usar como referencia al crear otro diccionario. Los `{parámetros}` se interpolan solos y el prefijo (`[DI]`, `[App]`…) se agrega automáticamente.
-- `setDiagnostics({})` vuelve al inglés.
-
-Estos mensajes son para quien programa. Los que ve el usuario final en las respuestas HTTP se configuran con `resolveMessage` o `viga/i18n`.
+Consulta [Mensajes para desarrolladores](https://vigajs.dev/es/optional/i18n/#mensajes-para-desarrolladores) en la documentación.
 
 ### Logger
 
@@ -214,22 +200,7 @@ Consulta [viga/validation](https://vigajs.dev/es/optional/validation/) en la doc
 
 ## viga/i18n
 
-```ts
-import { I18n } from 'viga/i18n';
-
-const i18n = new I18n({ defaultLocale: 'es', catalogs: { es, en } });
-
-const app = createApp({ rootModule: AppModule, resolveMessage: i18n.resolveMessage })
-  .use(i18n.middleware);
-```
-
-- `i18n.middleware` elige el idioma con `Accept-Language` y responde con `Content-Language`. Sin cabecera o sin coincidencia, usa `defaultLocale`.
-- `resolveLocale` lee el idioma de otro sitio antes que de `Accept-Language`: el nombre de una cabecera (`resolveLocale: 'x-lang'`) o una función (`resolveLocale: (req) => req.cookies.lang`). Si no devuelve un idioma de tus catálogos, se sigue con `Accept-Language` y luego con `defaultLocale`; nunca se usa un valor desconocido.
-- Las claves de los catálogos se anidan: `'books.notFound'` busca `{ books: { notFound: '…' } }`.
-- `i18n.resolveMessage` traduce los códigos de las excepciones. Trae en español e inglés los mensajes del framework, y tus catálogos pueden reemplazarlos.
-- `i18n.t(key, params)` e `i18n.locale()` usan el idioma de la petición en curso, en cualquier servicio.
-- `i18n.match(valor)` devuelve el idioma soportado que coincide con un valor (`'pt-BR'` → `'pt'`), o `undefined`; `i18n.negotiate(acceptLanguage)` usa `defaultLocale` si no hay coincidencia.
-- Combinado con validación: `ValidationModule.forRoot({ formatIssue: (issue) => traducir(issue, i18n.locale()) })`.
+Consulta [viga/i18n](https://vigajs.dev/es/optional/i18n/) en la documentación.
 
 ## viga/config
 

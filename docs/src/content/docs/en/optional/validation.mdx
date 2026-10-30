@@ -175,10 +175,7 @@ import { ValidationModule } from 'viga/validation';
 @Module({
   imports: [
     ValidationModule.forRoot({
-      formatIssue: (issue) => {
-        const { code } = issue as { code?: string };
-        return code === 'too_small' ? 'Too short' : undefined;
-      },
+      formatIssue: (issue) => ('code' in issue && issue.code === 'too_small' ? 'Too short' : undefined),
     }),
     BooksModule,
   ],
@@ -186,7 +183,7 @@ import { ValidationModule } from 'viga/validation';
 export class AppModule {}
 ```
 
-`formatIssue` receives the library's full error, so it can read any of its fields, like minimums or maximums, to build the message. The Standard Schema type only guarantees `message` and `path`; each library's own fields, like Zod's `code`, are read with a type cast like the one in the example. It's the place to translate validation messages, together with `viga/i18n`.
+`formatIssue` receives the library's full error, so it can read any of its fields, like minimums or maximums, to build the message. The Standard Schema type only guarantees `message` and `path`. To read a library's own field, like Zod's `code`, first check that it exists with `in`: TypeScript gives it the type `unknown` and makes you check its value before using it. It's the place to translate validation messages, together with `viga/i18n`.
 
 `ValidationModule` is a global module, so it goes in the root module's `imports`. It's not required: without it, `@Validate` works with the library's messages.
 

@@ -1,0 +1,296 @@
+---
+title: viga/i18n
+description: Responda no idioma de cada usuário, com catálogos de mensagens, negociação com Accept-Language e os erros do framework já traduzidos.
+sidebar:
+  order: 5
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`viga/i18n` escolhe o idioma de cada requisição e traduz as mensagens da sua API para esse idioma, incluindo as dos erros. Você escreve os textos em catálogos, um por idioma, e o viga escolhe qual usar conforme o que o cliente pedir.
+
+As mensagens de erro do próprio framework já vêm traduzidas para inglês e espanhol. Para português, você as traduz no seu catálogo, como explicado em [Outros idiomas](#outros-idiomas).
+
+## Configure os idiomas
+
+Escreva um catálogo por idioma. As chaves podem ser aninhadas:
+
+```ts title="src/i18n.ts"
+import { I18n } from 'viga/i18n';
+
+const pt = {
+  books: {
+    notFound: 'O livro {id} não existe',
+    created: 'Livro criado',
+  },
+};
+
+const en = {
+  books: {
+    notFound: 'Book {id} does not exist',
+    created: 'Book created',
+  },
+};
+
+export const i18n = new I18n({ defaultLocale: 'pt', catalogs: { pt, en } });
+```
+
+A chave `books.notFound` procura `{ books: { notFound: '…' } }`. O que vai entre chaves, como `{id}`, é substituído pelo parâmetro de mesmo nome.
+
+Depois conecte `i18n` à aplicação em `main.ts`:
+
+```ts title="src/main.ts" ins={3,5,6}
+import { createApp } from 'viga';
+import { AppModule } from './app.module.ts';
+import { i18n } from './i18n.ts';
+
+const app = createApp({ rootModule: AppModule, resolveMessage: i18n.resolveMessage }).enableShutdownHooks();
+app.use(i18n.middleware);
+
+await app.listen();
+```
+
+- `i18n.middleware` escolhe o idioma de cada requisição e o informa no cabeçalho de resposta `Content-Language`.
+- `resolveMessage: i18n.resolveMessage` traduz as mensagens das [exceções](../../core/exceptions/#seus-próprios-códigos-e-mensagens).
+
+`defaultLocale` precisa ser um dos idiomas de `catalogs`. Se não for, a aplicação não inicia:
+
+```txt
+[I18n] The default locale "es" is not among the catalogs: pt, en
+```
+
+## Erros traduzidos
+
+Com essa configuração, uma exceção com um código do seu catálogo responde no idioma do cliente:
+
+```ts
+throw new NotFoundException('books.notFound', { id: 7 });
+```
+
+| Requisição | `message` da resposta |
+| --- | --- |
+| `Accept-Language: pt-BR,pt;q=0.9` | `O livro 7 não existe` |
+| `Accept-Language: en` | `Book 7 does not exist` |
+| `Accept-Language: fr` | `O livro 7 não existe` (o idioma padrão) |
+
+Se um texto faltar em um idioma, o viga usa o do idioma padrão. Assim, uma tradução incompleta nunca mostra uma chave como `books.notFound` ao usuário.
+
+### Outros idiomas
+
+O viga só traz suas mensagens em inglês e espanhol: os erros do framework, como o 404 de `NotFoundException()` sem argumentos ou os de validação, saem como `The requested resource does not exist` em inglês e `El recurso solicitado no existe` em espanhol. Para português, ou qualquer outro idioma, traduza também os códigos `errors.*` no seu catálogo; senão, essas mensagens saem em inglês:
+
+```ts
+const pt = {
+  books: { notFound: 'O livro {id} não existe' },
+  errors: {
+    notFound: 'O recurso solicitado não existe',
+    validation: 'Dados de entrada inválidos',
+  },
+};
+```
+
+Seu catálogo também pode substituir os textos que o viga traz em inglês ou espanhol, se você preferir outra redação.
+
+## Como o idioma é escolhido
+
+Para cada requisição, `i18n.middleware` tenta nesta ordem e usa o primeiro idioma que estiver nos seus catálogos:
+
+1. `resolveLocale`, se você o configurou.
+2. O cabeçalho `Accept-Language`, respeitando as preferências do navegador.
+3. `defaultLocale`.
+
+`Accept-Language` pode trazer variantes regionais, como `pt-BR` ou `es-CO`: o viga as reduz ao idioma, `pt` ou `es`. Um valor que não está nos seus catálogos nunca é usado.
+
+### Escolha o idioma de outra forma
+
+Muitas aplicações deixam o usuário escolher o idioma, em vez de depender do navegador. `resolveLocale` lê esse idioma antes de `Accept-Language`. Pode ser o nome de um cabeçalho:
+
+```ts
+new I18n({ defaultLocale: 'pt', catalogs: { pt, en }, resolveLocale: 'x-lang' });
+```
+
+Ou uma função que recebe a requisição, por exemplo para ler um cookie com `cookie-parser`:
+
+```ts
+new I18n({ defaultLocale: 'pt', catalogs: { pt, en }, resolveLocale: (req) => req.cookies?.lang });
+```
+
+Se devolver um idioma que não está nos seus catálogos, ou `undefined`, o viga segue com `Accept-Language`.
+
+## Traduza nos seus serviços
+
+`i18n.t(key, params)` traduz qualquer chave para o idioma da requisição atual, a partir de qualquer serviço:
+
+```ts title="src/books/books.service.ts"
+import { Injectable } from 'viga';
+import { i18n } from '../i18n.ts';
+
+@Injectable()
+export class BooksService {
+  create(data: NewBook) {
+    const book = this.repository.insert(data);
+    return { book, message: i18n.t('books.created') };
+  }
+}
+```
+
+`i18n.locale()` devolve o idioma da requisição atual, por exemplo para formatar datas ou números com `Intl`.
+
+### Fora de uma requisição
+
+Em um script ou uma tarefa em segundo plano não há requisição, então `i18n.t()` usa o idioma padrão. Para usar outro, por exemplo ao enviar um email no idioma do destinatário, envolva o código em `runWithLocale`:
+
+```ts
+import { runWithLocale } from 'viga/i18n';
+
+await runWithLocale(user.locale, () => mailer.send(user.email, i18n.t('emails.welcome')));
+```
+
+### Outras utilidades
+
+- `i18n.match(value)` devolve o idioma suportado que corresponde a um valor, como `'pt-BR'` → `'pt'`, ou `undefined` se nenhum corresponder.
+- `i18n.negotiate(acceptLanguage)` faz o mesmo com um cabeçalho `Accept-Language` e, se não houver correspondência, devolve `defaultLocale`.
+- `i18n.translate(locale, key, params)` traduz para um idioma específico, sem olhar a requisição.
+
+## Mensagens de validação
+
+As mensagens de [`viga/validation`](../validation/) são geradas pela biblioteca de schemas, normalmente em inglês. Para traduzi-las, use `formatIssue` com o identificador de cada erro. Cada biblioteca o nomeia à sua maneira, `code` no Zod e `type` no Valibot, e as chaves do catálogo são os seus valores:
+
+<Tabs syncKey="schema">
+  <TabItem label="Zod">
+    ```ts title="src/app.module.ts"
+    ValidationModule.forRoot({
+      formatIssue: (issue) => {
+        if (!('code' in issue) || typeof issue.code !== 'string') return undefined;
+        const key = `validation.${issue.code}`;
+        return i18n.has(key) ? i18n.t(key) : undefined;
+      },
+    }),
+    ```
+
+    ```ts
+    const pt = {
+      validation: {
+        too_small: 'Muito curto',
+        invalid_type: 'Tipo de dado inválido',
+      },
+    };
+    ```
+  </TabItem>
+  <TabItem label="Valibot">
+    ```ts title="src/app.module.ts"
+    ValidationModule.forRoot({
+      formatIssue: (issue) => {
+        if (!('type' in issue) || typeof issue.type !== 'string') return undefined;
+        const key = `validation.${issue.type}`;
+        return i18n.has(key) ? i18n.t(key) : undefined;
+      },
+    }),
+    ```
+
+    ```ts
+    const pt = {
+      validation: {
+        min_length: 'Muito curto',
+        email: 'O email não é válido',
+      },
+    };
+    ```
+  </TabItem>
+</Tabs>
+
+Os códigos sem tradução mantêm a mensagem original da biblioteca.
+
+### Inclua o nome do campo
+
+Para mensagens como «O nome é muito curto», cada erro traz o campo em `issue.path`, que é igual em todas as bibliotecas. Procure o nome no catálogo e passe-o como parâmetro, junto com os dados do erro de que precisar, como o mínimo (`minimum` no Zod, `requirement` no Valibot):
+
+<Tabs syncKey="schema">
+  <TabItem label="Zod">
+    ```ts title="src/app.module.ts"
+    const fieldOf = (issue: { path?: ReadonlyArray<PropertyKey | { key: PropertyKey }> }) =>
+      (issue.path ?? []).map((segment) => String(typeof segment === 'object' ? segment.key : segment)).join('.');
+
+    ValidationModule.forRoot({
+      formatIssue: (issue) => {
+        if (!('code' in issue) || typeof issue.code !== 'string') return undefined;
+        const minimum = 'minimum' in issue ? Number(issue.minimum) : 0;
+        const key = `validation.${issue.code}`;
+        if (!i18n.has(key)) return undefined;
+
+        const path = fieldOf(issue);
+        const field = i18n.has(`fields.${path}`) ? i18n.t(`fields.${path}`) : path;
+        return i18n.t(key, { field, minimum });
+      },
+    }),
+    ```
+
+    ```ts
+    const pt = {
+      fields: { name: 'O nome', email: 'O email' },
+      validation: {
+        too_small: '{field} é muito curto: mínimo de {minimum} caracteres',
+        invalid_format: '{field} não é válido',
+      },
+    };
+    ```
+  </TabItem>
+  <TabItem label="Valibot">
+    ```ts title="src/app.module.ts"
+    const fieldOf = (issue: { path?: ReadonlyArray<PropertyKey | { key: PropertyKey }> }) =>
+      (issue.path ?? []).map((segment) => String(typeof segment === 'object' ? segment.key : segment)).join('.');
+
+    ValidationModule.forRoot({
+      formatIssue: (issue) => {
+        if (!('type' in issue) || typeof issue.type !== 'string') return undefined;
+        const requirement = 'requirement' in issue ? Number(issue.requirement) : 0;
+        const key = `validation.${issue.type}`;
+        if (!i18n.has(key)) return undefined;
+
+        const path = fieldOf(issue);
+        const field = i18n.has(`fields.${path}`) ? i18n.t(`fields.${path}`) : path;
+        return i18n.t(key, { field, requirement });
+      },
+    }),
+    ```
+
+    ```ts
+    const pt = {
+      fields: { name: 'O nome', email: 'O email' },
+      validation: {
+        min_length: '{field} é muito curto: mínimo de {requirement} caracteres',
+        email: '{field} não é válido',
+      },
+    };
+    ```
+  </TabItem>
+</Tabs>
+
+Com `{ "name": "Al", "email": "x" }`, a resposta traz `O nome é muito curto: mínimo de 3 caracteres` e `O email não é válido`, ou sua versão no idioma de cada requisição.
+
+Tenha em conta:
+
+- **Os campos aninhados funcionam sozinhos.** Um erro em `author.name` procura `fields.author.name`, que no catálogo é `{ fields: { author: { name: '…' } } }`. Se não houver tradução, o caminho é usado como está.
+- **No Zod, um mesmo código pode se referir a coisas diferentes.** O Zod usa `too_small` para textos curtos, números pequenos e listas com poucos itens, e o erro traz `origin` (`'string'`, `'number'`, `'array'`) para distingui-los. Se você valida vários tipos, use chaves como `validation.too_small.string` e `validation.too_small.number`. O Valibot não tem esse problema: usa tipos diferentes, como `min_length` e `min_value`.
+- **Um mesmo nome de campo pode significar coisas diferentes em duas rotas.** `formatIssue` não sabe qual rota está sendo validada, então `name` é traduzido igual em todas. Se isso acontecer, use nomes de campo mais específicos nos schemas.
+
+### Ou deixe o texto para o frontend
+
+Muitas vezes é melhor que o frontend monte a mensagem. Com o Zod, cada erro já traz `path` e `code`, como `{ "path": "name", "code": "too_small" }`, e o frontend conhece o rótulo exato que mostra ao lado de cada campo do formulário. Assim a API devolve dados estáveis, e os textos ficam em um só lugar, junto ao formulário.
+
+## Mensagens para desenvolvedores
+
+Os erros e avisos do próprio framework, como `[DI] BooksModule cannot resolve BooksService…`, estão em inglês. São para quem desenvolve, não para o usuário final. O viga traz uma versão em espanhol; para usá-la, ative-a em `main.ts` antes de `createApp()`:
+
+```ts title="src/main.ts"
+import { setDiagnostics } from 'viga';
+import { diagnosticsEs } from 'viga/i18n';
+
+setDiagnostics(diagnosticsEs);
+```
+
+Esse mesmo erro passa a ser `[DI] BooksModule no puede resolver BooksService…`.
+
+- `setDiagnostics` também aceita um dicionário próprio, para outro idioma, como o português. Pode ser parcial: o que ele não traduzir continua em inglês.
+- `DIAGNOSTICS`, que é importado de `viga`, contém os textos originais em inglês, como referência para escrever outro dicionário.
+- `setDiagnostics({})` volta para o inglês.
