@@ -233,43 +233,7 @@ const app = createApp({ rootModule: AppModule, resolveMessage: i18n.resolveMessa
 
 ## viga/config
 
-```ts
-import { CONFIG, ConfigModule } from 'viga/config';
-import { z } from 'zod';
-
-const Env = z.object({
-  PORT: z.coerce.number().int().default(3000),
-  DATABASE_URL: z.url(),
-  JWT_SECRET: z.string().min(32),
-});
-
-declare module 'viga/config' {
-  interface Register {
-    schema: typeof Env;
-  }
-}
-
-@Module({ imports: [ConfigModule.forRoot({ schema: Env }), BooksModule] })
-class AppModule {}
-
-@Injectable()
-class AuthService {
-  private readonly config = inject(CONFIG);
-}
-
-const app = createApp({ rootModule: AppModule });
-await app.init();
-await app.listen(app.get(CONFIG).PORT);
-```
-
-- The configuration is validated when the app starts (`init()` or `listen()`), with any Standard Schema library. If a variable is missing or invalid, the app doesn't start and the error lists every failing variable.
-- Errors never show a variable's value: if a custom message includes it, it's replaced with `***`, even when it's short or nested inside the source. Only whole occurrences are replaced, so the rest of the message stays readable.
-- Declaring `Register` types `inject(CONFIG)`: `config.PORT` is a `number`, not the string `"3000"`.
-- The result is frozen deeply, nested objects and arrays included, so no code can change the configuration at runtime. With a regular `z.object()`, it only contains the declared variables, not the rest of `process.env`.
-- Outside the container (for example, to pass the port to `listen()`), use `app.get(CONFIG)` after `await app.init()`: `get()` can't be called before the app starts.
-- It reads `process.env` by default; `env` accepts any object, for example one loaded from a file or built in a test.
-- viga doesn't read `.env` files: Node does it with `node --env-file=.env`.
-- The schema must validate synchronously.
+See [viga/config](https://vigajs.dev/en/optional/config/) in the documentation.
 
 ## viga/pagination
 

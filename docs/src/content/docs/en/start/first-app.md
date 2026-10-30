@@ -118,7 +118,7 @@ await app.listen();
 
 - `globalPrefix` puts `/api` in front of every route.
 - `enableShutdownHooks()` shuts the app down in order when the process stops, for example with `Ctrl+C`.
-- `listen()` starts listening on port 3000. The port is optional: `listen(8080)` uses a different one. viga doesn't read the `PORT` environment variable on its own; if you use it, pass it yourself: `app.listen(Number(process.env.PORT ?? 3000))`.
+- `listen()` starts listening on port 3000. The port is optional: `listen(8080)` uses a different one. viga doesn't read the `PORT` environment variable on its own; if you use it, pass it yourself: `app.listen(Number(process.env.PORT ?? 3000))`, or validate it along with the rest of the configuration with [`viga/config`](../../optional/config/#in-maints).
 
 Start it in development mode:
 

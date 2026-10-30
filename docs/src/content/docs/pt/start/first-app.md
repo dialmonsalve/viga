@@ -118,7 +118,7 @@ await app.listen();
 
 - `globalPrefix` coloca `/api` na frente de todas as rotas.
 - `enableShutdownHooks()` encerra a aplicação de forma ordenada quando o processo para, por exemplo com `Ctrl+C`.
-- `listen()` começa a escutar na porta 3000. A porta é opcional: `listen(8080)` usa outra. O viga não lê a variável de ambiente `PORT` por conta própria; se você a usa, passe-a você mesmo: `app.listen(Number(process.env.PORT ?? 3000))`.
+- `listen()` começa a escutar na porta 3000. A porta é opcional: `listen(8080)` usa outra. O viga não lê a variável de ambiente `PORT` por conta própria; se você a usa, passe-a você mesmo: `app.listen(Number(process.env.PORT ?? 3000))`, ou valide-a junto com o resto da configuração com [`viga/config`](../../optional/config/#em-maints).
 
 Inicie em modo de desenvolvimento:
 

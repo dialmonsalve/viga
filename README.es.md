@@ -233,43 +233,7 @@ const app = createApp({ rootModule: AppModule, resolveMessage: i18n.resolveMessa
 
 ## viga/config
 
-```ts
-import { CONFIG, ConfigModule } from 'viga/config';
-import { z } from 'zod';
-
-const Env = z.object({
-  PORT: z.coerce.number().int().default(3000),
-  DATABASE_URL: z.url(),
-  JWT_SECRET: z.string().min(32),
-});
-
-declare module 'viga/config' {
-  interface Register {
-    schema: typeof Env;
-  }
-}
-
-@Module({ imports: [ConfigModule.forRoot({ schema: Env }), BooksModule] })
-class AppModule {}
-
-@Injectable()
-class AuthService {
-  private readonly config = inject(CONFIG);
-}
-
-const app = createApp({ rootModule: AppModule });
-await app.init();
-await app.listen(app.get(CONFIG).PORT);
-```
-
-- La configuración se valida al arrancar la app (`init()` o `listen()`), con cualquier librería Standard Schema. Si falta una variable o es inválida, la app no arranca y el error lista todas las que fallan.
-- Los errores nunca muestran el valor de una variable: si un mensaje personalizado lo incluye, se reemplaza por `***`, aunque sea corto o esté anidado en la fuente. Solo se reemplazan apariciones completas, así que el resto del mensaje sigue legible.
-- Declarar `Register` tipa `inject(CONFIG)`: `config.PORT` es un `number`, no el string `"3000"`.
-- El resultado se congela en profundidad, con objetos y arrays anidados, así que ningún código puede cambiar la configuración en tiempo de ejecución. Con un `z.object()` normal, solo contiene las variables declaradas, no el resto de `process.env`.
-- Fuera del contenedor (por ejemplo, para pasar el puerto a `listen()`), usa `app.get(CONFIG)` después de `await app.init()`: `get()` no se puede llamar antes de que la app arranque.
-- Por defecto lee `process.env`; `env` acepta cualquier objeto, por ejemplo uno cargado de un archivo o creado en un test.
-- viga no lee archivos `.env`: Node lo hace con `node --env-file=.env`.
-- El schema tiene que validar de forma síncrona.
+Consulta [viga/config](https://vigajs.dev/es/optional/config/) en la documentación.
 
 ## viga/pagination
 
