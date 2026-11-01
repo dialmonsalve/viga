@@ -154,7 +154,7 @@ The method receives `{ title: 'Dune', year: 1965 }`. So even if someone adds `is
 
 viga also replaces `req.body` with the validated value, so code that reads it by mistake doesn't get the dropped fields either.
 
-If you'd rather reject the request when there are extra fields instead of dropping them, use `z.strictObject`.
+If you'd rather reject the request when there are extra fields instead of dropping them, use a strict object from your schema library, like `z.strictObject()` in Zod or `v.strictObject()` in Valibot.
 
 ## Every route with a body needs `@Validate`
 

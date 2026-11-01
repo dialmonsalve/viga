@@ -112,7 +112,7 @@ async list({ page, query }: PageContext<{ query: typeof BookFilter }>) {
 }
 ```
 
-`page` and `limit` also arrive in `query`, so the schema has to accept them. A regular `z.object()` accepts and drops them. A `z.strictObject()` rejects them and the request responds 400; if you use it, declare `page` and `limit` in the schema.
+`page` and `limit` also arrive in `query`, so the schema has to accept them. A regular object, like `z.object()`, accepts and drops them. A strict object, like `z.strictObject()` in Zod or `v.strictObject()` in Valibot, rejects them and the request responds 400; if you use one, declare `page` and `limit` in the schema.
 
 ## Limits
 

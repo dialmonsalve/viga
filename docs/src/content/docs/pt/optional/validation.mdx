@@ -154,7 +154,7 @@ O método recebe `{ title: 'Dune', year: 1965 }`. Assim, mesmo que alguém adici
 
 O viga também substitui `req.body` pelo valor validado, de modo que o código que o leia por engano também não recebe os campos descartados.
 
-Se você preferir rejeitar a requisição quando sobram campos em vez de descartá-los, use `z.strictObject`.
+Se você preferir rejeitar a requisição quando sobram campos em vez de descartá-los, use um objeto estrito da sua biblioteca de schemas, como `z.strictObject()` no Zod ou `v.strictObject()` no Valibot.
 
 ## Toda rota com corpo precisa de `@Validate`
 

@@ -125,23 +125,7 @@ Consulta [Límite de peticiones](https://vigajs.dev/es/security/rate-limiting/) 
 
 ### Checklist para pruebas de seguridad
 
-viga solo se encarga de algunas capas comunes. Estas dependen de tu código y son lo primero que revisa una prueba de caja gris, con usuarios y roles reales:
-
-- **Autorización por recurso (IDOR).** Que una ruta exija sesión no basta: comprueba que el recurso pertenece al usuario. Filtra en el repositorio por el usuario actual y responde 404, no 403, cuando no es suyo, para no revelar qué ids existen:
-  ```ts
-  findOwned(id: number) {
-    const { id: ownerId } = CURRENT_USER.get();
-    return this.database.db.query.orders.findFirst({
-      where: and(eq(orders.id, id), eq(orders.ownerId, ownerId)),
-    });
-  }
-  ```
-- **Asignación masiva.** Sin `@Validate`, `ctx.body` llega tal cual lo envía el cliente. Valida todo body que acepte una ruta (`requireValidation` rechaza el body en rutas sin schema) y usa el valor parseado. Con Zod, `z.strictObject()` rechaza campos de más (`"role": "admin"`) en lugar de ignorarlos.
-- **Roles.** Pon el guard de rol en el controlador con `@UseGuards` para que una ruta nueva no quede abierta por olvido.
-- **Fuerza bruta.** Limita login, registro, recuperación de contraseña y verificación de códigos con `@RateLimit`.
-- **CORS.** Lista los orígenes permitidos de forma explícita; nunca `origin: '*'` junto con `credentials: true`.
-- **CSRF.** Mantén `csrf` activo si usas cookies, y nunca cambies estado en un `GET`: no se revisa porque un enlace o una imagen pueden dispararlo.
-- **Mensajes de error.** No distingas "usuario no existe" de "contraseña incorrecta": usa siempre `UnauthorizedException()`.
+Consulta [Lista para pruebas de seguridad](https://vigajs.dev/es/security/checklist/) en la documentación.
 
 ### Errores
 

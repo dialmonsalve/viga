@@ -154,7 +154,7 @@ El método recibe `{ title: 'Dune', year: 1965 }`. Así, aunque alguien añada `
 
 viga también reemplaza `req.body` por el valor validado, de modo que el código que lo lea por error tampoco recibe los campos descartados.
 
-Si prefieres rechazar la petición cuando sobran campos en lugar de descartarlos, usa `z.strictObject`.
+Si prefieres rechazar la petición cuando sobran campos en lugar de descartarlos, usa un objeto estricto de tu librería de esquemas, como `z.strictObject()` en Zod o `v.strictObject()` en Valibot.
 
 ## Toda ruta con cuerpo necesita `@Validate`
 

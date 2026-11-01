@@ -125,23 +125,7 @@ See [Rate limiting](https://vigajs.dev/en/security/rate-limiting/) in the docume
 
 ### Security testing checklist
 
-viga only handles some common layers. These depend on your code and are the first thing a gray-box test checks, with real users and roles:
-
-- **Per-resource authorization (IDOR).** Requiring a session isn't enough: check that the resource belongs to the user. Filter by the current user in the repository and respond 404, not 403, when it isn't theirs, so you don't reveal which ids exist:
-  ```ts
-  findOwned(id: number) {
-    const { id: ownerId } = CURRENT_USER.get();
-    return this.database.db.query.orders.findFirst({
-      where: and(eq(orders.id, id), eq(orders.ownerId, ownerId)),
-    });
-  }
-  ```
-- **Mass assignment.** Without `@Validate`, `ctx.body` arrives exactly as the client sent it. Validate every body a route accepts (`requireValidation` rejects bodies on routes without a schema) and use the parsed value. With Zod, `z.strictObject()` rejects extra fields (`"role": "admin"`) instead of ignoring them.
-- **Roles.** Put the role guard on the controller with `@UseGuards` so a new route isn't left open by accident.
-- **Brute force.** Limit login, sign-up, password recovery and code verification with `@RateLimit`.
-- **CORS.** List the allowed origins explicitly; never `origin: '*'` together with `credentials: true`.
-- **CSRF.** Keep `csrf` on if you use cookies, and never change state in a `GET`: it isn't checked because a link or an image can trigger it.
-- **Error messages.** Don't tell "user doesn't exist" apart from "wrong password": always use `UnauthorizedException()`.
+See [Security testing checklist](https://vigajs.dev/en/security/checklist/) in the documentation.
 
 ### Errors
 
