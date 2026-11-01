@@ -5,6 +5,8 @@ sidebar:
   order: 2
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 Un provider es algo que el contenedor de viga crea y entrega a quien lo pida: un servicio, un repositorio, un valor de configuración. En lugar de que cada clase cree lo que necesita con `new`, lo pide con `inject()` y el contenedor decide qué entregar.
 
 Eso trae dos ventajas. Cada provider se crea una sola vez y se comparte, y puedes reemplazar uno por otro sin tocar a quien lo usa, como viste en [repositorios](../../start/repositories/).
@@ -171,6 +173,79 @@ export class BooksService {
 ```
 
 Tiene los métodos `info`, `warn`, `error` y `debug`.
+
+### Usa tu propio logger
+
+Por defecto, `LOGGER` es `console`, y viga escribe en él sus propios mensajes: el de arranque, los avisos de configuración y los errores 500 con su `requestId`. En producción se suele usar una librería que escribe los logs en JSON, como pino o winston, para enviarlos a un servicio de monitorización.
+
+Para usar otro logger, pásalo a `createApp`. Sirve cualquier objeto con los métodos `info`, `warn`, `error` y `debug`, y es el mismo que recibes con `inject(LOGGER)`:
+
+```ts
+createApp({ rootModule: AppModule, logger: miLogger });
+```
+
+#### Con pino
+
+<Tabs syncKey="pkg">
+  <TabItem label="pnpm">
+    ```sh
+    pnpm add pino
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```sh
+    npm install pino
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```sh
+    yarn add pino
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```sh
+    bun add pino
+    ```
+  </TabItem>
+</Tabs>
+
+viga llama al logger con el mensaje primero y los datos después, como `logger.error(mensaje, error, { requestId })`. pino espera los datos primero y descarta los que vienen detrás, así que si le pasas pino directamente se pierden el error y el `requestId`. Un pequeño adaptador lo resuelve:
+
+```ts title="src/logger.ts"
+import pino from 'pino';
+import type { Logger } from 'viga';
+
+type Level = 'info' | 'warn' | 'error' | 'debug';
+
+export function pinoLogger(log: pino.Logger): Logger {
+  const write = (level: Level) => (message: string, ...meta: unknown[]) => {
+    const err = meta.find((item) => item instanceof Error);
+    const fields: Record<string, unknown> = {};
+    for (const item of meta) {
+      if (item !== err && typeof item === 'object' && item !== null) Object.assign(fields, item);
+    }
+    log[level]({ ...fields, err }, message);
+  };
+  return { info: write('info'), warn: write('warn'), error: write('error'), debug: write('debug') };
+}
+```
+
+```ts title="src/main.ts"
+import pino from 'pino';
+import { createApp } from 'viga';
+import { AppModule } from './app.module.ts';
+import { pinoLogger } from './logger.ts';
+
+const app = createApp({ rootModule: AppModule, logger: pinoLogger(pino()) }).enableShutdownHooks();
+```
+
+Ahora un error 500 llega a pino con el error completo y el id de la petición:
+
+```json
+{"level":50,"msg":"[HTTP] Unhandled exception","requestId":"3f1c9e0a-…","err":{"type":"Error","message":"…","stack":"Error: …"}}
+```
+
+En las pruebas, [`createTestingApp`](../../optional/testing/) usa un logger silencioso para no llenar la salida; pásale `logger` si quieres ver los mensajes.
 
 ## Dependencias circulares
 

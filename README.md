@@ -117,23 +117,9 @@ See [Express middlewares](https://vigajs.dev/en/core/request-lifecycle/#express-
 
 ### Security defaults
 
-These defaults reduce common risks, but they don't make an application secure on their own, and viga can't guarantee that it is. Security also depends on your code, configuration, dependencies and infrastructure, so test and review your app before going to production.
+See [Security defaults](https://vigajs.dev/en/security/defaults/) in the documentation. These defaults reduce common risks, but they don't make an application secure on their own.
 
-| `createApp` option | Default | What it controls |
-|---|---|---|
-| `securityHeaders` | `true` | `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy` and `Cache-Control: no-store`. An object changes (`{ 'Cache-Control': 'private' }`) or removes (`{ 'X-Frame-Options': false }`) headers; `false` disables them all |
-| `bodyLimit` | `'100kb'` | Maximum size of a JSON or urlencoded body. Above it, responds 413. The body is read only on existing routes and after authentication |
-| `trustProxy` | not trusted | Same as Express's `trust proxy`. Behind a proxy, set it to the number of proxies in front of the app (for example `1`) or their addresses, so `req.ip` is the client's. Avoid `true`: it takes the first `X-Forwarded-For` value, which the client can forge to bypass rate limits, and viga logs a warning. WebSocket's `connectionsPerKey` uses the same setting |
-| `timeouts` | `{ headers: 10_000, request: 30_000, keepAlive: 5_000 }` | Milliseconds to receive the headers, the full request, and between requests on one connection. They limit slow-connection attacks |
-| `requestId` | `true` | Generates a UUID per request, sends it in `X-Request-Id`, includes it in errors (`requestId`) and in the 500 log. `{ trustIncoming: true }` reuses the one your gateway sends if it only has letters, digits, `.`, `_` or `-` (128 max); `{ header }` changes the header; `false` disables it |
-| `requireValidation` | `true` | A route without a body schema doesn't accept a body: it isn't parsed, and a request that sends one responds 400 `errors.unexpectedBody`. A `POST` without a body, like a logout, needs no decorator, and if you forget `@Validate({ body })` on a create route you see the 400 on the first request, so an unvalidated body never reaches a handler. It applies to every method. After `@Validate`, `ctx.req.body` holds the validated value too, so code that reads it by mistake doesn't get fields the schema dropped. `false` turns it off and every route receives the body as sent |
-| `concealRoutes` | on with an auth guard | An unknown route responds 401 to anyone without a session, just like a private route, which makes it harder to find out which routes exist. With a valid session it responds 404; `@Public` routes don't change. It also applies to `viga/websocket` handshakes: an unknown path answers like a private gateway (403 for a forbidden `Origin`, 401 without a session, 404 with one). It's on by default when the app has `useAuthGuard()`, and off without one so a fully public API keeps answering 404. `false` or `true` forces it |
-| `csrf` | `true` | Rejects with 403 (`errors.crossSiteRequest`) a `POST` from another site that a browser can send without a CORS preflight: no body, a form (`urlencoded`, `multipart`) or `text/plain`. These are the requests a page on another site can make the browser send with your users' cookies without a preflight. It reads `Sec-Fetch-Site`, or compares `Origin` with the host when that header is missing, and runs before the body is parsed. JSON, `PUT`, `PATCH` and `DELETE` from another origin aren't checked because the browser sends them only after a preflight, which your CORS setup decides. Requests without either header, such as curl or a backend, pass. `{ trustedOrigins: ['https://idp.example'] }` allows forms from those origins, for example an OAuth `form_post` callback; `false` disables it |
-
-- The `X-Powered-By` header is always disabled.
-- The 404 for unknown routes doesn't echo the requested path.
-- `DEFAULT_SECURITY_HEADERS` exports the default headers.
-- `REQUEST_ID.get()` returns the current request id from any service.
+- `trustProxy` (not trusted by default) works like Express's `trust proxy`. Behind a proxy, set it to the number of proxies in front of the app (for example `1`) so `req.ip` is the client's. Avoid `true`: the client can forge `X-Forwarded-For` to bypass rate limits, and viga logs a warning.
 
 ### Rate limiting
 
@@ -192,7 +178,7 @@ See [Developer messages](https://vigajs.dev/en/optional/i18n/#developer-messages
 
 ### Logger
 
-`createApp({ logger })` accepts any object with `info`, `warn`, `error` and `debug` (`console` by default). It is available in every module with `inject(LOGGER)`.
+See [Use your own logger](https://vigajs.dev/en/core/providers/#use-your-own-logger) in the documentation.
 
 ## viga/validation
 

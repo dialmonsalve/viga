@@ -1,0 +1,156 @@
+---
+title: Valores padrão
+description: As proteções que o viga ativa sem configurar nada, o que cada uma faz, seus limites e como alterá-las.
+sidebar:
+  order: 1
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+O viga ativa várias proteções sem que você precise configurar nada. Esta página explica o que cada uma faz e como alterá-la.
+
+:::caution
+Esses valores reduzem riscos comuns, mas não tornam uma aplicação segura por si sós, e o viga não pode garantir que ela seja. A segurança também depende do seu código, da sua configuração, das suas dependências e da sua infraestrutura. Teste e revise sua aplicação antes de levá-la para produção; a [lista para testes de segurança](../checklist/) é um bom ponto de partida.
+:::
+
+Todas as opções desta página são passadas para `createApp`:
+
+```ts title="src/main.ts"
+const app = createApp({
+  rootModule: AppModule,
+  bodyLimit: '1mb',
+  timeouts: { request: 60_000 },
+});
+```
+
+## Cabeçalhos de segurança
+
+O viga adiciona estes cabeçalhos a todas as respostas, incluindo as de erro:
+
+| Cabeçalho | Valor | O que faz |
+| --- | --- | --- |
+| `Content-Security-Policy` | `default-src 'none'; frame-ancestors 'none'` | Impede que o navegador carregue ou execute conteúdo a partir de uma resposta da API, e que outra página a mostre dentro de um `<iframe>`. |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` | Pede ao navegador que use sempre HTTPS com o seu domínio durante um ano. |
+| `X-Content-Type-Options` | `nosniff` | Impede que o navegador adivinhe o tipo de uma resposta e interprete, por exemplo, um JSON como HTML. |
+| `X-Frame-Options` | `DENY` | O mesmo que `frame-ancestors`, para navegadores antigos: impede que outra página mostre sua API dentro de um `<iframe>`. |
+| `Referrer-Policy` | `no-referrer` | Evita que as URLs da sua API sejam enviadas a outros sites no cabeçalho `Referer`. |
+| `Cross-Origin-Opener-Policy` | `same-origin` | Isola a janela de outras janelas de outra origem. |
+| `Cross-Origin-Resource-Policy` | `same-origin` | Impede que outros sites incorporem suas respostas como recursos. |
+| `Cache-Control` | `no-store` | Evita que navegadores e proxies guardem cópias das respostas, que podem conter dados privados. |
+
+Além disso, o viga sempre remove o cabeçalho `X-Powered-By`, que anuncia que a aplicação usa Express.
+
+Esses valores são pensados para uma API que devolve JSON. Para alterar ou remover algum, passe um objeto para `securityHeaders`:
+
+```ts
+createApp({
+  rootModule: AppModule,
+  securityHeaders: { 'Cache-Control': 'private, max-age=60', 'X-Frame-Options': false },
+});
+```
+
+Um texto substitui o valor, `false` remove o cabeçalho e `securityHeaders: false` desativa todos. `DEFAULT_SECURITY_HEADERS`, importado de `viga`, contém os valores padrão.
+
+Para alterar um cabeçalho só em algumas rotas, faça isso em um [interceptor](../../core/interceptors/) ou com `res.setHeader()` no controller: eles são executados depois e substituem o valor padrão.
+
+### Se você vem do Express com helmet
+
+Você não precisa do [helmet](https://helmetjs.github.io). O viga já define cabeçalhos equivalentes e remove `X-Powered-By`. Seus valores são mais rígidos que os do helmet porque são pensados para uma API que devolve JSON: o helmet, por outro lado, permite por padrão que uma página carregue recursos do próprio site.
+
+Se a sua aplicação também serve páginas HTML e você prefere o helmet, instale-o:
+
+<Tabs syncKey="pkg">
+  <TabItem label="pnpm">
+    ```sh
+    pnpm add helmet
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```sh
+    npm install helmet
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```sh
+    yarn add helmet
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```sh
+    bun add helmet
+    ```
+  </TabItem>
+</Tabs>
+
+Depois desative os cabeçalhos do viga e adicione o helmet como middleware:
+
+```ts title="src/main.ts"
+import helmet from 'helmet';
+
+const app = createApp({ rootModule: AppModule, securityHeaders: false });
+app.use(helmet());
+```
+
+Não use os dois ao mesmo tempo: o helmet é executado depois e substitui os cabeçalhos do viga que coincidem, então você acabaria com uma mistura de valores difícil de entender.
+
+## Tamanho do corpo
+
+`bodyLimit` é o tamanho máximo de um corpo JSON ou de formulário. Por padrão é `'100kb'`. Um maior responde 413 sem chegar ao seu código.
+
+```ts
+createApp({ rootModule: AppModule, bodyLimit: '1mb' });
+```
+
+O corpo só é lido em rotas que existem e depois da autenticação, como explicado no [ciclo de vida de uma requisição](../../core/request-lifecycle/#por-que-o-corpo-é-lido-depois-da-autenticação). Assim, um cliente sem sessão não consegue fazer o servidor ler corpos grandes.
+
+## Tempos de espera
+
+`timeouts` limita, em milissegundos, quanto o servidor espera por um cliente:
+
+| Opção | Padrão | O que limita |
+| --- | --- | --- |
+| `headers` | `10_000` | Quanto o cliente pode demorar para enviar os cabeçalhos. |
+| `request` | `30_000` | Quanto pode demorar para enviar a requisição completa. |
+| `keepAlive` | `5_000` | Quanto uma conexão pode ficar aberta sem atividade entre duas requisições. |
+
+Esses limites dificultam os ataques de conexão lenta, em que um cliente abre muitas conexões e envia os dados muito devagar para ocupar o servidor. Se você tem rotas que recebem arquivos grandes, aumente `request`.
+
+## Validação obrigatória do corpo
+
+`requireValidation` está ativado: uma rota sem `@Validate({ body })` não aceita corpo, e uma requisição que o envie responde 400. Assim nenhum dado sem validar chega aos seus métodos. Isso é explicado em [`viga/validation`](../../optional/validation/#toda-rota-com-corpo-precisa-de-validate).
+
+## Rotas privadas e rotas ocultas
+
+Todas as rotas são privadas por padrão e, quando há um guard de autenticação, uma rota que não existe responde igual a uma privada (`concealRoutes`). Assim, quem não tem sessão não consegue descobrir quais rotas existem testando URLs. Isso é explicado em [guards](../../core/guards/#rotas-que-não-existem).
+
+Além disso, o 404 de uma rota que não existe nunca repete a URL pedida na resposta.
+
+## Proteção CSRF
+
+Um ataque CSRF faz o navegador do seu usuário enviar uma requisição à sua API a partir de outra página, com os cookies do usuário e sem que ele saiba.
+
+`csrf` está ativado e rejeita com 403 (`errors.crossSiteRequest`) as requisições `POST` que vêm de outro site e que o navegador pode enviar sem perguntar antes ao seu servidor (*preflight* de CORS): sem corpo, com um formulário (`urlencoded`, `multipart`) ou com `text/plain`. São justamente as que outra página consegue fazer um navegador enviar.
+
+Para saber de onde vem uma requisição, o viga lê o cabeçalho `Sec-Fetch-Site` ou, se ele não existir, compara `Origin` com o host. A verificação acontece antes de ler o corpo.
+
+Três coisas que vale saber:
+
+- **JSON, `PUT`, `PATCH` e `DELETE` de outra origem não são verificados**, porque o navegador só os envia depois de um *preflight*, e isso é decidido pela sua configuração de CORS. Configure o CORS com uma lista explícita de origens.
+- **As requisições sem `Sec-Fetch-Site` nem `Origin` passam**, porque não vêm de um navegador: por exemplo, `curl` ou um backend.
+- **Uma requisição `GET` nunca é verificada**, porque um link ou uma imagem podem provocá-la. Não altere dados em uma rota `GET`.
+
+Se você precisa aceitar formulários de outro site, por exemplo o callback `form_post` de um provedor OAuth, adicione a origem dele:
+
+```ts
+createApp({ rootModule: AppModule, csrf: { trustedOrigins: ['https://idp.example.com'] } });
+```
+
+`csrf: false` desativa a verificação. Faça isso só se a sua API não usa cookies para autenticar.
+
+## Id de cada requisição
+
+Cada requisição recebe um id único, que viaja no cabeçalho `X-Request-Id` e aparece nas respostas de erro e no log dos erros 500. Serve para encontrar no log a requisição exata que alguém relatar. Isso é explicado no [ciclo de vida de uma requisição](../../core/request-lifecycle/#o-id-da-requisição).
+
+## IP do cliente
+
+Atrás de um proxy ou de um balanceador, o viga precisa saber quantos proxies há na frente para obter o IP real do cliente. Esse IP é usado pelo limite de requisições e pelos limites de WebSocket. Ele é configurado com `trustProxy` e explicado em [IP do cliente e proxies](../client-ip/).

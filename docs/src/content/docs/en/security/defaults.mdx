@@ -1,0 +1,156 @@
+---
+title: Defaults
+description: The protections viga turns on without any setup, what each one does, its limits and how to change it.
+sidebar:
+  order: 1
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+viga turns on several protections without you having to configure anything. This page explains what each one does and how to change it.
+
+:::caution
+These defaults reduce common risks, but they don't make an application secure on their own, and viga can't guarantee that it is. Security also depends on your code, your configuration, your dependencies and your infrastructure. Test and review your app before taking it to production; the [security testing checklist](../checklist/) is a good starting point.
+:::
+
+Every option on this page is passed to `createApp`:
+
+```ts title="src/main.ts"
+const app = createApp({
+  rootModule: AppModule,
+  bodyLimit: '1mb',
+  timeouts: { request: 60_000 },
+});
+```
+
+## Security headers
+
+viga adds these headers to every response, error responses included:
+
+| Header | Value | What it does |
+| --- | --- | --- |
+| `Content-Security-Policy` | `default-src 'none'; frame-ancestors 'none'` | Stops the browser from loading or running content from an API response, and stops another page from showing it inside an `<iframe>`. |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` | Asks the browser to always use HTTPS with your domain for a year. |
+| `X-Content-Type-Options` | `nosniff` | Stops the browser from guessing a response's type and treating, for example, JSON as HTML. |
+| `X-Frame-Options` | `DENY` | The same as `frame-ancestors`, for older browsers: stops another page from showing your API inside an `<iframe>`. |
+| `Referrer-Policy` | `no-referrer` | Keeps your API's URLs from being sent to other sites in the `Referer` header. |
+| `Cross-Origin-Opener-Policy` | `same-origin` | Isolates the window from windows of other origins. |
+| `Cross-Origin-Resource-Policy` | `same-origin` | Stops other sites from embedding your responses as resources. |
+| `Cache-Control` | `no-store` | Keeps browsers and proxies from storing copies of responses, which may hold private data. |
+
+viga also always removes the `X-Powered-By` header, which announces that the app uses Express.
+
+These values are meant for an API that returns JSON. To change or remove one, pass an object to `securityHeaders`:
+
+```ts
+createApp({
+  rootModule: AppModule,
+  securityHeaders: { 'Cache-Control': 'private, max-age=60', 'X-Frame-Options': false },
+});
+```
+
+A string replaces the value, `false` removes the header and `securityHeaders: false` turns them all off. `DEFAULT_SECURITY_HEADERS`, imported from `viga`, holds the default values.
+
+To change a header on some routes only, do it in an [interceptor](../../core/interceptors/) or with `res.setHeader()` in the controller: they run afterwards and replace the default value.
+
+### If you come from Express with helmet
+
+You don't need [helmet](https://helmetjs.github.io). viga already sets equivalent headers and removes `X-Powered-By`. Its values are stricter than helmet's because they're meant for an API that returns JSON: helmet, on the other hand, lets a page load resources from its own site by default.
+
+If your app also serves HTML pages and you prefer helmet, install it:
+
+<Tabs syncKey="pkg">
+  <TabItem label="pnpm">
+    ```sh
+    pnpm add helmet
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```sh
+    npm install helmet
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```sh
+    yarn add helmet
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```sh
+    bun add helmet
+    ```
+  </TabItem>
+</Tabs>
+
+Then turn off viga's headers and add helmet as a middleware:
+
+```ts title="src/main.ts"
+import helmet from 'helmet';
+
+const app = createApp({ rootModule: AppModule, securityHeaders: false });
+app.use(helmet());
+```
+
+Don't use both at once: helmet runs afterwards and replaces the viga headers that overlap, so you'd end up with a mix of values that's hard to reason about.
+
+## Body size
+
+`bodyLimit` is the maximum size of a JSON or form body. By default it's `'100kb'`. A larger one responds 413 without reaching your code.
+
+```ts
+createApp({ rootModule: AppModule, bodyLimit: '1mb' });
+```
+
+The body is only read on routes that exist and after authentication, as explained in the [request lifecycle](../../core/request-lifecycle/#why-the-body-is-read-after-authentication). That way, a client without a session can't make the server read large bodies.
+
+## Timeouts
+
+`timeouts` limits, in milliseconds, how long the server waits for a client:
+
+| Option | Default | What it limits |
+| --- | --- | --- |
+| `headers` | `10_000` | How long the client can take to send the headers. |
+| `request` | `30_000` | How long it can take to send the whole request. |
+| `keepAlive` | `5_000` | How long a connection can stay open with no activity between two requests. |
+
+These limits make slow-connection attacks harder, in which a client opens many connections and sends data very slowly to tie up the server. If you have routes that receive large files, raise `request`.
+
+## Mandatory body validation
+
+`requireValidation` is on: a route without `@Validate({ body })` doesn't accept a body, and a request that sends one responds 400. That way no unvalidated data reaches your methods. It's explained in [`viga/validation`](../../optional/validation/#every-route-with-a-body-needs-validate).
+
+## Private and concealed routes
+
+Every route is private by default and, when there's an authentication guard, a route that doesn't exist answers like a private one (`concealRoutes`). That way, someone without a session can't find out which routes exist by trying URLs. It's explained in [guards](../../core/guards/#routes-that-dont-exist).
+
+Also, the 404 for a route that doesn't exist never echoes the requested URL in its response.
+
+## CSRF protection
+
+A CSRF attack makes your user's browser send a request to your API from another page, with the user's cookies and without them knowing.
+
+`csrf` is on and rejects with 403 (`errors.crossSiteRequest`) `POST` requests that come from another site and that the browser can send without asking your server first (a CORS *preflight*): with no body, with a form (`urlencoded`, `multipart`) or with `text/plain`. Those are exactly the ones another page can make a browser send.
+
+To know where a request comes from, viga reads the `Sec-Fetch-Site` header or, if it's missing, compares `Origin` with the host. The check happens before the body is read.
+
+Three things worth knowing:
+
+- **JSON, `PUT`, `PATCH` and `DELETE` from another origin aren't checked**, because the browser only sends them after a *preflight*, and that's decided by your CORS setup. Configure CORS with an explicit list of origins.
+- **Requests without `Sec-Fetch-Site` or `Origin` pass**, because they don't come from a browser: for example, `curl` or a backend.
+- **A `GET` request is never checked**, because a link or an image can trigger it. Don't change data on a `GET` route.
+
+If you need to accept forms from another site, for example an OAuth provider's `form_post` callback, add its origin:
+
+```ts
+createApp({ rootModule: AppModule, csrf: { trustedOrigins: ['https://idp.example.com'] } });
+```
+
+`csrf: false` turns the check off. Do it only if your API doesn't use cookies to authenticate.
+
+## Request id
+
+Each request gets a unique id, which travels in the `X-Request-Id` header and shows up in error responses and in the log of 500 errors. It helps you find in the log the exact request someone reports. It's explained in the [request lifecycle](../../core/request-lifecycle/#the-request-id).
+
+## Client IP
+
+Behind a proxy or a load balancer, viga needs to know how many proxies are in front to get the client's real IP. That IP is used by rate limiting and by the WebSocket limits. It's set with `trustProxy` and explained in [Client IP and proxies](../client-ip/).
