@@ -117,9 +117,7 @@ See [Express middlewares](https://vigajs.dev/en/core/request-lifecycle/#express-
 
 ### Security defaults
 
-See [Security defaults](https://vigajs.dev/en/security/defaults/) in the documentation. These defaults reduce common risks, but they don't make an application secure on their own.
-
-- `trustProxy` (not trusted by default) works like Express's `trust proxy`. Behind a proxy, set it to the number of proxies in front of the app (for example `1`) so `req.ip` is the client's. Avoid `true`: the client can forge `X-Forwarded-For` to bypass rate limits, and viga logs a warning.
+See [Security defaults](https://vigajs.dev/en/security/defaults/) and [Client IP and proxies](https://vigajs.dev/en/security/client-ip/) in the documentation. These defaults reduce common risks, but they don't make an application secure on their own.
 
 ### Rate limiting
 

@@ -117,9 +117,7 @@ Consulta [Middlewares de Express](https://vigajs.dev/es/core/request-lifecycle/#
 
 ### Valores de seguridad por defecto
 
-Consulta [Valores por defecto](https://vigajs.dev/es/security/defaults/) en la documentación. Estos valores reducen riesgos habituales, pero no hacen segura una aplicación por sí solos.
-
-- `trustProxy` (sin confiar por defecto) funciona como `trust proxy` de Express. Detrás de un proxy, ponle el número de proxies que hay delante de la app (por ejemplo `1`) para que `req.ip` sea la del cliente. Evita `true`: el cliente puede falsificar `X-Forwarded-For` para saltarse los límites de peticiones, y viga muestra un aviso.
+Consulta [Valores por defecto](https://vigajs.dev/es/security/defaults/) e [IP del cliente y proxies](https://vigajs.dev/es/security/client-ip/) en la documentación. Estos valores reducen riesgos habituales, pero no hacen segura una aplicación por sí solos.
 
 ### Rate limiting
 
