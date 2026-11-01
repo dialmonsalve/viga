@@ -216,75 +216,7 @@ See [viga/drizzle](https://vigajs.dev/en/optional/drizzle/) in the documentation
 
 ## viga/websocket
 
-```ts
-import { z } from 'zod';
-import { Gateway, OnMessage, WebSocketModule, WsServer, type WsContext } from 'viga/websocket';
-
-const Join = z.object({ room: z.string().min(1) });
-const Say = z.object({ room: z.string(), text: z.string().max(500) });
-
-@Gateway('/chat')
-class ChatGateway {
-  private readonly server = inject(WsServer);
-
-  @OnMessage('join', Join)
-  join({ client, data }: WsContext<typeof Join>) {
-    client.join(data.room);
-    return { joined: data.room };
-  }
-
-  @OnMessage('say', Say)
-  say({ client, data }: WsContext<typeof Say>) {
-    this.server.to(data.room).send('said', { from: client.state.userId, text: data.text }, { except: client });
-  }
-}
-
-@Module({
-  imports: [
-    WebSocketModule.forRoot({
-      authenticate: async (req) => verifySession(req.headers.cookie),
-      allowedOrigins: ['https://my-frontend.com'],
-    }),
-    ChatModule,
-  ],
-})
-class AppModule {}
-```
-
-- Gateways are providers: list them in a module's `providers`. They use the same port as HTTP and `inject()` like any service.
-- Messages are JSON: `{ "event": "join", "data": { … }, "id": 1 }`. The handler's return value is sent back as `{ event, data, id }`; an `async function*` sends one message per yielded value. Errors arrive as `{ "event": "error", "data": { statusCode, code, message, details? }, id }`, with the same codes as HTTP and without leaking internal messages.
-- Rooms: `client.join(room)`, `client.leave(room)`, `client.rooms`, and `inject(WsServer).to(room).send(event, data, { except })` or `.broadcast(…)`. A client can be in several rooms and leaves all of them when it disconnects. Rooms live in memory: with several instances, a message doesn't reach clients connected to another one.
-- A browser's `WebSocket` can't send custom headers: the handshake only carries the URL, cookies, `Origin` and `Accept-Language`. Authenticate with the session cookie (or a short-lived token in the URL, keeping in mind that URLs end up in logs), not with `Authorization`.
-- With `i18n`, the language is negotiated once in the handshake (`resolveLocale` first, then `Accept-Language`, then the default) and applies to every message of that connection: `i18n.t()` and `i18n.locale()` work inside gateways, error messages are translated, and `client.locale` holds it.
-- Like HTTP routes, private gateways without `authenticate` log a warning at startup, and the public ones are listed at `debug` level.
-- `client.state` holds connection data. Whatever `authenticate` returns (an object) is stored there.
-- Authentication only happens at the handshake, so a session must expire on its own. If `authenticate` returns `expiresAt` (a `Date` or milliseconds, for example a JWT's `exp * 1000`), the connection closes with 1008 `Session expired` at that moment and `onDisconnect` runs. A handshake whose session already expired responds 401, and an `expiresAt` that isn't a valid date responds 500 and logs an error instead of being ignored. `client.expiresAt` reads it and `client.expireAt(date)` renews it, for example after a token refresh sent over the socket; `client.expireAt(undefined)` removes it. To revoke a session at once, close its clients from `WsServer.clients`.
-- `RateLimit` from `viga/websocket` limits one event (on the method) or every event of a gateway (on the class), on top of `messageRateLimit`. It counts per connection by default; `key: ({ client }) => String(client.state.userId)` counts per user across tabs. Above the limit it responds `errors.tooManyRequests` with `details.retryAfter` in seconds. The `@RateLimit` from `viga` is for HTTP routes only.
-- `@UseGuards` and `@UseInterceptors` work per message, on the method or the whole gateway. `OnWsConnection` and `OnWsDisconnect` are lifecycle hooks for each connection.
-- `ws` is loaded only when a gateway exists: `pnpm add ws`.
-
-| `WebSocketModule.forRoot` option | Default | What it controls |
-|---|---|---|
-| `authenticate` | none | Checks the handshake request. Gateways are private by default: without `authenticate`, only `@Public()` gateways accept connections. Returning `false` responds 401 |
-| `handshakeTimeoutMs` | `10_000` | If `authenticate` takes longer, the handshake responds 503 and a warning is logged, so a slow auth service can't pile up open sockets |
-| `allowedOrigins` | `[]` | List or function. A request with an `Origin` that isn't allowed responds 403 (prevents cross-site WebSocket hijacking). Requests without `Origin` (non-browser clients) are accepted |
-| `maxConnections` | `10_000` | Simultaneous connections across all gateways, counting handshakes still in progress. Above it, the handshake responds 503. It's a global limit; for a limit per client, use `connectionsPerKey` |
-| `maxPendingHandshakes` | `100` | Handshakes still checking `Origin` or running `authenticate` at the same time, including unknown paths with `concealRoutes`. Above it, the handshake responds 503 without calling `authenticate`, so a flood of upgrades can't run thousands of auth queries in parallel |
-| `connectionsPerKey` | `{ max: 50 }` | Limits simultaneous connections per client, counting handshakes still in progress; above it, the handshake responds 429. By default the key is the client IP resolved with the app's `trustProxy`, normalized with `ipKey()` (IPv6 grouped by /56). If a handshake carries `X-Forwarded-For` that `trustProxy` doesn't trust, viga logs a warning once, because every client behind that proxy would share one counter. `key` receives the handshake request to count by something else; returning `undefined` skips the limit. `false` disables it |
-| `maxPayload` | 100 KiB | Larger messages close the connection with 1009 |
-| `messageRateLimit` | `{ max: 100, windowMs: 10_000 }` | Messages per connection, for every event, counted as they arrive, even while `onConnection` is still running. Above it, responds `errors.tooManyRequests` with `details.retryAfter`; a client that reaches twice the limit within one window is disconnected with 1008 `Too many messages`. `false` disables it. Independently, a connection that piles up more than 100 messages before `onConnection` finishes is also closed with 1008 |
-| `requireValidation` | `true` | An `@OnMessage` without a schema doesn't accept data: a message that carries `data` responds 400 `errors.unexpectedData`, so unvalidated data never reaches a handler. An event without data needs no schema. `false` disables it and every event receives `data` as sent |
-| `heartbeatMs` | `30_000` | Pings each client; one that doesn't answer is disconnected |
-| `maxBufferedBytes` | 1 MiB | A client that doesn't read its messages is disconnected instead of filling the server's memory |
-| `maxRoomsPerClient` | `100` | Rooms a connection can be in at once. Joining one more responds `errors.tooManyRooms` |
-| `i18n` | none | An `I18n` instance from `viga/i18n`. Enables the per-connection language and, unless `resolveMessage` is set, translates error messages |
-| `resolveLocale` | none | A header name or a function of the handshake request, read before `Accept-Language`. In browsers, read it from the URL: `(req) => new URL(req.url, 'http://localhost').searchParams.get('lang')` |
-| `resolveMessage` | none | Same as in `createApp`, for error messages |
-| `adapter` | `ws` | Any `WsAdapter`. The interface is public, so other libraries can be plugged in |
-
-Switching adapter doesn't change your gateways, but it does change the client: with `ws`, the browser's native `WebSocket` works as is.
-
-An adapter receives the gateway `paths`, `maxPayload`, `heartbeatMs`, `verify(req)` (to accept or reject each handshake) and `onConnection(connection, req)`. [`test/websocket/socket-io-adapter.ts`](test/websocket/socket-io-adapter.ts) is a complete adapter on top of socket.io, used by the test suite to check that the interface isn't tied to `ws`. With socket.io, a rejected handshake doesn't keep viga's status code (socket.io answers with its own error), and the client must be `socket.io-client`.
+See [viga/websocket](https://vigajs.dev/en/optional/websocket/) in the documentation.
 
 ## viga/testing
 

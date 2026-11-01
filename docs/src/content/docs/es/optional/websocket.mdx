@@ -1,0 +1,294 @@
+---
+title: viga/websocket
+description: Comunicación en tiempo real con WebSocket en el mismo puerto que tu API, con salas, validación de mensajes, autenticación en el handshake y límites por defecto.
+sidebar:
+  order: 8
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`viga/websocket` añade comunicación en tiempo real a tu app: el servidor y el navegador mantienen una conexión abierta y se envían mensajes en los dos sentidos. Sirve para chats, notificaciones, paneles que se actualizan solos o juegos.
+
+Funciona en el mismo puerto que tu API HTTP y con las mismas piezas: los gateways son providers con `inject()`, los mensajes se validan con esquemas y los errores usan los mismos códigos que en HTTP.
+
+## Instalación
+
+`viga/websocket` usa la librería `ws`, que instalas tú:
+
+<Tabs syncKey="pkg">
+  <TabItem label="pnpm">
+    ```sh
+    pnpm add ws
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```sh
+    npm install ws
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```sh
+    yarn add ws
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```sh
+    bun add ws
+    ```
+  </TabItem>
+</Tabs>
+
+viga solo carga `ws` si tu app tiene algún gateway.
+
+## Tu primer gateway
+
+Un gateway es al WebSocket lo que un controlador es a HTTP: recibe los mensajes de una ruta y responde. Cada método atiende un evento:
+
+```ts title="src/chat/chat.gateway.ts"
+import { inject } from 'viga';
+import { Gateway, OnMessage, WsServer, type WsContext } from 'viga/websocket';
+import { z } from 'zod';
+
+const Join = z.object({ room: z.string().min(1) });
+const Say = z.object({ room: z.string(), text: z.string().max(500) });
+
+@Gateway('/chat')
+export class ChatGateway {
+  private readonly server = inject(WsServer);
+
+  @OnMessage('join', Join)
+  join({ client, data }: WsContext<typeof Join>) {
+    client.join(data.room);
+    return { joined: data.room };
+  }
+
+  @OnMessage('say', Say)
+  say({ client, data }: WsContext<typeof Say>) {
+    this.server.to(data.room).send('said', { from: client.state.userId, text: data.text }, { except: client });
+  }
+}
+```
+
+- `@Gateway('/chat')` define la ruta: los clientes se conectan a `wss://tu-dominio/chat`.
+- `@OnMessage('join', Join)` atiende el evento `join` y valida sus datos con el esquema `Join`.
+- `WsContext<typeof Join>` tipa `data` con la forma del esquema, igual que [`HttpContext`](../validation/#valida-una-ruta) en HTTP.
+
+Los gateways son providers: se declaran en `providers` de un módulo, no en `controllers`:
+
+```ts title="src/chat/chat.module.ts"
+import { Module } from 'viga';
+import { ChatGateway } from './chat.gateway.ts';
+
+@Module({ providers: [ChatGateway] })
+export class ChatModule {}
+```
+
+Y `WebSocketModule.forRoot` va en el módulo raíz, con la autenticación y los orígenes permitidos:
+
+```ts title="src/app.module.ts"
+import { Module } from 'viga';
+import { WebSocketModule } from 'viga/websocket';
+import { ChatModule } from './chat/chat.module.ts';
+
+@Module({
+  imports: [
+    WebSocketModule.forRoot({
+      authenticate: (req) => verifySession(req.headers.cookie),
+      allowedOrigins: ['https://mi-frontend.com'],
+    }),
+    ChatModule,
+  ],
+})
+export class AppModule {}
+```
+
+## Desde el navegador
+
+El navegador usa el `WebSocket` que trae de serie. Los mensajes son JSON con un `event`, unos `data` y, si quieres respuesta, un `id`:
+
+```ts title="chat.js"
+const socket = new WebSocket('wss://api.mi-dominio.com/chat');
+
+socket.addEventListener('open', () => {
+  socket.send(JSON.stringify({ event: 'join', data: { room: 'general' }, id: 1 }));
+});
+
+socket.addEventListener('message', (event) => {
+  const message = JSON.parse(event.data);
+  console.log(message.event, message.data);
+});
+```
+
+Si la app tiene `globalPrefix`, este no se aplica a los gateways: la ruta es la de `@Gateway`.
+
+## Los mensajes
+
+### Respuestas
+
+Lo que devuelve el método se envía de vuelta al cliente con el mismo evento y el mismo `id`, para que sepa a qué mensaje responde:
+
+```json
+{ "event": "join", "data": { "joined": "general" }, "id": 1 }
+```
+
+Si el método no devuelve nada, como `say`, no se envía respuesta.
+
+Un método `async function*` envía un mensaje por cada valor que produce, útil para resultados que llegan poco a poco:
+
+```ts
+@OnMessage('progress')
+async *progress() {
+  yield { step: 1 };
+  yield { step: 2 };
+}
+```
+
+### Errores
+
+Los errores llegan como un mensaje con el evento `error`, con los mismos códigos y el mismo formato que en [excepciones](../../core/exceptions/):
+
+```json
+{
+  "event": "error",
+  "data": {
+    "statusCode": 400,
+    "code": "errors.validation",
+    "message": "Invalid input data",
+    "details": { "data": [{ "path": "room", "code": "too_small", "message": "Too small: expected string to have >=1 characters" }] }
+  },
+  "id": 2
+}
+```
+
+Un evento que no existe responde `errors.notFound`. Como en HTTP, los errores inesperados nunca envían su mensaje interno al cliente.
+
+### Un evento sin esquema no acepta datos
+
+Un evento que no recibe datos, como `progress`, no necesita esquema. Si un cliente le envía un mensaje con `data`, viga responde con un error 400 de código `errors.unexpectedData`, sin llamar al método:
+
+```json
+{ "event": "error", "data": { "statusCode": 400, "code": "errors.unexpectedData", "message": "This event does not accept data" }, "id": 3 }
+```
+
+Así ningún dato sin validar llega a tus métodos: un evento que recibe datos tiene que declarar su esquema en `@OnMessage`. Es la misma regla que `errors.unexpectedBody` en las [rutas HTTP](../validation/#toda-ruta-con-cuerpo-necesita-validate).
+
+Este comportamiento se llama `requireValidation` y está activado por defecto. Con `WebSocketModule.forRoot({ requireValidation: false })`, los eventos sin esquema reciben `data` tal como llega.
+
+## Salas
+
+Una sala agrupa conexiones para enviarles mensajes a todas a la vez:
+
+- `client.join(room)` y `client.leave(room)` añaden o quitan al cliente de una sala, y `client.rooms` dice en cuáles está. Un cliente puede estar en varias, y sale de todas al desconectarse.
+- `inject(WsServer).to(room).send(event, data)` envía a todos los clientes de una sala. Con `{ except: client }`, a todos menos a ese.
+- `inject(WsServer).broadcast(event, data)` envía a todos los clientes conectados.
+
+`WsServer` se puede pedir desde cualquier provider, no solo desde los gateways. Así un servicio puede avisar a los clientes cuando algo cambia, por ejemplo al crear un pedido desde una ruta HTTP.
+
+:::caution
+Las salas viven en la memoria del proceso. Si tu app corre en varias instancias, un mensaje enviado a una sala solo llega a los clientes conectados a esa misma instancia.
+:::
+
+## Autenticación
+
+Un WebSocket se autentica una sola vez, al conectarse, en el handshake. `authenticate` recibe esa petición y devuelve los datos de la sesión, o `false` para rechazarla con 401:
+
+```ts
+WebSocketModule.forRoot({
+  authenticate: async (req) => {
+    const session = await sessions.find(req.headers.cookie);
+    return session ? { userId: session.userId } : false;
+  },
+}),
+```
+
+Lo que devuelve queda en `client.state`, disponible en todos los mensajes de esa conexión: `client.state.userId`.
+
+Igual que las rutas HTTP, los gateways son privados por defecto: sin `authenticate`, solo aceptan conexiones los que tienen [`@Public()`](../../core/guards/). Al arrancar, viga avisa de los gateways privados sin autenticación y lista los públicos con nivel `debug`.
+
+:::note
+El `WebSocket` del navegador no puede enviar cabeceras propias, así que `Authorization` no sirve. El handshake solo lleva la URL, las cookies, `Origin` y `Accept-Language`. Autentica con la cookie de sesión o, si no puedes, con un token de vida corta en la URL, sabiendo que las URLs suelen quedar en los logs.
+:::
+
+### Sesiones que caducan
+
+Como la autenticación solo ocurre al conectarse, una conexión abierta seguiría funcionando aunque la sesión haya caducado. Para evitarlo, devuelve `expiresAt` en `authenticate`, como una fecha o en milisegundos:
+
+```ts
+authenticate: async (req) => {
+  const payload = await verifyToken(tokenFrom(req));
+  return payload ? { userId: payload.sub, expiresAt: payload.exp * 1000 } : false;
+},
+```
+
+A esa hora, viga cierra la conexión con el código 1008 `Session expired`. Si el cliente renueva su token a través del propio socket, actualiza la caducidad con `client.expireAt(nuevaFecha)`.
+
+Para cerrar una sesión de inmediato, por ejemplo al cambiar la contraseña, recorre `inject(WsServer).clients` y cierra los de ese usuario con `client.close()`.
+
+### Orígenes permitidos
+
+`allowedOrigins` lista los sitios desde los que un navegador puede conectarse. Una conexión con otro `Origin` se rechaza con 403. Esto evita que una página maliciosa abra un WebSocket con las cookies de tu usuario, un ataque llamado *cross-site WebSocket hijacking*.
+
+Las conexiones sin `Origin`, que vienen de clientes que no son navegadores, como un servidor o una app móvil, se aceptan.
+
+## Guards, interceptores y límites por evento
+
+Las mismas herramientas de HTTP funcionan en cada mensaje:
+
+- [`@UseGuards()`](../../core/guards/#guards-por-ruta) y [`@UseInterceptors()`](../../core/interceptors/) van en un método o en todo el gateway.
+- `RateLimit`, importado de `viga/websocket`, limita un evento o todos los de un gateway. Por defecto cuenta por conexión; con `key: ({ client }) => String(client.state.userId)` cuenta por usuario, sumando todas sus pestañas. Por encima del límite responde `errors.tooManyRequests` con `details.retryAfter` en segundos.
+
+El `@RateLimit` que se importa de `viga` es solo para rutas HTTP.
+
+### Conexiones y desconexiones
+
+Un gateway puede ejecutar código cuando un cliente se conecta o se desconecta, implementando `OnWsConnection` y `OnWsDisconnect`:
+
+```ts
+import { Gateway, type OnWsConnection, type OnWsDisconnect, type WsClient } from 'viga/websocket';
+
+@Gateway('/chat')
+export class ChatGateway implements OnWsConnection, OnWsDisconnect {
+  onConnection(client: WsClient) {
+    client.join(`user:${client.state.userId}`);
+  }
+
+  onDisconnect(client: WsClient, code: number, reason: string) {
+    this.presence.markOffline(client.state.userId);
+  }
+}
+```
+
+## Idioma
+
+Si pasas una instancia de [`viga/i18n`](../i18n/) en la opción `i18n`, el idioma se elige una vez, al conectarse, y se usa en todos los mensajes de esa conexión: `i18n.t()` funciona dentro de los gateways, los errores salen traducidos y `client.locale` contiene el idioma.
+
+El navegador no deja enviar cabeceras propias, así que para que el usuario elija el idioma, léelo de la URL con `resolveLocale`:
+
+```ts
+WebSocketModule.forRoot({
+  i18n,
+  resolveLocale: (req) => new URL(req.url ?? '/', 'http://localhost').searchParams.get('lang'),
+}),
+```
+
+## Límites por defecto
+
+`viga/websocket` trae límites para que un cliente no pueda agotar la memoria ni las conexiones del servidor. Todos se cambian en `WebSocketModule.forRoot`:
+
+| Opción | Por defecto | Qué limita |
+| --- | --- | --- |
+| `maxConnections` | `10_000` | Conexiones simultáneas en total. Por encima, el handshake responde 503. |
+| `connectionsPerKey` | `{ max: 50 }` | Conexiones simultáneas por cliente, por defecto por IP. Por encima, responde 429. `key` permite contar por otra cosa, y `false` lo desactiva. |
+| `maxPendingHandshakes` | `100` | Handshakes en curso al mismo tiempo. Evita que una avalancha de conexiones lance miles de autenticaciones en paralelo. |
+| `handshakeTimeoutMs` | `10_000` | Lo que puede tardar `authenticate`. Si tarda más, responde 503. |
+| `maxPayload` | 100 KiB | El tamaño de un mensaje. Uno mayor cierra la conexión. |
+| `messageRateLimit` | `{ max: 100, windowMs: 10_000 }` | Mensajes por conexión. Por encima responde `errors.tooManyRequests`, y al doble desconecta al cliente. |
+| `maxRoomsPerClient` | `100` | Salas en las que puede estar una conexión. |
+| `maxBufferedBytes` | 1 MiB | Mensajes pendientes de un cliente que no los lee. Por encima, se le desconecta. |
+| `heartbeatMs` | `30_000` | Cada cuánto se comprueba que el cliente sigue vivo. Uno que no responde se desconecta. |
+
+`connectionsPerKey` usa la IP del cliente según la opción `trustProxy` de la app. Detrás de un proxy, configúrala bien: si no, todos los clientes compartirían la IP del proxy y el mismo contador.
+
+## Otros adaptadores
+
+Por defecto, `viga/websocket` usa `ws`, y el navegador se conecta con su `WebSocket` normal. La opción `adapter` acepta cualquier implementación de la interfaz `WsAdapter`, que es pública, para usar otra librería sin cambiar tus gateways. Cambiar de adaptador sí cambia el cliente: con socket.io, por ejemplo, el navegador necesita `socket.io-client`.

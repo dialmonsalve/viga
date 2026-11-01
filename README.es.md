@@ -216,75 +216,7 @@ Consulta [viga/drizzle](https://vigajs.dev/es/optional/drizzle/) en la documenta
 
 ## viga/websocket
 
-```ts
-import { z } from 'zod';
-import { Gateway, OnMessage, WebSocketModule, WsServer, type WsContext } from 'viga/websocket';
-
-const Join = z.object({ room: z.string().min(1) });
-const Say = z.object({ room: z.string(), text: z.string().max(500) });
-
-@Gateway('/chat')
-class ChatGateway {
-  private readonly server = inject(WsServer);
-
-  @OnMessage('join', Join)
-  join({ client, data }: WsContext<typeof Join>) {
-    client.join(data.room);
-    return { joined: data.room };
-  }
-
-  @OnMessage('say', Say)
-  say({ client, data }: WsContext<typeof Say>) {
-    this.server.to(data.room).send('said', { from: client.state.userId, text: data.text }, { except: client });
-  }
-}
-
-@Module({
-  imports: [
-    WebSocketModule.forRoot({
-      authenticate: async (req) => verifySession(req.headers.cookie),
-      allowedOrigins: ['https://mi-front.com'],
-    }),
-    ChatModule,
-  ],
-})
-class AppModule {}
-```
-
-- Los gateways son providers: van en los `providers` de un módulo. Usan el mismo puerto que HTTP e `inject()` como cualquier servicio.
-- Los mensajes son JSON: `{ "event": "join", "data": { … }, "id": 1 }`. Lo que devuelve el handler se envía como `{ event, data, id }`; un `async function*` envía un mensaje por cada valor. Los errores llegan como `{ "event": "error", "data": { statusCode, code, message, details? }, id }`, con los mismos códigos que HTTP y sin filtrar mensajes internos.
-- Salas: `client.join(sala)`, `client.leave(sala)`, `client.rooms`, e `inject(WsServer).to(sala).send(evento, datos, { except })` o `.broadcast(…)`. Un cliente puede estar en varias salas y sale de todas al desconectarse. Las salas viven en memoria: con varias instancias, un mensaje no llega a los clientes conectados a otra.
-- El `WebSocket` del navegador no puede enviar cabeceras propias: el handshake solo lleva la URL, las cookies, `Origin` y `Accept-Language`. Autentica con la cookie de sesión (o con un token de vida corta en la URL, teniendo en cuenta que las URLs acaban en los logs), no con `Authorization`.
-- Con `i18n`, el idioma se negocia una vez en el handshake (primero `resolveLocale`, luego `Accept-Language`, luego el idioma por defecto) y se aplica a cada mensaje de esa conexión: `i18n.t()` e `i18n.locale()` funcionan dentro de los gateways, los mensajes de error se traducen y `client.locale` lo guarda.
-- Igual que en las rutas HTTP, los gateways privados sin `authenticate` generan un aviso al arrancar, y los públicos se listan con nivel `debug`.
-- `client.state` guarda datos de la conexión. Lo que devuelve `authenticate` (un objeto) queda ahí.
-- La autenticación solo ocurre en el handshake, así que una sesión debe vencer sola. Si `authenticate` devuelve `expiresAt` (un `Date` o milisegundos, por ejemplo el `exp * 1000` de un JWT), la conexión se cierra con 1008 `Session expired` en ese momento y se ejecuta `onDisconnect`. Un handshake cuya sesión ya venció responde 401, y un `expiresAt` que no es una fecha válida responde 500 y registra un error en vez de ignorarse. `client.expiresAt` lo lee y `client.expireAt(fecha)` lo renueva, por ejemplo tras un refresh de token enviado por el socket; `client.expireAt(undefined)` lo quita. Para revocar una sesión al instante, cierra sus clientes desde `WsServer.clients`.
-- `RateLimit` de `viga/websocket` limita un evento (en el método) o todos los de un gateway (en la clase), además de `messageRateLimit`. Por defecto cuenta por conexión; `key: ({ client }) => String(client.state.userId)` cuenta por usuario aunque abra varias pestañas. Al superarlo responde `errors.tooManyRequests` con `details.retryAfter` en segundos. El `@RateLimit` de `viga` es solo para rutas HTTP.
-- `@UseGuards` y `@UseInterceptors` funcionan por mensaje, en el método o en todo el gateway. `OnWsConnection` y `OnWsDisconnect` son hooks del ciclo de vida de cada conexión.
-- `ws` solo se carga si hay algún gateway: `pnpm add ws`.
-
-| Opción de `WebSocketModule.forRoot` | Por defecto | Qué controla |
-|---|---|---|
-| `authenticate` | ninguna | Comprueba la petición del handshake. Los gateways son privados por defecto: sin `authenticate`, solo aceptan conexiones los `@Public()`. Si devuelve `false`, responde 401 |
-| `handshakeTimeoutMs` | `10_000` | Si `authenticate` tarda más, el handshake responde 503 y se registra un aviso, para que un servicio de autenticación lento no acumule sockets abiertos |
-| `allowedOrigins` | `[]` | Lista o función. Una petición con un `Origin` no permitido responde 403 (evita el secuestro de WebSocket entre sitios). Las peticiones sin `Origin` (clientes que no son navegador) se aceptan |
-| `maxConnections` | `10_000` | Conexiones simultáneas entre todos los gateways, contando los handshakes en curso. Por encima, el handshake responde 503. Es un límite global; para limitar por cliente, usa `connectionsPerKey` |
-| `maxPendingHandshakes` | `100` | Handshakes que a la vez siguen comprobando `Origin` o ejecutando `authenticate`, incluidas las rutas desconocidas con `concealRoutes`. Por encima, el handshake responde 503 sin llamar a `authenticate`, así que una avalancha de upgrades no puede lanzar miles de consultas de autenticación en paralelo |
-| `connectionsPerKey` | `{ max: 50 }` | Limita las conexiones simultáneas por cliente, contando los handshakes en curso; al superarlo, el handshake responde 429. Por defecto la clave es la IP del cliente resuelta con el `trustProxy` de la app y normalizada con `ipKey()` (IPv6 agrupada por /56). Si un handshake trae un `X-Forwarded-For` en el que `trustProxy` no confía, viga registra un aviso una vez, porque todos los clientes detrás de ese proxy compartirían un contador. `key` recibe la petición del handshake para contar por otra cosa; si devuelve `undefined`, no se limita. `false` lo desactiva |
-| `maxPayload` | 100 KiB | Un mensaje más grande cierra la conexión con 1009 |
-| `messageRateLimit` | `{ max: 100, windowMs: 10_000 }` | Mensajes por conexión, de cualquier evento, contados al llegar aunque `onConnection` siga en curso. Al superarlo responde `errors.tooManyRequests` con `details.retryAfter`; un cliente que llega al doble del límite dentro de una ventana se desconecta con 1008 `Too many messages`. `false` lo desactiva. Aparte, una conexión que acumula más de 100 mensajes antes de que termine `onConnection` también se cierra con 1008 |
-| `requireValidation` | `true` | Un `@OnMessage` sin schema no acepta datos: un mensaje que trae `data` responde 400 `errors.unexpectedData`, así que nunca llegan datos sin validar a un handler. Un evento sin datos no necesita schema. `false` lo desactiva y todos los eventos reciben `data` tal cual |
-| `heartbeatMs` | `30_000` | Hace ping a cada cliente; el que no responde se desconecta |
-| `maxBufferedBytes` | 1 MiB | Un cliente que no lee sus mensajes se desconecta en lugar de llenar la memoria del servidor |
-| `maxRoomsPerClient` | `100` | Salas en las que puede estar una conexión a la vez. Unirse a una más responde `errors.tooManyRooms` |
-| `i18n` | ninguna | Una instancia de `I18n` de `viga/i18n`. Activa el idioma por conexión y, si no defines `resolveMessage`, traduce los mensajes de error |
-| `resolveLocale` | ninguna | El nombre de una cabecera o una función de la petición del handshake, que se lee antes que `Accept-Language`. En navegadores, léelo de la URL: `(req) => new URL(req.url, 'http://localhost').searchParams.get('lang')` |
-| `resolveMessage` | ninguna | Igual que en `createApp`, para los mensajes de error |
-| `adapter` | `ws` | Cualquier `WsAdapter`. La interfaz es pública, así que se pueden conectar otras librerías |
-
-Cambiar de adaptador no cambia tus gateways, pero sí el cliente: con `ws`, el `WebSocket` nativo del navegador funciona tal cual.
-
-Un adaptador recibe las rutas de los gateways (`paths`), `maxPayload`, `heartbeatMs`, `verify(req)` (para aceptar o rechazar cada handshake) y `onConnection(connection, req)`. [`test/websocket/socket-io-adapter.ts`](test/websocket/socket-io-adapter.ts) es un adaptador completo sobre socket.io, que los tests usan para comprobar que la interfaz no depende de `ws`. Con socket.io, un handshake rechazado no conserva el código de estado de viga (socket.io responde con su propio error), y el cliente tiene que ser `socket.io-client`.
+Consulta [viga/websocket](https://vigajs.dev/es/optional/websocket/) en la documentación.
 
 ## viga/testing
 
