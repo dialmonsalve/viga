@@ -61,6 +61,7 @@ interface Envelope {
 }
 
 interface EventHandler {
+  rejectsData: boolean;
   guard(ctx: WsContext): Promise<void>;
   invoke(ctx: WsContext): Promise<unknown>;
 }
@@ -375,17 +376,9 @@ export class WsServer implements OnServerListen, OnServerClose {
           throw new Error(diagnostic('ws.duplicateEvent', { gateway: Gateway.name, event }));
         }
         const method = target[handlerName] as (ctx: WsContext) => unknown;
-        if (this.options.requireValidation && !validatedParts(method).has('data')) {
-          throw new Error(
-            diagnostic('ws.missingValidation', {
-              gateway: Gateway.name,
-              method: String(handlerName),
-              event,
-            })
-          );
-        }
         const steps = handlerSteps(method);
         handlers.set(event, {
+          rejectsData: this.options.requireValidation && !validatedParts(method).has('data'),
           guard: (ctx) => steps.guard(instance, ctx),
           invoke: (ctx) => steps.invoke(instance, ctx),
         });
@@ -675,6 +668,9 @@ export class WsServer implements OnServerListen, OnServerClose {
       id = envelope.id;
       const handler = route.handlers.get(envelope.event);
       if (!handler) throw new NotFoundException();
+      if (handler.rejectsData && envelope.data !== undefined) {
+        throw new BadRequestException('errors.unexpectedData');
+      }
 
       const ctx: WsContext = { client, req, event: envelope.event, data: envelope.data };
       await runGuards(route.guards, ctx);

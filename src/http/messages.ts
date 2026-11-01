@@ -12,6 +12,7 @@ export const DEFAULT_MESSAGES: Readonly<Record<string, string>> = {
   'errors.badRequest': 'The request is not valid',
   'errors.validation': 'Invalid input data',
   'errors.unexpectedBody': 'This route does not accept a request body',
+  'errors.unexpectedData': 'This event does not accept data',
   'errors.unauthorized': 'You must sign in to continue',
   'errors.forbidden': 'You are not allowed to perform this action',
   'errors.crossSiteRequest': 'Requests from another site are not allowed here',

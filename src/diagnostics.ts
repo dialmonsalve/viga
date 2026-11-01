@@ -62,8 +62,6 @@ export const DIAGNOSTICS = {
     'Invalid event name "{event}": use 1 to 128 letters, digits, ".", ":", "_" or "-"',
   'ws.duplicatePath': 'The gateways {first} and {second} use the same path {path}',
   'ws.duplicateEvent': '{gateway} handles the event "{event}" more than once',
-  'ws.missingValidation':
-    '{gateway}.{method} handles "{event}" without a schema, required by requireValidation',
   'ws.unhandledException': 'Unhandled exception in a WebSocket gateway',
   'ws.invalidOption': '{option} must be a positive integer, received {value}',
   'ws.untrustedForwardedFor':

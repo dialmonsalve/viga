@@ -62,8 +62,6 @@ export const diagnosticsEs = {
     'Nombre de evento inválido "{event}": usa de 1 a 128 letras, números, ".", ":", "_" o "-"',
   'ws.duplicatePath': 'Los gateways {first} y {second} usan la misma ruta {path}',
   'ws.duplicateEvent': '{gateway} maneja el evento "{event}" más de una vez',
-  'ws.missingValidation':
-    '{gateway}.{method} maneja "{event}" sin schema, obligatorio por requireValidation',
   'ws.unhandledException': 'Excepción no controlada en un gateway de WebSocket',
   'ws.invalidOption': '{option} debe ser un entero positivo, se recibió {value}',
   'ws.untrustedForwardedFor':

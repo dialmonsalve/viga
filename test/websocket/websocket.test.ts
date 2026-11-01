@@ -1338,23 +1338,55 @@ describe('viga/websocket', () => {
       assert.deepEqual(events, ['connect:string', 'disconnect:1001']);
     });
 
-    it('con requireValidation, no arranca si un handler no tiene schema', async () => {
+    it('con requireValidation, un evento sin schema acepta mensajes sin data y rechaza los que traen data', async () => {
       @Public()
       @Gateway('/loose')
       class LooseGateway {
         @OnMessage('ping')
-        ping() {
-          return 'pong';
+        ping({ data }: WsContext) {
+          return data === undefined ? 'pong' : 'unexpected';
         }
       }
 
       @Module({ providers: [LooseGateway] })
       class LooseModule {}
 
-      await assert.rejects(start([LooseModule]), /LooseGateway\.ping handles "ping" without a schema/);
+      const { url } = await start([LooseModule]);
+      const socket = await connect(`${url}/loose`);
+
+      assert.deepEqual(await socket.request('ping'), { event: 'ping', data: 'pong' });
+      const rejected = await socket.request('ping', { extra: true }, 1);
+      assert.equal(rejected.event, 'error');
+      assert.equal(rejected.id, 1);
+      assert.deepEqual(rejected.data, {
+        statusCode: 400,
+        code: 'errors.unexpectedData',
+        message: 'This event does not accept data',
+      });
+      assert.deepEqual(await socket.request('ping', null), {
+        event: 'error',
+        data: { statusCode: 400, code: 'errors.unexpectedData', message: 'This event does not accept data' },
+      });
+      socket.ws.close();
+    });
+
+    it('sin requireValidation, un evento sin schema recibe la data tal como llega', async () => {
+      @Public()
+      @Gateway('/loose')
+      class LooseGateway {
+        @OnMessage('echo')
+        echo({ data }: WsContext) {
+          return data;
+        }
+      }
+
+      @Module({ providers: [LooseGateway] })
+      class LooseModule {}
+
       const { url } = await start([LooseModule], { requireValidation: false });
       const socket = await connect(`${url}/loose`);
-      assert.deepEqual(await socket.request('ping'), { event: 'ping', data: 'pong' });
+
+      assert.deepEqual(await socket.request('echo', { extra: true }), { event: 'echo', data: { extra: true } });
       socket.ws.close();
     });
 
