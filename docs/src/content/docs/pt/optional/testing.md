@@ -2,7 +2,7 @@
 title: viga/testing
 description: Teste sua aplicação com requisições HTTP reais, substituindo os providers que você não quer usar nos testes, como o banco de dados ou um serviço externo.
 sidebar:
-  order: 7
+  order: 3
 ---
 
 `viga/testing` inicia sua aplicação em uma porta livre e permite fazer requisições HTTP reais a ela. As requisições passam por todo o percurso: guards, validação, interceptores, controllers e serviços, igual em produção. O que você não quer usar em um teste, como o banco de dados ou um serviço de pagamentos, você substitui por uma versão falsa.

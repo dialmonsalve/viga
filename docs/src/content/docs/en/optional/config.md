@@ -2,7 +2,7 @@
 title: viga/config
 description: Validate and type the environment variables at startup, so a wrong configuration stops the app from starting instead of failing in production.
 sidebar:
-  order: 2
+  order: 1
 ---
 
 `viga/config` reads the environment variables, validates them with a schema when the app starts and hands them over already converted and typed. If a variable is missing or its value isn't valid, the app doesn't start and the error says which ones fail.

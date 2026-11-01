@@ -2,7 +2,7 @@
 title: viga/testing
 description: Test your app with real HTTP requests, replacing the providers you don't want to use in tests, like the database or an external service.
 sidebar:
-  order: 7
+  order: 3
 ---
 
 `viga/testing` starts your app on a free port and lets you make real HTTP requests to it. Requests go through the whole path: guards, validation, interceptors, controllers and services, just like in production. Whatever you don't want to use in a test, like the database or a payment service, you replace with a fake version.

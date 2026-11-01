@@ -2,7 +2,7 @@
 title: viga/config
 description: Valide e tipe as variáveis de ambiente ao iniciar, para que uma configuração incorreta impeça a aplicação de iniciar em vez de falhar em produção.
 sidebar:
-  order: 2
+  order: 1
 ---
 
 `viga/config` lê as variáveis de ambiente, as valida com um schema ao iniciar a aplicação e as entrega já convertidas e com seu tipo. Se faltar uma variável ou seu valor não for válido, a aplicação não inicia e o erro diz quais falham.

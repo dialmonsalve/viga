@@ -2,7 +2,7 @@
 title: viga/testing
 description: Prueba tu app con peticiones HTTP reales, reemplazando los providers que no quieres usar en las pruebas, como la base de datos o un servicio externo.
 sidebar:
-  order: 7
+  order: 3
 ---
 
 `viga/testing` arranca tu app en un puerto libre y te permite hacerle peticiones HTTP reales. Las peticiones pasan por todo el recorrido: guards, validación, interceptores, controladores y servicios, igual que en producción. Lo que no quieres usar en una prueba, como la base de datos o un servicio de pagos, lo reemplazas por una versión falsa.

@@ -2,7 +2,7 @@
 title: viga/config
 description: Valida y tipa las variables de entorno al arrancar, para que una configuración incorrecta impida iniciar la app en lugar de fallar en producción.
 sidebar:
-  order: 2
+  order: 1
 ---
 
 `viga/config` lee las variables de entorno, las valida con un esquema al arrancar la app y las entrega ya convertidas y con su tipo. Si falta una variable o su valor no es válido, la app no arranca y el error dice cuáles fallan.
