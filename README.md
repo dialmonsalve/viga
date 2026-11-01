@@ -123,30 +123,7 @@ See [Security defaults](https://vigajs.dev/en/security/defaults/) in the documen
 
 ### Rate limiting
 
-```ts
-import { RateLimit, ipKey, rateLimit } from 'viga';
-import { Validate } from 'viga/validation';
-import { z } from 'zod';
-
-const Login = z.strictObject({ email: z.email(), password: z.string() });
-
-app.use(rateLimit({ max: 300, windowMs: 60_000 }));
-
-@Public()
-@Controller('auth')
-class AuthController {
-  @Post('login')
-  @RateLimit({ max: 5, windowMs: 15 * 60_000, key: (req) => `${ipKey(req.ip ?? '')}:${req.body?.email}` })
-  @Validate({ body: Login })
-  login({ body }: HttpContext<{ body: typeof Login }>) {}
-}
-```
-
-- `rateLimit()` is an app-wide middleware; `@RateLimit()` goes on a method or a controller. Each one has its own counter.
-- When `max` is exceeded within `windowMs`, it responds 429 with `code: 'errors.tooManyRequests'` and `Retry-After`. Every response carries `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset`.
-- The default key is `req.ip` normalized with `ipKey()`: an IPv4-mapped address (`::ffff:1.2.3.4`) counts as its IPv4, and an IPv6 address counts as its /56 network, because whoever controls one usually controls the whole block and could otherwise get a fresh counter per address. `ipKey(address, 64)` picks another prefix length. Use `ipKey()` too when you build your own key from the IP. Behind a proxy, set `trustProxy` to the number of proxies, or every client will share the same counter.
-- HTTP rate limiting is off by default (WebSocket has a per-connection limit on by default): add `rateLimit()` or `@RateLimit()` yourself. It isn't enabled automatically because, behind a proxy without `trustProxy`, every user would share the proxy's IP and be blocked together.
-- The counter lives in memory (`MemoryRateLimitStore`). It keeps at most 10,000 keys (`new MemoryRateLimitStore({ maxKeys })`), and keys longer than 128 characters are stored as a hash, so a flood of unique keys (for example, made-up emails) can't exhaust memory. When it is full it evicts the oldest key seen only once, so a flood of new keys can't erase the counter of a key under attack. If every stored key is live and repeated, a new key is treated as over the limit until one expires: the store fails closed rather than open. Raise `maxKeys` if legitimate traffic can fill it. The counter is per process: with several instances, each one counts on its own and the real limit is multiplied by the number of instances, so implement `RateLimitStore` on Redis or another shared store and pass it as `store`. The window is fixed, so a client can send up to `max` at the end of one window and `max` again at the start of the next; pick `max` with that double burst in mind.
+See [Rate limiting](https://vigajs.dev/en/security/rate-limiting/) in the documentation.
 
 ### Security testing checklist
 

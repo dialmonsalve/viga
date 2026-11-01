@@ -123,30 +123,7 @@ Consulta [Valores por defecto](https://vigajs.dev/es/security/defaults/) en la d
 
 ### Rate limiting
 
-```ts
-import { RateLimit, ipKey, rateLimit } from 'viga';
-import { Validate } from 'viga/validation';
-import { z } from 'zod';
-
-const Login = z.strictObject({ email: z.email(), password: z.string() });
-
-app.use(rateLimit({ max: 300, windowMs: 60_000 }));
-
-@Public()
-@Controller('auth')
-class AuthController {
-  @Post('login')
-  @RateLimit({ max: 5, windowMs: 15 * 60_000, key: (req) => `${ipKey(req.ip ?? '')}:${req.body?.email}` })
-  @Validate({ body: Login })
-  login({ body }: HttpContext<{ body: typeof Login }>) {}
-}
-```
-
-- `rateLimit()` es un middleware para toda la app; `@RateLimit()` va en un método o en el controlador. Cada uno lleva su propio contador.
-- Al superar `max` dentro de `windowMs` responde 429 con `code: 'errors.tooManyRequests'` y `Retry-After`. Todas las respuestas llevan `RateLimit-Limit`, `RateLimit-Remaining` y `RateLimit-Reset`.
-- La clave por defecto es `req.ip` normalizada con `ipKey()`: una dirección IPv4-mapped (`::ffff:1.2.3.4`) cuenta como su IPv4, y una dirección IPv6 cuenta como su red /56, porque quien controla una suele controlar todo el bloque y, si no, conseguiría un contador nuevo por dirección. `ipKey(address, 64)` elige otra longitud de prefijo. Usa `ipKey()` también cuando armes tu propia clave a partir de la IP. Detrás de un proxy, pon en `trustProxy` el número de proxies, o todos los clientes compartirán el mismo contador.
-- En HTTP el rate limiting viene desactivado (en WebSocket hay un límite por conexión activado por defecto): añade tú `rateLimit()` o `@RateLimit()`. No se activa solo porque, detrás de un proxy sin `trustProxy`, todos los usuarios compartirían la IP del proxy y quedarían bloqueados a la vez.
-- El contador vive en memoria (`MemoryRateLimitStore`). Guarda como máximo 10.000 claves (`new MemoryRateLimitStore({ maxKeys })`), y las claves de más de 128 caracteres se guardan como hash, así que una avalancha de claves únicas (por ejemplo, emails inventados) no puede agotar la memoria. Al llenarse desaloja la clave más antigua que solo se vio una vez, así que una avalancha de claves nuevas no puede borrar el contador de una clave atacada. Si todas las claves guardadas están vivas y repetidas, una clave nueva se trata como limitada hasta que venza alguna: el almacén falla cerrado, no abierto. Sube `maxKeys` si el tráfico legítimo puede llenarlo. El contador es por proceso: con varias instancias, cada una cuenta por su lado y el límite real se multiplica por el número de instancias, así que implementa `RateLimitStore` sobre Redis u otro almacén compartido y pásalo en `store`. La ventana es fija, así que un cliente puede enviar hasta `max` al final de una ventana y otra vez `max` al empezar la siguiente; elige `max` contando con esa ráfaga doble.
+Consulta [Límite de peticiones](https://vigajs.dev/es/security/rate-limiting/) en la documentación.
 
 ### Checklist para pruebas de seguridad
 
