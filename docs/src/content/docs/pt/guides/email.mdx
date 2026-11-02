@@ -1,0 +1,360 @@
+---
+title: Envio de emails
+description: Envie emails com Nodemailer a partir de uma aplicação viga, em segundo plano e com repetições, escapando os templates e sem deixar segredos na fila.
+sidebar:
+  order: 3
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+O viga não traz envio de emails, porque isso depende do seu provedor. Este guia usa o [Nodemailer](https://nodemailer.com), que funciona com qualquer servidor SMTP, atrás de uma interface que permite trocá-lo pela API de um provedor. Depois o combina com [filas](../queues-workers/) e [eventos](../../optional/events/), para que um email não atrase nem quebre uma requisição.
+
+## Instalação
+
+<Tabs syncKey="pkg">
+  <TabItem label="pnpm">
+    ```sh
+    pnpm add nodemailer
+    pnpm add -D @types/nodemailer
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```sh
+    npm install nodemailer
+    npm install -D @types/nodemailer
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```sh
+    yarn add nodemailer
+    yarn add -D @types/nodemailer
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```sh
+    bun add nodemailer
+    bun add -d @types/nodemailer
+    ```
+  </TabItem>
+</Tabs>
+
+Declare a conexão no schema de [`viga/config`](../../optional/config/):
+
+```ts title="src/config.ts"
+export const Env = z.object({
+  SMTP_URL: z.url(),
+  MAIL_FROM: z.string().min(1),
+});
+```
+
+```sh title=".env"
+SMTP_URL=smtps://usuario:senha@smtp.meu-provedor.com:465
+MAIL_FROM="Meu App <ola@meu-app.com>"
+```
+
+`smtps://` criptografa a conexão desde o início. Se o seu provedor usa a porta 587, escreva `smtp://...:587?requireTLS=true`: sem `requireTLS`, a conexão continuaria sem criptografia se o servidor não oferecer TLS, e a sua senha viajaria em texto puro.
+
+## Crie o serviço
+
+Defina uma interface, para que o resto da aplicação não dependa do Nodemailer:
+
+```ts title="src/mail/mailer.ts"
+import { InjectionToken } from 'viga';
+
+export interface Email {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+}
+
+export interface Mailer {
+  send(email: Email): Promise<void>;
+}
+
+export const MAILER = new InjectionToken<Mailer>('MAILER');
+```
+
+```ts title="src/mail/smtp.mailer.ts"
+import { Injectable, inject, type OnModuleDestroy } from 'viga';
+import { CONFIG } from 'viga/config';
+import { createTransport } from 'nodemailer';
+import type { Email, Mailer } from './mailer.ts';
+
+@Injectable()
+export class SmtpMailer implements Mailer, OnModuleDestroy {
+  private readonly config = inject(CONFIG);
+  private readonly transport = createTransport(this.config.SMTP_URL);
+
+  async send(email: Email) {
+    await this.transport.sendMail({ from: this.config.MAIL_FROM, ...email });
+  }
+
+  onModuleDestroy() {
+    this.transport.close();
+  }
+}
+```
+
+```ts title="src/mail/mail.module.ts"
+import { Module } from 'viga';
+import { MAILER } from './mailer.ts';
+import { SmtpMailer } from './smtp.mailer.ts';
+
+@Module({
+  providers: [{ provide: MAILER, useClass: SmtpMailer }],
+  exports: [MAILER],
+})
+export class MailModule {}
+```
+
+Para usar a API de um provedor, crie outra classe com o mesmo método `send` e mude apenas `useClass`.
+
+## Escape os templates
+
+Um email HTML é interpretado como uma página web. Se um usuário se chama `<a href="https://evil.com">Clique aqui</a>` e você o insere como está, o seu email mostrará esse link com o seu remetente. Escape tudo o que você não escreveu:
+
+```ts title="src/mail/templates.ts"
+import type { Email } from './mailer.ts';
+
+const ENTITIES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, (char) => ENTITIES[char] ?? char);
+}
+
+export function welcomeEmail(to: string, name: string): Email {
+  return {
+    to,
+    subject: `Boas-vindas, ${name}`,
+    text: `Olá, ${name}. Obrigado por se cadastrar.`,
+    html: `<p>Olá, <strong>${escapeHtml(name)}</strong>. Obrigado por se cadastrar.</p>`,
+  };
+}
+```
+
+Inclua sempre `text`: alguns clientes não mostram HTML, e os filtros de spam desconfiam de emails sem texto puro. Se os seus templates crescerem, use uma biblioteca que escape por padrão, como [MJML](https://mjml.io) com um motor de templates.
+
+Valide também os endereços com o seu schema, como `z.email()`, antes de usá-los em `to`.
+
+## Não faça a requisição esperar
+
+Enviar um email demora, e o servidor SMTP pode estar fora do ar. Por isso uma requisição não deveria enviá-lo diretamente: guarde-o em uma [fila](../queues-workers/) e responda.
+
+```ts title="src/mail/mail.queue.ts"
+import { Injectable, inject, type OnModuleDestroy } from 'viga';
+import { CONFIG } from 'viga/config';
+import { Queue } from 'bullmq';
+import type { Email } from './mailer.ts';
+
+@Injectable()
+export class MailQueue implements OnModuleDestroy {
+  private readonly queue = new Queue<Email>('emails', {
+    connection: { url: inject(CONFIG).REDIS_URL },
+    defaultJobOptions: {
+      attempts: 5,
+      backoff: { type: 'exponential', delay: 5_000 },
+      removeOnComplete: { count: 1_000 },
+      removeOnFail: { count: 5_000 },
+    },
+  });
+
+  async add(email: Email) {
+    await this.queue.add('send', email);
+  }
+
+  onModuleDestroy() {
+    return this.queue.close();
+  }
+}
+```
+
+O worker envia cada email e decide se faz sentido repetir:
+
+```ts title="src/mail/mail.worker.ts"
+import { Injectable, LOGGER, inject, type OnModuleDestroy, type OnModuleInit } from 'viga';
+import { CONFIG } from 'viga/config';
+import { UnrecoverableError, Worker, type Job } from 'bullmq';
+import { MAILER, type Email } from './mailer.ts';
+
+function isPermanent(error: unknown) {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'responseCode' in error &&
+    typeof error.responseCode === 'number' &&
+    error.responseCode >= 500
+  );
+}
+
+@Injectable()
+export class MailWorker implements OnModuleInit, OnModuleDestroy {
+  private readonly config = inject(CONFIG);
+  private readonly logger = inject(LOGGER);
+  private readonly mailer = inject(MAILER);
+  private worker?: Worker<Email>;
+
+  onModuleInit() {
+    this.worker = new Worker<Email>('emails', (job) => this.process(job), {
+      connection: { url: this.config.REDIS_URL, maxRetriesPerRequest: null },
+      concurrency: 5,
+    });
+
+    this.worker.on('failed', (job, error) => {
+      this.logger.error(`Email ${job?.id} failed on attempt ${job?.attemptsMade}`, error);
+    });
+    this.worker.on('error', (error) => this.logger.error('Mail worker error', error));
+  }
+
+  async onModuleDestroy() {
+    await this.worker?.close();
+  }
+
+  private async process(job: Job<Email>) {
+    try {
+      await this.mailer.send(job.data);
+    } catch (error) {
+      if (isPermanent(error)) throw new UnrecoverableError(String(error));
+      throw error;
+    }
+  }
+}
+```
+
+Os códigos SMTP `5xx` são rejeições definitivas, como um endereço que não existe, então repetir não adianta. `UnrecoverableError` marca o trabalho como falho sem gastar mais tentativas. Uma queda de conexão ou um `4xx` são repetidos.
+
+Tenha em conta que, se o processo morrer logo depois de enviar e antes de marcar o trabalho como terminado, o email será enviado de novo. Para a maioria dos emails, uma duplicação ocasional é aceitável. Se não for, guarde no seu banco de dados quais emails foram enviados.
+
+Execute o worker como [qualquer outro](../queues-workers/#processe-os-trabalhos), com a entrada e o módulo dele.
+
+## Envie quando algo acontecer
+
+Com [`viga/events`](../../optional/events/), o serviço de usuários não precisa saber que os emails existem. Ele só anuncia que alguém se cadastrou:
+
+```ts title="src/users/users.service.ts"
+async register(data: NewUser) {
+  const user = await this.users.create(data);
+  await this.events.emit(new UserRegistered(user.email, user.name));
+  return user;
+}
+```
+
+```ts title="src/mail/welcome.listener.ts"
+import { Injectable, inject } from 'viga';
+import { OnEvent } from 'viga/events';
+import { UserRegistered } from '../users/user-registered.event.ts';
+import { MailQueue } from './mail.queue.ts';
+import { welcomeEmail } from './templates.ts';
+
+@Injectable()
+export class WelcomeListener {
+  private readonly queue = inject(MailQueue);
+
+  @OnEvent(UserRegistered)
+  async send(event: UserRegistered) {
+    await this.queue.add(welcomeEmail(event.email, event.name));
+  }
+}
+```
+
+Se o Redis estiver fora do ar nesse momento, o listener falha, o viga registra e o usuário fica cadastrado sem o email de boas-vindas. Para um email assim, é razoável. Se ele não pode se perder, use o padrão [*outbox*](../../optional/events/#eventos-que-não-podem-se-perder).
+
+## Recuperar a senha
+
+Este fluxo tem três armadilhas:
+
+- **Não revele quais emails existem.** Responda da mesma forma e leve o mesmo tempo, exista ou não.
+- **Não guarde o token no banco de dados.** Guarde apenas o [hash](../../optional/crypto/#tokens-aleatórios) dele.
+- **Não deixe o link na fila.** Se você enfileirar o email já escrito, o token fica no Redis, sem criptografia, e em cada repetição. Enfileire apenas o endereço de email, e crie o token no worker logo antes de enviar.
+
+A rota sempre adiciona o trabalho, sem verificar se o usuário existe, com um limite para que não sirva para enviar emails em massa:
+
+```ts title="src/auth/password-reset.controller.ts"
+@Public()
+@Post('/password-reset')
+@HttpCode(202)
+@RateLimit({ max: 5, windowMs: 15 * 60_000 })
+@Validate({ body: RequestReset })
+async request({ body }: HttpContext<{ body: typeof RequestReset }>) {
+  await this.resets.add(body.email);
+}
+```
+
+`resets` é uma fila como a anterior, cujos trabalhos só levam o endereço de email. O worker dela procura o usuário e, se existir, cria o token:
+
+```ts title="src/auth/password-reset.worker.ts"
+private async process(job: Job<{ email: string }>) {
+  const user = await this.users.findByEmail(job.data.email);
+  if (!user) return;
+
+  const token = randomToken();
+  await this.tokens.replaceFor(user.id, {
+    tokenHash: hashToken(token),
+    expiresAt: new Date(Date.now() + 60 * 60_000),
+  });
+
+  await this.mailer.send(resetEmail(user.email, `${this.config.APP_URL}/reset?token=${token}`));
+}
+```
+
+`replaceFor` apaga os tokens anteriores do usuário, então uma repetição invalida o link da tentativa anterior. Para verificar o token quando ele voltar, siga os passos de [`viga/crypto`](../../optional/crypto/#tokens-aleatórios). O link é construído com `APP_URL`, da sua configuração, e nunca com o cabeçalho `Host` da requisição, que pode ser falsificado para enviar o link a outro domínio.
+
+## Rejeições e reclamações
+
+Se você continuar enviando para endereços que não existem ou para quem marcou você como spam, os provedores baixam a sua reputação e os seus emails deixam de chegar. A maioria dos provedores avisa com um webhook:
+
+```ts title="src/mail/bounces.controller.ts"
+@Public()
+@Post('/webhooks/mail')
+@HttpCode(204)
+@Validate({ body: BounceEvent })
+async bounce({ req, body }: HttpContext<{ body: typeof BounceEvent }>) {
+  const secret = req.headers['x-webhook-secret']?.toString() ?? '';
+  if (!safeEqual(secret, this.config.MAIL_WEBHOOK_SECRET)) throw new UnauthorizedException();
+
+  await this.suppressions.add(body.email);
+}
+```
+
+Cada provedor tem o próprio formato e a própria forma de assinar o webhook. Se ele assina o conteúdo, use essa verificação em vez de um segredo fixo. Depois, consulte essa lista antes de adicionar um email à fila.
+
+Em envios em massa, acompanhe também a proporção de rejeições e pause a campanha se ela for alta demais. O exemplo de [emitir uma única vez](../../optional/events/#emita-uma-única-vez) faz justamente isso.
+
+## Para que os emails cheguem
+
+Isso se configura no seu DNS, não no seu código, mas sem isso os seus emails acabarão no spam:
+
+- **SPF** indica quais servidores podem enviar em nome do seu domínio.
+- **DKIM** assina cada email, para demonstrar que não foi modificado.
+- **DMARC** indica o que fazer com os emails que não passam nessas verificações.
+
+O seu provedor dará os registros exatos. Use um remetente do seu domínio: um `@gmail.com` não passará nessas verificações a partir de outro servidor. Se você envia emails em massa, use um subdomínio à parte, para que a reputação dele não afete os seus emails importantes.
+
+## Em desenvolvimento e nos testes
+
+Em desenvolvimento, o [Mailpit](https://mailpit.axllent.org) recebe os emails sem enviá-los a ninguém, e os mostra em `http://localhost:8025`:
+
+```sh
+docker run --rm -p 1025:1025 -p 8025:8025 axllent/mailpit
+```
+
+```sh title=".env"
+SMTP_URL=smtp://localhost:1025
+```
+
+Nos testes, substitua `MAILER` e verifique o que teria sido enviado:
+
+```ts title="test/mail.test.ts"
+const sent: Email[] = [];
+
+const app = await createTestingApp(MailModule, {
+  overrides: [{ provide: MAILER, useValue: { send: async (email: Email) => void sent.push(email) } }],
+});
+
+await app.get(MAILER).send(welcomeEmail('ana@example.com', '<b>Ana</b>'));
+
+assert.equal(sent[0]?.to, 'ana@example.com');
+assert.ok(sent[0]?.html?.includes('&lt;b&gt;Ana&lt;/b&gt;'));
+
+await app.close();
+```
