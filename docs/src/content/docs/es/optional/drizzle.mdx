@@ -19,31 +19,33 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 <Tabs syncKey="pkg">
   <TabItem label="pnpm">
     ```sh
-    pnpm add drizzle-orm pg
+    pnpm add drizzle-orm@0.45 pg
     pnpm add -D @types/pg
     ```
   </TabItem>
   <TabItem label="npm">
     ```sh
-    npm install drizzle-orm pg
+    npm install drizzle-orm@0.45 pg
     npm install -D @types/pg
     ```
   </TabItem>
   <TabItem label="yarn">
     ```sh
-    yarn add drizzle-orm pg
+    yarn add drizzle-orm@0.45 pg
     yarn add -D @types/pg
     ```
   </TabItem>
   <TabItem label="bun">
     ```sh
-    bun add drizzle-orm pg
+    bun add drizzle-orm@0.45 pg
     bun add -d @types/pg
     ```
   </TabItem>
 </Tabs>
 
-viga funciona con `drizzle-orm` desde la versión 0.45 y anterior a la 1.0.
+:::note[Drizzle 1.0]
+viga funciona con `drizzle-orm` desde la versión 0.45 y anterior a la 1.0, que todavía no es estable. Por eso el comando fija la versión 0.45: sin ella, cuando salga la 1.0 se instalaría una versión que viga aún no admite. El soporte para la 1.0 llegará cuando sea estable.
+:::
 
 ## Define el esquema
 

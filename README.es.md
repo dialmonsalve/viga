@@ -47,7 +47,7 @@ pnpm add -D @types/express
 Solo si usas `viga/drizzle`:
 
 ```bash
-pnpm add drizzle-orm pg
+pnpm add drizzle-orm@0.45 pg
 pnpm add -D @types/pg
 ```
 
