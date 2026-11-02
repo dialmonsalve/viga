@@ -1,0 +1,303 @@
+---
+title: JWT authentication
+description: Authenticate your API with JWT tokens signed with jose, with short-lived access tokens and refresh tokens that rotate and detect reuse.
+sidebar:
+  order: 1
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+viga ships no authentication of its own: it gives you the [authentication guard](../../core/guards/) and you decide how to check who the user is. This guide builds a complete JWT authentication using [jose](https://github.com/panva/jose), a library with no dependencies that works with Node.js's Web Crypto API.
+
+## How it works
+
+The guide uses two tokens:
+
+- **Access token:** a signed JWT that lasts 15 minutes. The client sends it on every request, in the `Authorization` header. viga verifies it without querying the database.
+- **Refresh token:** a random value that lasts 30 days. It's only for asking for a new access token when the previous one expires. Each time it's used, it's swapped for another one (rotation), and if someone uses one that was already used, all of that session's tokens are revoked.
+
+A JWT can't be revoked before it expires: it's valid as long as its signature and date are. That's why the access token is short-lived. The refresh token, on the other hand, is stored on the server and can be revoked at any time, for example when logging out.
+
+## Installation
+
+<Tabs syncKey="pkg">
+  <TabItem label="pnpm">
+    ```sh
+    pnpm add jose
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```sh
+    npm install jose
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```sh
+    yarn add jose
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```sh
+    bun add jose
+    ```
+  </TabItem>
+</Tabs>
+
+## The secret
+
+Access tokens are signed with a secret only your server knows. Declare `JWT_SECRET` in your [`viga/config`](../../optional/config/) schema with a minimum of 32 characters, so the app doesn't start with a weak secret:
+
+```ts title="src/config.ts"
+export const Env = z.object({
+  JWT_SECRET: z.string().min(32),
+});
+```
+
+Generate a random one with:
+
+```sh
+node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"
+```
+
+## Sign and verify access tokens
+
+```ts title="src/auth/tokens.service.ts"
+import { Injectable, inject } from 'viga';
+import { CONFIG } from 'viga/config';
+import { SignJWT, jwtVerify } from 'jose';
+
+@Injectable()
+export class TokensService {
+  private readonly config = inject(CONFIG);
+  private readonly key = new TextEncoder().encode(this.config.JWT_SECRET);
+
+  sign(userId: string) {
+    return new SignJWT()
+      .setProtectedHeader({ alg: 'HS256' })
+      .setSubject(userId)
+      .setIssuedAt()
+      .setExpirationTime('15m')
+      .sign(this.key);
+  }
+
+  async verify(token: string) {
+    const { payload } = await jwtVerify(token, this.key, { algorithms: ['HS256'] });
+    return payload;
+  }
+}
+```
+
+`jwtVerify` checks the signature and the expiry date, and throws if either fails. The `algorithms` option pins the accepted algorithm: without it, an attacker could send a token declaring another algorithm, like `none`, to skip the signature.
+
+Don't store sensitive data in the token. A JWT is signed, not encrypted: anyone who has it can read its contents.
+
+## The authentication guard
+
+The guard reads the token from the `Authorization: Bearer <token>` header, verifies it and stores the user in `CURRENT_USER`, a context key like the one you saw in [guards](../../core/guards/#share-the-user-with-the-rest-of-the-code). Here the `id` is the token's `sub`:
+
+```ts title="src/auth/current-user.ts"
+import { createContextKey } from 'viga';
+
+export const CURRENT_USER = createContextKey<{ id: string }>('currentUser');
+```
+
+```ts title="src/auth/auth.guard.ts"
+import { Injectable, inject, type CanActivate, type HttpContext } from 'viga';
+import { CURRENT_USER } from './current-user.ts';
+import { TokensService } from './tokens.service.ts';
+
+@Injectable()
+export class AuthGuard implements CanActivate {
+  private readonly tokens = inject(TokensService);
+
+  async canActivate({ req }: HttpContext) {
+    const header = req.headers.authorization;
+    if (!header?.startsWith('Bearer ')) return false;
+
+    try {
+      const { sub } = await this.tokens.verify(header.slice('Bearer '.length));
+      if (typeof sub !== 'string') return false;
+      CURRENT_USER.set({ id: sub });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+```
+
+A token that's missing, tampered with or expired returns `false`, and viga responds 401.
+
+Register it in `main.ts`:
+
+```ts title="src/main.ts"
+const app = createApp({ rootModule: AppModule }).enableShutdownHooks().useAuthGuard(AuthGuard);
+```
+
+Since the authentication guard is created with the root module's container, `TokensService` has to be visible from there: export `TokensService` from your `AuthModule` and import `AuthModule` in the root module.
+
+## Refresh tokens
+
+A refresh token isn't a JWT: it's a random value with no meaning of its own. The server stores only its hash, never the token, so a database leak doesn't let anyone use them.
+
+Each refresh token belongs to a **family**, which represents a session. When it's used, it's marked as used and another one of the same family is issued. If someone uses a token that was already used, it's a sign it was stolen: the thief and the legitimate user have copies of the same token, and there's no way to tell which is which. So the whole family is revoked, and both have to log in again.
+
+```ts title="src/auth/refresh-tokens.service.ts"
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { Injectable, UnauthorizedException } from 'viga';
+
+interface StoredToken {
+  userId: string;
+  family: string;
+  expiresAt: number;
+  used: boolean;
+}
+
+const THIRTY_DAYS = 30 * 24 * 60 * 60_000;
+
+function hash(token: string) {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+@Injectable()
+export class RefreshTokensService {
+  private readonly tokens = new Map<string, StoredToken>();
+
+  issue(userId: string, family: string = randomUUID()) {
+    const token = randomBytes(32).toString('base64url');
+    this.tokens.set(hash(token), { userId, family, expiresAt: Date.now() + THIRTY_DAYS, used: false });
+    return token;
+  }
+
+  rotate(token: string) {
+    const stored = this.tokens.get(hash(token));
+    if (!stored || stored.expiresAt <= Date.now()) throw new UnauthorizedException();
+
+    if (stored.used) {
+      this.revokeFamily(stored.family);
+      throw new UnauthorizedException();
+    }
+
+    stored.used = true;
+    return { userId: stored.userId, refreshToken: this.issue(stored.userId, stored.family) };
+  }
+
+  revoke(token: string) {
+    const stored = this.tokens.get(hash(token));
+    if (stored) this.revokeFamily(stored.family);
+  }
+
+  private revokeFamily(family: string) {
+    for (const [key, value] of this.tokens) {
+      if (value.family === family) this.tokens.delete(key);
+    }
+  }
+}
+```
+
+To keep the guide short, tokens are stored in memory. In a real app, store them in a database table, with the columns `hash`, `user_id`, `family`, `expires_at` and `used`, and delete expired ones from time to time. That way they survive a restart and work with several instances.
+
+## The routes
+
+```ts title="src/auth/auth.controller.ts"
+import { Controller, Get, Post, Public, RateLimit, UnauthorizedException, inject, type HttpContext } from 'viga';
+import { Validate } from 'viga/validation';
+import { z } from 'zod';
+import { CURRENT_USER } from './current-user.ts';
+import { RefreshTokensService } from './refresh-tokens.service.ts';
+import { TokensService } from './tokens.service.ts';
+import { UsersService } from '../users/users.service.ts';
+
+const Login = z.object({ email: z.email(), password: z.string().min(1) });
+const Refresh = z.object({ refreshToken: z.string().min(1) });
+
+@Controller('/auth')
+export class AuthController {
+  private readonly tokens = inject(TokensService);
+  private readonly refreshTokens = inject(RefreshTokensService);
+  private readonly users = inject(UsersService);
+
+  @Public()
+  @Post('/login')
+  @RateLimit({ max: 5, windowMs: 15 * 60_000 })
+  @Validate({ body: Login })
+  async login({ body }: HttpContext<{ body: typeof Login }>) {
+    const user = await this.users.verifyCredentials(body.email, body.password);
+    if (!user) throw new UnauthorizedException();
+
+    return { accessToken: await this.tokens.sign(user.id), refreshToken: this.refreshTokens.issue(user.id) };
+  }
+
+  @Public()
+  @Post('/refresh')
+  @Validate({ body: Refresh })
+  async refresh({ body }: HttpContext<{ body: typeof Refresh }>) {
+    const { userId, refreshToken } = this.refreshTokens.rotate(body.refreshToken);
+    return { accessToken: await this.tokens.sign(userId), refreshToken };
+  }
+
+  @Public()
+  @Post('/logout')
+  @Validate({ body: Refresh })
+  logout({ body }: HttpContext<{ body: typeof Refresh }>) {
+    this.refreshTokens.revoke(body.refreshToken);
+  }
+
+  @Get('/me')
+  me() {
+    return CURRENT_USER.get();
+  }
+}
+```
+
+- **`login`** responds 401 both when the email doesn't exist and when the password is wrong, so it doesn't reveal which emails are registered. `verifyCredentials` is a method of your users service that compares the password with its stored hash, for example with `scrypt` from `node:crypto` or with argon2. Never store passwords in plain text. The rate limit slows down brute-force attacks.
+- **`refresh`** swaps the refresh token for a new one and issues a new access token.
+- **`logout`** revokes the session and responds 204.
+- **`/me`** is private, so it needs a valid access token.
+
+The first three are `@Public()`, because they're used without a valid access token.
+
+## On the client
+
+A common flow on the frontend:
+
+1. After login, keep the access token in memory, not in `localStorage`, where an injected script could read it.
+2. Send it on every request: `Authorization: Bearer <accessToken>`.
+3. If a request responds 401, call `/auth/refresh` with the refresh token, store the new pair and repeat the request.
+4. If `/auth/refresh` also responds 401, the session is over: send the user to login.
+
+To store the refresh token in the browser, the safest option is an `HttpOnly`, `Secure` and `SameSite=Strict` cookie, which the page's JavaScript can't read. In that case read the token from the cookie instead of the body, and keep viga's [CSRF protection](../../security/defaults/#csrf-protection) on.
+
+## WebSocket
+
+The same access token works to authenticate a WebSocket. Pass `WebSocketModule.forRoot` a function, which runs inside the container and can ask for `CONFIG` with `inject()`. Use the token's expiry as `expiresAt`, so the connection closes when it expires:
+
+```ts title="src/app.module.ts"
+import { inject } from 'viga';
+import { CONFIG } from 'viga/config';
+import { WebSocketModule } from 'viga/websocket';
+import { jwtVerify } from 'jose';
+
+WebSocketModule.forRoot(() => {
+  const key = new TextEncoder().encode(inject(CONFIG).JWT_SECRET);
+
+  return {
+    authenticate: async (req) => {
+      const token = new URL(req.url ?? '/', 'http://localhost').searchParams.get('token');
+      if (!token) return false;
+
+      try {
+        const { payload } = await jwtVerify(token, key, { algorithms: ['HS256'] });
+        if (typeof payload.sub !== 'string' || payload.exp === undefined) return false;
+        return { userId: payload.sub, expiresAt: payload.exp * 1000 };
+      } catch {
+        return false;
+      }
+    },
+  };
+}),
+```
+
+The function only sees the providers of global modules, like `CONFIG`, so it can't ask for `TokensService` here.
+
+The browser can't send the `Authorization` header on a WebSocket, so the token goes in the URL. Since URLs often end up in logs, it's another reason to keep the access token short-lived. It's explained in [`viga/websocket`](../../optional/websocket/#authentication).
