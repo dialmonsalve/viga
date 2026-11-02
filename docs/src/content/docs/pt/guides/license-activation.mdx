@@ -1,0 +1,348 @@
+---
+title: Ativação de licenças
+description: Ative licenças de uma aplicação desktop com o viga, limitando os dispositivos e com uma licença assinada que funciona sem conexão.
+sidebar:
+  order: 7
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Este guia constrói o servidor de licenças de uma aplicação desktop. O cliente informa uma chave, e o viga verifica se ela é válida e não ultrapassa os dispositivos permitidos. Depois entrega uma licença assinada, que a aplicação verifica sem conexão e renova de vez em quando.
+
+:::caution
+Isso organiza as suas vendas e freia o uso casual, mas não impede a pirataria. O código de uma aplicação desktop está no equipamento do cliente, e alguém com tempo pode modificá-lo para pular qualquer verificação. Não invista demais aqui, e deixe o que é realmente valioso no seu servidor.
+:::
+
+## Como funciona
+
+1. **Ativar:** a aplicação envia a chave e uma impressão digital do dispositivo. O viga responde com uma licença assinada.
+2. **Verificar:** toda vez que inicia, a aplicação verifica a assinatura com a chave pública, sem conexão.
+3. **Renovar:** a licença dura 30 dias. A cada 7 dias, se houver internet, a aplicação pede uma nova.
+4. **Revogar:** se você anular uma chave, o viga rejeita a próxima renovação, e a aplicação deixa de funcionar quando a licença expirar.
+
+A licença é assinada com Ed25519, que usa duas chaves. A **privada** só está no seu servidor e é a única que pode criar licenças. A **pública** vai dentro da aplicação e só serve para verificá-las, então não importa se alguém a extrair.
+
+Revogar não é imediato: um equipamento sem conexão pode continuar usando a aplicação por até 30 dias. Se isso for demais, encurte a duração, em troca de exigir conexão com mais frequência.
+
+## Instalação
+
+Use [jose](https://github.com/panva/jose) no servidor e na aplicação:
+
+<Tabs syncKey="pkg">
+  <TabItem label="pnpm">
+    ```sh
+    pnpm add jose
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```sh
+    npm install jose
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```sh
+    yarn add jose
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```sh
+    bun add jose
+    ```
+  </TabItem>
+</Tabs>
+
+## As chaves
+
+Gere o par uma única vez:
+
+```sh
+node -e "
+const { generateKeyPairSync } = require('node:crypto');
+const { privateKey, publicKey } = generateKeyPairSync('ed25519');
+const pem = privateKey.export({ type: 'pkcs8', format: 'pem' });
+console.log('LICENSE_PRIVATE_KEY=' + Buffer.from(pem).toString('base64'));
+console.log(publicKey.export({ type: 'spki', format: 'pem' }));
+"
+```
+
+Guarde `LICENSE_PRIVATE_KEY` como um segredo do seu servidor e declare-a em [`viga/config`](../../optional/config/). Copie a chave pública no código da aplicação.
+
+Se a chave privada vazar, qualquer pessoa pode criar licenças, e você terá que publicar uma versão da aplicação com outra chave pública. Guarde-a apenas onde o servidor de licenças é executado.
+
+## As tabelas
+
+```ts title="src/licenses/licenses.schema.ts"
+import { integer, pgTable, serial, text, timestamp, unique } from 'drizzle-orm/pg-core';
+
+export const licenses = pgTable('licenses', {
+  id: serial('id').primaryKey(),
+  keyHash: text('key_hash').notNull().unique(),
+  customer: text('customer').notNull(),
+  maxDevices: integer('max_devices').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+});
+
+export const activations = pgTable(
+  'license_activations',
+  {
+    id: serial('id').primaryKey(),
+    licenseId: integer('license_id')
+      .notNull()
+      .references(() => licenses.id, { onDelete: 'cascade' }),
+    deviceHash: text('device_hash').notNull(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [unique().on(table.licenseId, table.deviceHash)],
+);
+```
+
+A chave é gerada com [`randomToken`](../../optional/crypto/#tokens-aleatórios) e só o hash dela é guardado, como qualquer outro token. Ao criá-la, entregue-a ao cliente: depois não é possível recuperá-la.
+
+```ts
+const licenseKey = randomToken();
+await this.database.db.insert(licenses).values({
+  keyHash: hashToken(licenseKey),
+  customer: 'Acme',
+  maxDevices: 2,
+});
+```
+
+## Assine as licenças
+
+```ts title="src/licenses/license-tokens.service.ts"
+import { createPrivateKey } from 'node:crypto';
+import { Injectable, inject } from 'viga';
+import { CONFIG } from 'viga/config';
+import { SignJWT } from 'jose';
+
+const THIRTY_DAYS_IN_SECONDS = 30 * 24 * 60 * 60;
+
+@Injectable()
+export class LicenseTokens {
+  private readonly key = createPrivateKey(
+    Buffer.from(inject(CONFIG).LICENSE_PRIVATE_KEY, 'base64').toString(),
+  );
+
+  sign(licenseId: number, deviceHash: string, licenseExpiresAt: Date | null) {
+    const now = Math.floor(Date.now() / 1000);
+    const limit = now + THIRTY_DAYS_IN_SECONDS;
+    const licenseEnd = licenseExpiresAt ? Math.floor(licenseExpiresAt.getTime() / 1000) : limit;
+
+    return new SignJWT({ device: deviceHash })
+      .setProtectedHeader({ alg: 'EdDSA' })
+      .setSubject(String(licenseId))
+      .setIssuedAt(now)
+      .setExpirationTime(Math.min(limit, licenseEnd))
+      .sign(this.key);
+  }
+}
+```
+
+## Ative e renove
+
+O serviço bloqueia a linha da licença dentro de uma transação. Sem esse bloqueio, duas ativações simultâneas poderiam ver um dispositivo livre e ocupá-lo ao mesmo tempo, e a licença ultrapassaria o limite:
+
+```ts title="src/licenses/licenses.service.ts"
+import { ConflictException, ForbiddenException, Injectable, inject } from 'viga';
+import { hashToken } from 'viga/crypto';
+import { DatabaseService } from 'viga/drizzle';
+import { and, count, eq } from 'drizzle-orm';
+import { LicenseTokens } from './license-tokens.service.ts';
+import { activations, licenses } from './licenses.schema.ts';
+
+@Injectable()
+export class LicensesService {
+  private readonly database = inject(DatabaseService);
+  private readonly tokens = inject(LicenseTokens);
+
+  async activate(licenseKey: string, deviceHash: string) {
+    const license = await this.database.transaction(async (tx) => {
+      const found = await this.lockValid(tx, licenseKey);
+
+      const updated = await tx
+        .update(activations)
+        .set({ lastSeenAt: new Date() })
+        .where(and(eq(activations.licenseId, found.id), eq(activations.deviceHash, deviceHash)))
+        .returning({ id: activations.id });
+
+      if (updated.length === 0) {
+        const [used] = await tx
+          .select({ total: count() })
+          .from(activations)
+          .where(eq(activations.licenseId, found.id));
+
+        if ((used?.total ?? 0) >= found.maxDevices) {
+          throw new ConflictException('Esta licença não admite mais dispositivos');
+        }
+        await tx.insert(activations).values({ licenseId: found.id, deviceHash });
+      }
+      return found;
+    });
+
+    return this.tokens.sign(license.id, deviceHash, license.expiresAt);
+  }
+
+  async refresh(licenseKey: string, deviceHash: string) {
+    const license = await this.database.transaction(async (tx) => {
+      const found = await this.lockValid(tx, licenseKey);
+
+      const updated = await tx
+        .update(activations)
+        .set({ lastSeenAt: new Date() })
+        .where(and(eq(activations.licenseId, found.id), eq(activations.deviceHash, deviceHash)))
+        .returning({ id: activations.id });
+
+      if (updated.length === 0) throw new ForbiddenException('Licença inválida');
+      return found;
+    });
+
+    return this.tokens.sign(license.id, deviceHash, license.expiresAt);
+  }
+
+  async deactivate(licenseKey: string, deviceHash: string) {
+    await this.database.transaction(async (tx) => {
+      const found = await this.lockValid(tx, licenseKey);
+      await tx
+        .delete(activations)
+        .where(and(eq(activations.licenseId, found.id), eq(activations.deviceHash, deviceHash)));
+    });
+  }
+
+  private async lockValid(tx: Parameters<Parameters<DatabaseService['transaction']>[0]>[0], licenseKey: string) {
+    const [license] = await tx
+      .select()
+      .from(licenses)
+      .where(eq(licenses.keyHash, hashToken(licenseKey)))
+      .for('update');
+
+    const isValid =
+      license && !license.revokedAt && (!license.expiresAt || license.expiresAt > new Date());
+    if (!isValid) throw new ForbiddenException('Licença inválida');
+    return license;
+  }
+}
+```
+
+Uma chave inexistente, revogada ou expirada responde o mesmo, para não revelar quais existem.
+
+As rotas são públicas, porque quem as chama não tem sessão, então precisam de um [limite de requisições](../../security/rate-limiting/#por-rota) para frear quem testa chaves:
+
+```ts title="src/licenses/licenses.controller.ts"
+import { Controller, HttpCode, Post, Public, RateLimit, inject, type HttpContext } from 'viga';
+import { Validate } from 'viga/validation';
+import { z } from 'zod';
+import { LicensesService } from './licenses.service.ts';
+
+const Device = z.strictObject({
+  licenseKey: z.string().min(16).max(128),
+  deviceHash: z.string().regex(/^[0-9a-f]{64}$/),
+});
+
+@Public()
+@Controller('/licenses')
+@RateLimit({ max: 10, windowMs: 15 * 60_000 })
+export class LicensesController {
+  private readonly licenses = inject(LicensesService);
+
+  @Post('/activate')
+  @HttpCode(200)
+  @Validate({ body: Device })
+  async activate({ body }: HttpContext<{ body: typeof Device }>) {
+    return { license: await this.licenses.activate(body.licenseKey, body.deviceHash) };
+  }
+
+  @Post('/refresh')
+  @HttpCode(200)
+  @Validate({ body: Device })
+  async refresh({ body }: HttpContext<{ body: typeof Device }>) {
+    return { license: await this.licenses.refresh(body.licenseKey, body.deviceHash) };
+  }
+
+  @Post('/deactivate')
+  @HttpCode(204)
+  @Validate({ body: Device })
+  deactivate({ body }: HttpContext<{ body: typeof Device }>) {
+    return this.licenses.deactivate(body.licenseKey, body.deviceHash);
+  }
+}
+```
+
+Para revogar uma licença, preencha `revokedAt`. `deactivate` libera um dispositivo, por exemplo quando o cliente troca de equipamento.
+
+## Na aplicação
+
+A impressão digital é um hash do identificador da máquina. Enviar o hash, com o nome da sua aplicação na frente, evita que o seu servidor guarde um dado real do equipamento:
+
+```ts title="app/license/device.ts"
+export async function deviceHash(machineId: string) {
+  const bytes = new TextEncoder().encode(`meu-app:${machineId}`);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+```
+
+O identificador depende da sua plataforma:
+
+- **Tauri:** o crate [`machine-uid`](https://crates.io/crates/machine-uid), exposto à sua interface com um comando Rust.
+- **Electron:** o pacote [`node-machine-id`](https://www.npmjs.com/package/node-machine-id), no processo principal.
+
+Este código verifica a licença e a renova quando necessário. Funciona em qualquer ambiente com Web Crypto, como a interface do Tauri ou o processo principal do Electron:
+
+```ts title="app/license/license.ts"
+import { importSPKI, jwtVerify } from 'jose';
+
+const PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
+...
+-----END PUBLIC KEY-----`;
+
+const API_URL = 'https://licencas.meu-app.com/licenses';
+const RENEW_AFTER_SECONDS = 7 * 24 * 60 * 60;
+
+export async function readLicense(license: string, device: string) {
+  try {
+    const key = await importSPKI(PUBLIC_KEY, 'EdDSA');
+    const { payload } = await jwtVerify(license, key, { algorithms: ['EdDSA'] });
+    return payload.device === device ? payload : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function renewIfNeeded(license: string, licenseKey: string, device: string) {
+  const payload = await readLicense(license, device);
+  if (!payload?.iat) return undefined;
+  if (Date.now() / 1000 - payload.iat < RENEW_AFTER_SECONDS) return license;
+
+  try {
+    const response = await fetch(`${API_URL}/refresh`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ licenseKey, deviceHash: device }),
+    });
+
+    if (response.status === 403) return undefined;
+    if (!response.ok) return license;
+
+    const body: unknown = await response.json();
+    return typeof body === 'object' && body !== null && 'license' in body && typeof body.license === 'string'
+      ? body.license
+      : license;
+  } catch {
+    return license;
+  }
+}
+```
+
+`algorithms: ['EdDSA']` é imprescindível: sem isso, um token que declare outro algoritmo poderia [pular a assinatura](../jwt-auth/#assine-e-verifique-os-access-tokens).
+
+`renewIfNeeded` devolve a licença que você deve guardar, ou `undefined` se ela não for mais válida, e então você pede a chave de novo. Só um 403 anula a licença: se não houver internet ou o seu servidor falhar, a aplicação continua funcionando até expirar, e uma falha sua não deixa todos os seus clientes sem trabalhar.
+
+Guarde a chave e a licença no armazenamento da sua plataforma, como o Keychain do macOS ou o Credential Manager do Windows, em vez de em um arquivo de texto.
+
+## Os limites
+
+- **A impressão digital é enviada pelo cliente.** O seu servidor não pode verificar se é real, então alguém poderia enviar a mesma em vários equipamentos. Ela serve para contar dispositivos, não como prova de identidade.
+- **O hardware muda.** Se o cliente trocar de equipamento ou reinstalar o sistema, a impressão digital pode mudar e ocupar outro dispositivo. Ofereça uma forma de liberar os antigos, no seu painel ou pelo suporte.
+- **O relógio é controlado pelo usuário.** Se ele o atrasar, uma licença expirada parece válida. Você pode guardar a última data vista e rejeitar uma anterior, mas isso só dificulta o truque. A renovação com o seu servidor é o que realmente limita isso.
+- **Uma chave pode ser compartilhada.** Os limites de dispositivos freiam isso, e `lastSeenAt` ajuda a detectar um uso estranho.
