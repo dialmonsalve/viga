@@ -173,7 +173,7 @@ export class LicensesService {
           .where(eq(activations.licenseId, found.id));
 
         if ((used?.total ?? 0) >= found.maxDevices) {
-          throw new ConflictException('This license doesn't allow more devices');
+          throw new ConflictException('This license allows no more devices');
         }
         await tx.insert(activations).values({ licenseId: found.id, deviceHash });
       }

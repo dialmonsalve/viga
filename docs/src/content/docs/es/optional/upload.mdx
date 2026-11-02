@@ -215,10 +215,14 @@ Si llega un archivo, se comprueba igual que siempre.
 
 ## Formularios sin archivos
 
-Si un formulario nunca lleva archivos, no uses `@Upload`. Valídalo solo con `@Validate`, y envíalo como JSON o como `URLSearchParams` en lugar de `FormData`:
+Si un formulario nunca lleva archivos, no uses `@Upload`. Valídalo solo con `@Validate`, y envíalo como JSON en lugar de `FormData`:
 
 ```ts
-await fetch('/contact', { method: 'POST', body: new URLSearchParams(new FormData(form)) });
+await fetch('/contact', {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify(Object.fromEntries(new FormData(form))),
+});
 ```
 
 viga solo interpreta `multipart/form-data`, el formato de `FormData`, en las rutas con `@Upload`. En cualquier otra ruta, sus campos no se leen: con `@Validate` responde 400 con `errors.validation`, y sin él, 400 con `errors.unexpectedBody`.
