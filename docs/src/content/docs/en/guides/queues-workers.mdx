@@ -1,6 +1,6 @@
 ---
 title: Queues and workers
-description: Process background jobs with BullMQ or pg-boss and viga/workers, with retries, orderly shutdown and one queue per company.
+description: Process background jobs with BullMQ or pg-boss and @vigajs/core/workers, with retries, orderly shutdown and one queue per company.
 sidebar:
   order: 2
 ---
@@ -50,8 +50,8 @@ Set Redis to `maxmemory-policy noeviction`. With another policy, Redis can delet
 A provider creates the queue and closes it when the app stops:
 
 ```ts title="src/imports/imports.queue.ts"
-import { Injectable, inject, type OnModuleDestroy } from 'viga';
-import { CONFIG } from 'viga/config';
+import { Injectable, inject, type OnModuleDestroy } from '@vigajs/core';
+import { CONFIG } from '@vigajs/core/config';
 import { Queue } from 'bullmq';
 
 export interface ImportJob {
@@ -86,8 +86,8 @@ export class ImportsQueue implements OnModuleDestroy {
 The route adds the job and responds 202, which means "received, it will be processed later":
 
 ```ts title="src/imports/imports.controller.ts"
-import { Controller, HttpCode, Post, inject, type HttpContext } from 'viga';
-import { Validate } from 'viga/validation';
+import { Controller, HttpCode, Post, inject, type HttpContext } from '@vigajs/core';
+import { Validate } from '@vigajs/core/validation';
 import { z } from 'zod';
 import { ImportsQueue } from './imports.queue.ts';
 
@@ -112,8 +112,8 @@ export class ImportsController {
 The worker is a provider that consumes the queue. `close()` waits for running jobs to finish:
 
 ```ts title="src/imports/imports.worker.ts"
-import { Injectable, LOGGER, inject, runInNewContext, type OnModuleDestroy, type OnModuleInit } from 'viga';
-import { CONFIG } from 'viga/config';
+import { Injectable, LOGGER, inject, runInNewContext, type OnModuleDestroy, type OnModuleInit } from '@vigajs/core';
+import { CONFIG } from '@vigajs/core/config';
 import { Worker, type Job } from 'bullmq';
 import { ImportsService } from './imports.service.ts';
 import type { ImportJob } from './imports.queue.ts';
@@ -154,8 +154,8 @@ export class ImportsWorker implements OnModuleInit, OnModuleDestroy {
 Group it in its module and create the entry file. The module is the root of the worker's process, so it imports `ConfigModule`:
 
 ```ts title="src/imports/imports-worker.module.ts"
-import { Module } from 'viga';
-import { ConfigModule } from 'viga/config';
+import { Module } from '@vigajs/core';
+import { ConfigModule } from '@vigajs/core/config';
 import { Env } from '../config.ts';
 import { ImportsService } from './imports.service.ts';
 import { ImportsWorker } from './imports.worker.ts';
@@ -168,7 +168,7 @@ export class ImportsWorkerModule {}
 ```
 
 ```ts title="src/worker.ts"
-import { startWorker } from 'viga/workers';
+import { startWorker } from '@vigajs/core/workers';
 import { ImportsWorkerModule } from './imports/imports-worker.module.ts';
 
 await startWorker(ImportsWorkerModule);
@@ -301,8 +301,8 @@ pg-boss stores jobs in your PostgreSQL and creates its tables on startup, in its
 A single provider works for adding and consuming jobs:
 
 ```ts title="src/jobs/jobs.service.ts"
-import { Injectable, LOGGER, inject, type OnModuleDestroy, type OnModuleInit } from 'viga';
-import { CONFIG } from 'viga/config';
+import { Injectable, LOGGER, inject, type OnModuleDestroy, type OnModuleInit } from '@vigajs/core';
+import { CONFIG } from '@vigajs/core/config';
 import { PgBoss } from 'pg-boss';
 
 @Injectable()
@@ -331,7 +331,7 @@ await this.jobs.boss.send('imports', { fileId }, { retryLimit: 2, retryDelay: 1,
 In the worker, `work` receives a list of jobs, with a single one by default:
 
 ```ts title="src/imports/imports.worker.ts"
-import { Injectable, inject, runInNewContext, type OnModuleInit } from 'viga';
+import { Injectable, inject, runInNewContext, type OnModuleInit } from '@vigajs/core';
 import { JobsService } from '../jobs/jobs.service.ts';
 import { ImportsService } from './imports.service.ts';
 

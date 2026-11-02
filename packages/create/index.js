@@ -7,7 +7,7 @@ const MIN_NODE = [24, 13];
 const NAME_FORMAT = /^[a-z0-9][a-z0-9._-]{0,213}$/;
 
 const VERSIONS = {
-  viga: '^0.1.0',
+  '@vigajs/core': '^0.1.0',
   express: '^5.1.0',
   zod: '^4.0.0',
   valibot: '^1.5.0',
@@ -35,7 +35,7 @@ function pickVersions(names) {
 }
 
 function projectFiles(name, schema, manager) {
-  const dependencies = ['viga', 'express', ...(schema === 'none' ? [] : [schema])];
+  const dependencies = ['@vigajs/core', 'express', ...(schema === 'none' ? [] : [schema])];
   const packageJson = {
     name,
     version: '0.1.0',
@@ -52,16 +52,16 @@ function projectFiles(name, schema, manager) {
 
   const files = {
     'package.json': `${JSON.stringify(packageJson, null, 2)}\n`,
-    'tsconfig.json': `${JSON.stringify({ extends: 'viga/tsconfig.json', include: ['src'] }, null, 2)}\n`,
+    'tsconfig.json': `${JSON.stringify({ extends: '@vigajs/core/tsconfig.json', include: ['src'] }, null, 2)}\n`,
     '.gitignore': 'node_modules\ndist\n.env\n',
-    'src/main.ts': `import { createApp } from 'viga';
+    'src/main.ts': `import { createApp } from '@vigajs/core';
 import { AppModule } from './app.module.ts';
 
 const app = createApp({ rootModule: AppModule }).enableShutdownHooks();
 
 await app.listen();
 `,
-    'src/app.module.ts': `import { Module } from 'viga';
+    'src/app.module.ts': `import { Module } from '@vigajs/core';
 import { HelloModule } from './hello/hello.module.ts';
 
 @Module({
@@ -69,7 +69,7 @@ import { HelloModule } from './hello/hello.module.ts';
 })
 export class AppModule {}
 `,
-    'src/hello/hello.module.ts': `import { Module } from 'viga';
+    'src/hello/hello.module.ts': `import { Module } from '@vigajs/core';
 import { HelloController } from './hello.controller.ts';
 import { HelloService } from './hello.service.ts';
 
@@ -79,7 +79,7 @@ import { HelloService } from './hello.service.ts';
 })
 export class HelloModule {}
 `,
-    'src/hello/hello.controller.ts': `import { Controller, Get, Public, inject } from 'viga';
+    'src/hello/hello.controller.ts': `import { Controller, Get, Public, inject } from '@vigajs/core';
 import { HelloService } from './hello.service.ts';
 
 @Controller('/hello')
@@ -93,7 +93,7 @@ export class HelloController {
   }
 }
 `,
-    'src/hello/hello.service.ts': `import { Injectable } from 'viga';
+    'src/hello/hello.service.ts': `import { Injectable } from '@vigajs/core';
 
 @Injectable()
 export class HelloService {
@@ -136,7 +136,7 @@ function main() {
 
   const [directory] = parsed.positionals;
   if (!directory || parsed.positionals.length > 1) {
-    fail('usage: create-viga <directory> [--schema zod|valibot|none]');
+    fail('usage: pnpm create @vigajs <directory> [--schema zod|valibot|none]');
   }
 
   const { schema } = parsed.values;

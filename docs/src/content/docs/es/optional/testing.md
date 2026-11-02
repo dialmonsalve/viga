@@ -1,11 +1,11 @@
 ---
-title: viga/testing
+title: '@vigajs/core/testing'
 description: Prueba tu app con peticiones HTTP reales, reemplazando los providers que no quieres usar en las pruebas, como la base de datos o un servicio externo.
 sidebar:
   order: 3
 ---
 
-`viga/testing` arranca tu app en un puerto libre y te permite hacerle peticiones HTTP reales. Las peticiones pasan por todo el recorrido: guards, validación, interceptores, controladores y servicios, igual que en producción. Lo que no quieres usar en una prueba, como la base de datos o un servicio de pagos, lo reemplazas por una versión falsa.
+`@vigajs/core/testing` arranca tu app en un puerto libre y te permite hacerle peticiones HTTP reales. Las peticiones pasan por todo el recorrido: guards, validación, interceptores, controladores y servicios, igual que en producción. Lo que no quieres usar en una prueba, como la base de datos o un servicio de pagos, lo reemplazas por una versión falsa.
 
 No trae su propio ejecutor de pruebas. Los ejemplos usan `node:test`, el que viene con Node.js, que no necesita instalar nada.
 
@@ -14,7 +14,7 @@ No trae su propio ejecutor de pruebas. Los ejemplos usan `node:test`, el que vie
 ```ts title="src/books/books.test.ts"
 import assert from 'node:assert/strict';
 import { it } from 'node:test';
-import { createTestingApp } from 'viga/testing';
+import { createTestingApp } from '@vigajs/core/testing';
 import { AppModule } from '../app.module.ts';
 
 it('lista los libros', async () => {
@@ -55,7 +55,7 @@ Arrancar la app en cada prueba es lo más aislado, pero también lo más lento. 
 ```ts title="src/books/books.test.ts"
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
-import { createTestingApp, type TestingApp } from 'viga/testing';
+import { createTestingApp, type TestingApp } from '@vigajs/core/testing';
 import { AppModule } from '../app.module.ts';
 
 describe('libros', () => {
@@ -127,14 +127,14 @@ Algunas cosas que conviene saber:
 Para usar otra configuración en las pruebas sin tocar `process.env`, reemplaza `CONFIG`:
 
 ```ts
-import { CONFIG } from 'viga/config';
+import { CONFIG } from '@vigajs/core/config';
 
 const app = await createTestingApp(AppModule, {
   overrides: [{ provide: CONFIG, useValue: { PORT: 0, DATABASE_URL: 'postgres://localhost/test', JWT_SECRET: 'x'.repeat(32) } }],
 });
 ```
 
-Este valor no se valida con el esquema de [`viga/config`](../config/): escribe un objeto completo y correcto.
+Este valor no se valida con el esquema de [`@vigajs/core/config`](../config/): escribe un objeto completo y correcto.
 
 ## La autenticación en las pruebas
 

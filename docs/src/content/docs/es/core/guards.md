@@ -27,7 +27,7 @@ Así ninguna ruta queda abierta por olvido. Para abrir una, márcala con `@Publi
 Un guard es una clase con un método `canActivate`, que recibe el mismo contexto que los métodos del controlador:
 
 ```ts title="src/auth/auth.guard.ts"
-import { Injectable, inject, type CanActivate, type HttpContext } from 'viga';
+import { Injectable, inject, type CanActivate, type HttpContext } from '@vigajs/core';
 import { SessionsService } from './sessions.service.ts';
 import { CURRENT_USER } from './current-user.ts';
 
@@ -47,7 +47,7 @@ export class AuthGuard implements CanActivate {
 Se registra una sola vez, en `main.ts`:
 
 ```ts title="src/main.ts" ins={7}
-import { createApp } from 'viga';
+import { createApp } from '@vigajs/core';
 import { AppModule } from './app.module.ts';
 import { AuthGuard } from './auth/auth.guard.ts';
 
@@ -67,7 +67,7 @@ viga ejecuta este guard antes de cada ruta privada. Si devuelve `false`, respond
 El guard guarda el usuario en `CURRENT_USER`, una clave de contexto. Cualquier código que se ejecute durante esa petición puede leerlo sin recibirlo como parámetro:
 
 ```ts title="src/auth/current-user.ts"
-import { createContextKey } from 'viga';
+import { createContextKey } from '@vigajs/core';
 
 export interface User {
   id: number;
@@ -97,7 +97,7 @@ En una ruta `@Public()` el guard de autenticación no se ejecuta, así que `CURR
 Saber quién eres no basta para todo. Para comprobar permisos, añade guards con `@UseGuards()`:
 
 ```ts title="src/auth/admin.guard.ts"
-import { Injectable, type CanActivate } from 'viga';
+import { Injectable, type CanActivate } from '@vigajs/core';
 import { CURRENT_USER } from './current-user.ts';
 
 @Injectable()
@@ -148,7 +148,7 @@ canActivate() {
 Si repites la misma combinación de guards en varias rutas, agrúpala en una función que devuelva `UseGuards()`:
 
 ```ts title="src/auth/admin-only.ts"
-import { UseGuards } from 'viga';
+import { UseGuards } from '@vigajs/core';
 import { ActiveAccountGuard } from './active-account.guard.ts';
 import { AdminGuard } from './admin.guard.ts';
 
@@ -168,7 +168,7 @@ Funciona sobre el método y sobre la clase, igual que `@UseGuards()`.
 Si el decorador necesita parámetros, la función los recibe y crea el guard con ellos:
 
 ```ts title="src/auth/roles.ts"
-import { UseGuards } from 'viga';
+import { UseGuards } from '@vigajs/core';
 import { CURRENT_USER, type User } from './current-user.ts';
 
 export const Roles = (...roles: User['role'][]) =>
@@ -186,7 +186,7 @@ create({ body }: HttpContext<{ body: typeof CreateBook }>) {
 Si además el guard necesita providers, crea la clase dentro de la función. Cada llamada crea su propia clase con los parámetros que recibió, y esa clase puede usar `inject()`:
 
 ```ts title="src/billing/require-plan.guard.ts"
-import { Injectable, inject, type CanActivate } from 'viga';
+import { Injectable, inject, type CanActivate } from '@vigajs/core';
 import { CURRENT_USER } from '../auth/current-user.ts';
 import { BillingService, type Plan } from './billing.service.ts';
 
@@ -206,7 +206,7 @@ export function RequirePlan(plan: Plan) {
 Se combina con otros guards igual que cualquier otro:
 
 ```ts title="src/billing/pro-only.ts"
-import { UseGuards } from 'viga';
+import { UseGuards } from '@vigajs/core';
 import { ActiveAccountGuard } from '../auth/active-account.guard.ts';
 import { RequirePlan } from './require-plan.guard.ts';
 

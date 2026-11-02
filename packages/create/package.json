@@ -1,5 +1,5 @@
 {
-  "name": "create-viga",
+  "name": "@vigajs/create",
   "version": "0.1.0",
   "description": "Create a new viga project",
   "type": "module",
@@ -8,14 +8,22 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dialmonsalve/viga.git",
-    "directory": "packages/create-viga"
+    "directory": "packages/create"
   },
   "homepage": "https://vigajs.dev",
-  "keywords": ["viga", "create", "scaffold", "starter"],
+  "keywords": [
+    "viga",
+    "create",
+    "scaffold",
+    "starter"
+  ],
   "bin": {
-    "create-viga": "./index.js"
+    "create": "./index.js"
   },
-  "files": ["index.js", "README.md"],
+  "files": [
+    "index.js",
+    "README.md"
+  ],
   "engines": {
     "node": ">=24.13.0"
   },

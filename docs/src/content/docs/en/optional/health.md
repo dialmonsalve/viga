@@ -1,11 +1,11 @@
 ---
-title: viga/health
+title: '@vigajs/core/health'
 description: Add the /health and /ready routes so Kubernetes, Docker or a load balancer know whether your app is alive and ready to receive traffic.
 sidebar:
   order: 8
 ---
 
-Kubernetes, Docker and load balancers periodically ask your app how it's doing, to restart it or stop sending it traffic if something goes wrong. `viga/health` adds the two routes they need:
+Kubernetes, Docker and load balancers periodically ask your app how it's doing, to restart it or stop sending it traffic if something goes wrong. `@vigajs/core/health` adds the two routes they need:
 
 | Route | Question | What it does | If it fails |
 | --- | --- | --- | --- |
@@ -19,10 +19,10 @@ Kubernetes, Docker and load balancers periodically ask your app how it's doing, 
 Import `HealthModule` in the root module and declare what has to work for the app to be ready:
 
 ```ts title="src/app.module.ts"
-import { Module, inject } from 'viga';
-import { CONFIG, ConfigModule } from 'viga/config';
-import { DatabaseService, DrizzleModule } from 'viga/drizzle';
-import { HealthModule } from 'viga/health';
+import { Module, inject } from '@vigajs/core';
+import { CONFIG, ConfigModule } from '@vigajs/core/config';
+import { DatabaseService, DrizzleModule } from '@vigajs/core/drizzle';
+import { HealthModule } from '@vigajs/core/health';
 import { Env } from './config.ts';
 
 @Module({
@@ -155,8 +155,8 @@ Probes are normal requests, so they count toward a global [`rateLimit()`](../../
 `/ready` is tested like any route with [`createTestingApp`](../testing/). To simulate a failure, replace `HEALTH_OPTIONS`:
 
 ```ts title="test/health.test.ts"
-import { HEALTH_OPTIONS } from 'viga/health';
-import { createTestingApp } from 'viga/testing';
+import { HEALTH_OPTIONS } from '@vigajs/core/health';
+import { createTestingApp } from '@vigajs/core/testing';
 
 const app = await createTestingApp(AppModule, {
   overrides: [{ provide: HEALTH_OPTIONS, useValue: { checks: { database: () => false } } }],

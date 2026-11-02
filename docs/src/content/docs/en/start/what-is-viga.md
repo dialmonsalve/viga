@@ -39,7 +39,7 @@ class BooksService {
 
 ### A small core and optional modules
 
-The core only includes what every API needs: modules, dependency injection, controllers, guards, interceptors, HTTP exceptions and lifecycle. Everything else lives in optional subpaths, such as `viga/validation`, `viga/config`, `viga/i18n`, `viga/pagination`, `viga/drizzle`, `viga/websocket`, `viga/testing`, `viga/health`, `viga/crypto`, `viga/events`, `viga/workers` and `viga/upload`. If you don't import them, nothing extra gets installed.
+The core only includes what every API needs: modules, dependency injection, controllers, guards, interceptors, HTTP exceptions and lifecycle. Everything else lives in optional subpaths, such as `@vigajs/core/validation`, `@vigajs/core/config`, `@vigajs/core/i18n`, `@vigajs/core/pagination`, `@vigajs/core/drizzle`, `@vigajs/core/websocket`, `@vigajs/core/testing`, `@vigajs/core/health`, `@vigajs/core/crypto`, `@vigajs/core/events`, `@vigajs/core/workers` and `@vigajs/core/upload`. If you don't import them, nothing extra gets installed.
 
 ### Closed by default
 

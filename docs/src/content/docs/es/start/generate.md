@@ -5,7 +5,7 @@ sidebar:
   order: 5
 ---
 
-`viga generate` crea los archivos de una funcionalidad nueva. Viene incluido en el paquete `viga`, así que no hay nada más que instalar. Ejecútalo desde la raíz de tu proyecto:
+`viga generate` crea los archivos de una funcionalidad nueva. Viene incluido en el paquete `@vigajs/core`, así que no hay nada más que instalar. Ejecútalo desde la raíz de tu proyecto:
 
 ```sh
 pnpm exec viga generate resource books

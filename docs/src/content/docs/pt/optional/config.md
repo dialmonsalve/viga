@@ -1,15 +1,15 @@
 ---
-title: viga/config
+title: '@vigajs/core/config'
 description: Valide e tipe as variáveis de ambiente ao iniciar, para que uma configuração incorreta impeça a aplicação de iniciar em vez de falhar em produção.
 sidebar:
   order: 1
 ---
 
-`viga/config` lê as variáveis de ambiente, as valida com um schema ao iniciar a aplicação e as entrega já convertidas e com seu tipo. Se faltar uma variável ou seu valor não for válido, a aplicação não inicia e o erro diz quais falham.
+`@vigajs/core/config` lê as variáveis de ambiente, as valida com um schema ao iniciar a aplicação e as entrega já convertidas e com seu tipo. Se faltar uma variável ou seu valor não for válido, a aplicação não inicia e o erro diz quais falham.
 
-Sem isso, uma variável escrita errado aparece como `undefined` no meio de uma requisição, às vezes dias depois do deploy. Com `viga/config`, o problema aparece ao iniciar a aplicação, antes de atender alguém.
+Sem isso, uma variável escrita errado aparece como `undefined` no meio de uma requisição, às vezes dias depois do deploy. Com `@vigajs/core/config`, o problema aparece ao iniciar a aplicação, antes de atender alguém.
 
-Funciona com qualquer biblioteca compatível com Standard Schema, a mesma que você usa com [`viga/validation`](../validation/). Os exemplos usam Zod.
+Funciona com qualquer biblioteca compatível com Standard Schema, a mesma que você usa com [`@vigajs/core/validation`](../validation/). Os exemplos usam Zod.
 
 ## Defina o schema
 
@@ -24,7 +24,7 @@ export const Env = z.object({
   JWT_SECRET: z.string().min(32),
 });
 
-declare module 'viga/config' {
+declare module '@vigajs/core/config' {
   interface Register {
     schema: typeof Env;
   }
@@ -33,15 +33,15 @@ declare module 'viga/config' {
 
 As variáveis de ambiente são sempre texto, então use `z.coerce` para as que devem ser números ou booleanos. Aqui `PORT` passa de `'3000'` para `3000`, e se não estiver definida vale `3000` por causa do `default`.
 
-O bloco `declare module` registra seu schema em `viga/config`. Graças a ele, o TypeScript sabe o tipo de cada variável quando você a pede. Você só precisa escrevê-lo uma vez em todo o projeto.
+O bloco `declare module` registra seu schema em `@vigajs/core/config`. Graças a ele, o TypeScript sabe o tipo de cada variável quando você a pede. Você só precisa escrevê-lo uma vez em todo o projeto.
 
 ## Registre o módulo
 
 Importe `ConfigModule.forRoot` no módulo raiz. É um módulo global, então a configuração fica disponível em todos os módulos:
 
 ```ts title="src/app.module.ts"
-import { Module } from 'viga';
-import { ConfigModule } from 'viga/config';
+import { Module } from '@vigajs/core';
+import { ConfigModule } from '@vigajs/core/config';
 import { BooksModule } from './books/books.module.ts';
 import { Env } from './config.ts';
 
@@ -54,8 +54,8 @@ export class AppModule {}
 Peça `CONFIG` com `inject()` a partir de qualquer provider:
 
 ```ts title="src/database/database.service.ts"
-import { Injectable, inject, type OnModuleDestroy } from 'viga';
-import { CONFIG } from 'viga/config';
+import { Injectable, inject, type OnModuleDestroy } from '@vigajs/core';
+import { CONFIG } from '@vigajs/core/config';
 import { Pool } from 'pg';
 
 @Injectable()
@@ -76,8 +76,8 @@ export class DatabaseService implements OnModuleDestroy {
 O viga não lê a variável `PORT` por conta própria. Para passá-la a `listen()`, inicie a aplicação com `init()` e leia a configuração com `app.get()`:
 
 ```ts title="src/main.ts"
-import { createApp } from 'viga';
-import { CONFIG } from 'viga/config';
+import { createApp } from '@vigajs/core';
+import { CONFIG } from '@vigajs/core/config';
 import { AppModule } from './app.module.ts';
 
 const app = await createApp({ rootModule: AppModule, globalPrefix: '/api' }).enableShutdownHooks().init();
@@ -123,8 +123,8 @@ O viga não lê arquivos `.env` por conta própria: carregar o arquivo é uma de
 
 ```ts title="src/main.ts" ins={1,6}
 import { existsSync } from 'node:fs';
-import { createApp } from 'viga';
-import { CONFIG } from 'viga/config';
+import { createApp } from '@vigajs/core';
+import { CONFIG } from '@vigajs/core/config';
 import { AppModule } from './app.module.ts';
 
 if (existsSync('.env')) process.loadEnvFile();
@@ -136,7 +136,7 @@ await app.listen(app.get(CONFIG).PORT);
 
 Você não precisa mexer no `package.json`, e funciona igual com `tsx` e com `node`. A verificação com `existsSync` evita que a aplicação falhe onde não há arquivo, como em produção.
 
-Funciona mesmo que `AppModule` seja importado antes da chamada, porque `viga/config` lê as variáveis ao iniciar a aplicação, não ao importar o módulo.
+Funciona mesmo que `AppModule` seja importado antes da chamada, porque `@vigajs/core/config` lê as variáveis ao iniciar a aplicação, não ao importar o módulo.
 
 ### A partir dos scripts
 
@@ -187,7 +187,7 @@ export const env = { ...process.env, ...secrets };
 export class AppModule {}
 ```
 
-`loadSecretsFromVault` representa a função que o seu serviço de segredos usa. O `await` de nível superior funciona porque o projeto usa módulos ES: quando `AppModule` é avaliado, os segredos já estão carregados. Depois, `viga/config` os valida como qualquer outra variável.
+`loadSecretsFromVault` representa a função que o seu serviço de segredos usa. O `await` de nível superior funciona porque o projeto usa módulos ES: quando `AppModule` é avaliado, os segredos já estão carregados. Depois, `@vigajs/core/config` os valida como qualquer outra variável.
 
 ## O schema precisa ser síncrono
 

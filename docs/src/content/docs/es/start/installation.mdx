@@ -20,22 +20,22 @@ La forma más rápida es crear el proyecto con un comando:
 <Tabs syncKey="pkg">
   <TabItem label="pnpm">
     ```sh
-    pnpm create viga mi-app
+    pnpm create @vigajs mi-app
     ```
   </TabItem>
   <TabItem label="npm">
     ```sh
-    npm create viga@latest mi-app
+    npm create @vigajs@latest mi-app
     ```
   </TabItem>
   <TabItem label="yarn">
     ```sh
-    yarn create viga mi-app
+    yarn create @vigajs mi-app
     ```
   </TabItem>
   <TabItem label="bun">
     ```sh
-    bun create viga mi-app
+    bunx @vigajs/create mi-app
     ```
   </TabItem>
 </Tabs>
@@ -53,25 +53,25 @@ viga usa Express por debajo, así que lo instalas tú junto al framework. Como d
 <Tabs syncKey="pkg">
   <TabItem label="pnpm">
     ```sh
-    pnpm add viga express
+    pnpm add @vigajs/core express
     pnpm add -D typescript tsx @types/express @types/node
     ```
   </TabItem>
   <TabItem label="npm">
     ```sh
-    npm install viga express
+    npm install @vigajs/core express
     npm install -D typescript tsx @types/express @types/node
     ```
   </TabItem>
   <TabItem label="yarn">
     ```sh
-    yarn add viga express
+    yarn add @vigajs/core express
     yarn add -D typescript tsx @types/express @types/node
     ```
   </TabItem>
   <TabItem label="bun">
     ```sh
-    bun add viga express
+    bun add @vigajs/core express
     bun add -d typescript tsx @types/express @types/node
     ```
   </TabItem>
@@ -100,7 +100,7 @@ Crea un `tsconfig.json` en la raíz del proyecto, que hereda la configuración d
 
 ```json title="tsconfig.json"
 {
-  "extends": "viga/tsconfig.json",
+  "extends": "@vigajs/core/tsconfig.json",
   "include": ["src"]
 }
 ```
@@ -166,7 +166,7 @@ Y el script `build` de tu `package.json`:
 **Con CommonJS, el formato que usa NestJS.** Quita `"type": "module"` de tu `package.json`, y `tsc` generará `require(...)`, que no necesita extensión. Funciona porque Node.js 24 puede cargar con `require` paquetes de módulos ES como viga. CommonJS no permite `await` fuera de una función, así que el arranque va dentro de una:
 
 ```ts title="src/main.ts"
-import { createApp } from 'viga';
+import { createApp } from '@vigajs/core';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -185,9 +185,9 @@ El núcleo y la mayoría de los módulos opcionales no necesitan nada más. Algu
 
 | Módulo | Paquetes que necesita |
 |---|---|
-| `viga/validation` | Una librería compatible con Standard Schema, como `zod`, `valibot` o `arktype` |
-| `viga/drizzle` | `drizzle-orm@0.45` y `pg`, y `@types/pg` como dependencia de desarrollo |
-| `viga/websocket` | `ws`, si usas el adaptador por defecto |
-| `viga/upload` | `multer` y `file-type` |
+| `@vigajs/core/validation` | Una librería compatible con Standard Schema, como `zod`, `valibot` o `arktype` |
+| `@vigajs/core/drizzle` | `drizzle-orm@0.45` y `pg`, y `@types/pg` como dependencia de desarrollo |
+| `@vigajs/core/websocket` | `ws`, si usas el adaptador por defecto |
+| `@vigajs/core/upload` | `multer` y `file-type` |
 
 Los instalas igual que viga, con tu gestor de paquetes.

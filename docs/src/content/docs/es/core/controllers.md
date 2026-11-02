@@ -10,7 +10,7 @@ Un controlador recibe las peticiones HTTP de una funcionalidad y devuelve la res
 ## Define las rutas
 
 ```ts title="src/books/books.controller.ts"
-import { Controller, Delete, Get, Post, Public, inject, type HttpContext } from 'viga';
+import { Controller, Delete, Get, Post, Public, inject, type HttpContext } from '@vigajs/core';
 import { BooksService } from './books.service.ts';
 
 @Public()
@@ -68,10 +68,10 @@ Lo habitual es desestructurar solo lo que usas: `findOne({ params }: HttpContext
 
 ## Valida lo que llega
 
-`Number('abc')` es `NaN`, y nada impide que alguien pida `/books/abc`. La forma de asegurarte de que los datos son correctos, y de tenerlos con el tipo adecuado, es validarlos con `@Validate`, de `viga/validation`, y un esquema de una librería como Zod o Valibot:
+`Number('abc')` es `NaN`, y nada impide que alguien pida `/books/abc`. La forma de asegurarte de que los datos son correctos, y de tenerlos con el tipo adecuado, es validarlos con `@Validate`, de `@vigajs/core/validation`, y un esquema de una librería como Zod o Valibot:
 
 ```ts title="src/books/books.controller.ts"
-import { Validate } from 'viga/validation';
+import { Validate } from '@vigajs/core/validation';
 import { z } from 'zod';
 
 const BookParams = z.object({ id: z.coerce.number().int().positive() });
@@ -124,7 +124,7 @@ publish({ params }: HttpContext) {
 Para responder con un error, lanza una de las excepciones de viga:
 
 ```ts
-import { NotFoundException } from 'viga';
+import { NotFoundException } from '@vigajs/core';
 
 @Get('/:id')
 @Validate({ params: BookParams })

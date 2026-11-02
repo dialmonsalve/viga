@@ -33,17 +33,17 @@ export const imports = [
 ```
 
 ```ts title="src/app.module.ts"
-import { Module } from 'viga';
+import { Module } from '@vigajs/core';
 import { imports } from './app.imports.ts';
 
 @Module({ imports })
 export class AppModule {}
 ```
 
-If you prefer to annotate it, so an error shows up in that file and not in `@Module`, `viga` exports the type of each list:
+If you prefer to annotate it, so an error shows up in that file and not in `@Module`, `@vigajs/core` exports the type of each list:
 
 ```ts
-import type { AnyConstructor, Provider, Token } from 'viga';
+import type { AnyConstructor, Provider, Token } from '@vigajs/core';
 
 export const imports: AnyConstructor[] = [ConfigModule.forRoot({ schema: Env })];
 export const providers: Provider[] = [BooksService];
@@ -59,7 +59,7 @@ Each module has its own container. A provider declared in `providers` can only b
 Say you add authors to the app and want `BooksService` to use `AuthorsService`:
 
 ```ts title="src/authors/authors.module.ts"
-import { Module } from 'viga';
+import { Module } from '@vigajs/core';
 import { AuthorsService } from './authors.service.ts';
 
 @Module({
@@ -69,7 +69,7 @@ export class AuthorsModule {}
 ```
 
 ```ts title="src/books/books.module.ts"
-import { Module } from 'viga';
+import { Module } from '@vigajs/core';
 import { AuthorsModule } from '../authors/authors.module.ts';
 import { BooksController } from './books.controller.ts';
 import { BooksService } from './books.service.ts';
@@ -95,7 +95,7 @@ Even though `BooksModule` imports `AuthorsModule`, the app does not start:
 Add `AuthorsService` to `exports`:
 
 ```ts title="src/authors/authors.module.ts" ins={6}
-import { Module } from 'viga';
+import { Module } from '@vigajs/core';
 import { AuthorsService } from './authors.service.ts';
 
 @Module({
@@ -124,7 +124,7 @@ If you declare the same class in the `providers` of two different modules, each 
 A module can export a module it imports. Whoever imports it then also gets the exports of that other module:
 
 ```ts title="src/shared/shared.module.ts"
-import { Module } from 'viga';
+import { Module } from '@vigajs/core';
 import { AuthorsModule } from '../authors/authors.module.ts';
 import { PublishersModule } from '../publishers/publishers.module.ts';
 
@@ -142,7 +142,7 @@ Importing `SharedModule` is the same as importing `AuthorsModule` and `Publisher
 Some providers are needed by almost the whole app, like the configuration. Importing their module everywhere would be repetitive; with `global: true`, its exports are available in every module without importing it:
 
 ```ts title="src/clock/clock.module.ts"
-import { Module } from 'viga';
+import { Module } from '@vigajs/core';
 import { Clock } from './clock.ts';
 
 @Module({
@@ -156,7 +156,7 @@ export class ClockModule {}
 A global module is imported once, in the root module:
 
 ```ts title="src/app.module.ts"
-import { Module } from 'viga';
+import { Module } from '@vigajs/core';
 import { BooksModule } from './books/books.module.ts';
 import { ClockModule } from './clock/clock.module.ts';
 
@@ -170,7 +170,7 @@ If you import it from another module, viga does not start and tells you where to
 [Module] ClockModule is global and is imported from BooksModule, but not from the root module; move it to the imports of AppModule
 ```
 
-This rule keeps every global module visible in a single file. `ConfigModule.forRoot()`, from `viga/config`, is a global module and is imported this way.
+This rule keeps every global module visible in a single file. `ConfigModule.forRoot()`, from `@vigajs/core/config`, is a global module and is imported this way.
 
 :::tip
 Use global modules only for what is truly cross-cutting. An explicit import makes clear what each module depends on; a global one hides it.

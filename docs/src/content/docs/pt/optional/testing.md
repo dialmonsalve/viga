@@ -1,11 +1,11 @@
 ---
-title: viga/testing
+title: '@vigajs/core/testing'
 description: Teste sua aplicação com requisições HTTP reais, substituindo os providers que você não quer usar nos testes, como o banco de dados ou um serviço externo.
 sidebar:
   order: 3
 ---
 
-`viga/testing` inicia sua aplicação em uma porta livre e permite fazer requisições HTTP reais a ela. As requisições passam por todo o percurso: guards, validação, interceptores, controllers e serviços, igual em produção. O que você não quer usar em um teste, como o banco de dados ou um serviço de pagamentos, você substitui por uma versão falsa.
+`@vigajs/core/testing` inicia sua aplicação em uma porta livre e permite fazer requisições HTTP reais a ela. As requisições passam por todo o percurso: guards, validação, interceptores, controllers e serviços, igual em produção. O que você não quer usar em um teste, como o banco de dados ou um serviço de pagamentos, você substitui por uma versão falsa.
 
 Ele não traz um executor de testes próprio. Os exemplos usam `node:test`, o que vem com o Node.js, que não precisa instalar nada.
 
@@ -14,7 +14,7 @@ Ele não traz um executor de testes próprio. Os exemplos usam `node:test`, o qu
 ```ts title="src/books/books.test.ts"
 import assert from 'node:assert/strict';
 import { it } from 'node:test';
-import { createTestingApp } from 'viga/testing';
+import { createTestingApp } from '@vigajs/core/testing';
 import { AppModule } from '../app.module.ts';
 
 it('lista os livros', async () => {
@@ -55,7 +55,7 @@ Iniciar a aplicação em cada teste é o mais isolado, mas também o mais lento.
 ```ts title="src/books/books.test.ts"
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
-import { createTestingApp, type TestingApp } from 'viga/testing';
+import { createTestingApp, type TestingApp } from '@vigajs/core/testing';
 import { AppModule } from '../app.module.ts';
 
 describe('livros', () => {
@@ -127,14 +127,14 @@ Algumas coisas que vale saber:
 Para usar outra configuração nos testes sem mexer em `process.env`, substitua `CONFIG`:
 
 ```ts
-import { CONFIG } from 'viga/config';
+import { CONFIG } from '@vigajs/core/config';
 
 const app = await createTestingApp(AppModule, {
   overrides: [{ provide: CONFIG, useValue: { PORT: 0, DATABASE_URL: 'postgres://localhost/test', JWT_SECRET: 'x'.repeat(32) } }],
 });
 ```
 
-Esse valor não é validado com o schema de [`viga/config`](../config/): escreva um objeto completo e correto.
+Esse valor não é validado com o schema de [`@vigajs/core/config`](../config/): escreva um objeto completo e correto.
 
 ## A autenticação nos testes
 

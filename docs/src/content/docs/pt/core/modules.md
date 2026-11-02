@@ -33,17 +33,17 @@ export const imports = [
 ```
 
 ```ts title="src/app.module.ts"
-import { Module } from 'viga';
+import { Module } from '@vigajs/core';
 import { imports } from './app.imports.ts';
 
 @Module({ imports })
 export class AppModule {}
 ```
 
-Se preferir anotá-lo, para que um erro apareça nesse arquivo e não em `@Module`, o `viga` exporta o tipo de cada lista:
+Se preferir anotá-lo, para que um erro apareça nesse arquivo e não em `@Module`, o `@vigajs/core` exporta o tipo de cada lista:
 
 ```ts
-import type { AnyConstructor, Provider, Token } from 'viga';
+import type { AnyConstructor, Provider, Token } from '@vigajs/core';
 
 export const imports: AnyConstructor[] = [ConfigModule.forRoot({ schema: Env })];
 export const providers: Provider[] = [BooksService];
@@ -59,7 +59,7 @@ Cada módulo tem seu próprio contêiner. Um provider declarado em `providers` s
 Suponha que você adicione autores à aplicação e queira que `BooksService` use `AuthorsService`:
 
 ```ts title="src/authors/authors.module.ts"
-import { Module } from 'viga';
+import { Module } from '@vigajs/core';
 import { AuthorsService } from './authors.service.ts';
 
 @Module({
@@ -69,7 +69,7 @@ export class AuthorsModule {}
 ```
 
 ```ts title="src/books/books.module.ts"
-import { Module } from 'viga';
+import { Module } from '@vigajs/core';
 import { AuthorsModule } from '../authors/authors.module.ts';
 import { BooksController } from './books.controller.ts';
 import { BooksService } from './books.service.ts';
@@ -95,7 +95,7 @@ Mesmo com `BooksModule` importando `AuthorsModule`, a aplicação não inicia:
 Adicione `AuthorsService` a `exports`:
 
 ```ts title="src/authors/authors.module.ts" ins={6}
-import { Module } from 'viga';
+import { Module } from '@vigajs/core';
 import { AuthorsService } from './authors.service.ts';
 
 @Module({
@@ -124,7 +124,7 @@ Se você declarar a mesma classe em `providers` de dois módulos diferentes, cad
 Um módulo pode exportar um módulo que importa. Assim, quem o importar recebe também os exports desse outro módulo:
 
 ```ts title="src/shared/shared.module.ts"
-import { Module } from 'viga';
+import { Module } from '@vigajs/core';
 import { AuthorsModule } from '../authors/authors.module.ts';
 import { PublishersModule } from '../publishers/publishers.module.ts';
 
@@ -142,7 +142,7 @@ Importar `SharedModule` equivale a importar `AuthorsModule` e `PublishersModule`
 Alguns providers são necessários em quase toda a aplicação, como a configuração. Importar seu módulo em cada lugar seria repetitivo; com `global: true`, seus exports ficam disponíveis em todos os módulos sem importá-lo:
 
 ```ts title="src/clock/clock.module.ts"
-import { Module } from 'viga';
+import { Module } from '@vigajs/core';
 import { Clock } from './clock.ts';
 
 @Module({
@@ -156,7 +156,7 @@ export class ClockModule {}
 Um módulo global é importado uma vez, no módulo raiz:
 
 ```ts title="src/app.module.ts"
-import { Module } from 'viga';
+import { Module } from '@vigajs/core';
 import { BooksModule } from './books/books.module.ts';
 import { ClockModule } from './clock/clock.module.ts';
 
@@ -170,7 +170,7 @@ Se você o importar a partir de outro módulo, o viga não inicia e diz para ond
 [Module] ClockModule is global and is imported from BooksModule, but not from the root module; move it to the imports of AppModule
 ```
 
-Essa regra faz com que todos os módulos globais fiquem visíveis em um único arquivo. `ConfigModule.forRoot()`, de `viga/config`, é um módulo global e é importado assim.
+Essa regra faz com que todos os módulos globais fiquem visíveis em um único arquivo. `ConfigModule.forRoot()`, de `@vigajs/core/config`, é um módulo global e é importado assim.
 
 :::tip
 Use módulos globais só para o que é realmente transversal. Um import explícito deixa claro do que cada módulo depende; um global esconde isso.

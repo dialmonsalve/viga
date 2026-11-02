@@ -1,11 +1,11 @@
 ---
-title: viga/health
+title: '@vigajs/core/health'
 description: Adicione as rotas /health e /ready para que o Kubernetes, o Docker ou um balanceador saibam se a sua aplicação está viva e pronta para receber tráfego.
 sidebar:
   order: 8
 ---
 
-O Kubernetes, o Docker e os balanceadores perguntam periodicamente à sua aplicação como ela está, para reiniciá-la ou parar de enviar tráfego se algo der errado. O `viga/health` adiciona as duas rotas de que eles precisam:
+O Kubernetes, o Docker e os balanceadores perguntam periodicamente à sua aplicação como ela está, para reiniciá-la ou parar de enviar tráfego se algo der errado. O `@vigajs/core/health` adiciona as duas rotas de que eles precisam:
 
 | Rota | Pergunta | O que faz | Se falhar |
 | --- | --- | --- | --- |
@@ -19,10 +19,10 @@ O Kubernetes, o Docker e os balanceadores perguntam periodicamente à sua aplica
 Importe `HealthModule` no módulo raiz e declare o que precisa funcionar para que a aplicação esteja pronta:
 
 ```ts title="src/app.module.ts"
-import { Module, inject } from 'viga';
-import { CONFIG, ConfigModule } from 'viga/config';
-import { DatabaseService, DrizzleModule } from 'viga/drizzle';
-import { HealthModule } from 'viga/health';
+import { Module, inject } from '@vigajs/core';
+import { CONFIG, ConfigModule } from '@vigajs/core/config';
+import { DatabaseService, DrizzleModule } from '@vigajs/core/drizzle';
+import { HealthModule } from '@vigajs/core/health';
 import { Env } from './config.ts';
 
 @Module({
@@ -155,8 +155,8 @@ As sondas são requisições normais, então contam para um [`rateLimit()`](../.
 `/ready` é testada como qualquer rota com [`createTestingApp`](../testing/). Para simular uma falha, substitua `HEALTH_OPTIONS`:
 
 ```ts title="test/health.test.ts"
-import { HEALTH_OPTIONS } from 'viga/health';
-import { createTestingApp } from 'viga/testing';
+import { HEALTH_OPTIONS } from '@vigajs/core/health';
+import { createTestingApp } from '@vigajs/core/testing';
 
 const app = await createTestingApp(AppModule, {
   overrides: [{ provide: HEALTH_OPTIONS, useValue: { checks: { database: () => false } } }],

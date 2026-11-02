@@ -1,11 +1,11 @@
 ---
-title: viga/health
+title: '@vigajs/core/health'
 description: Añade las rutas /health y /ready para que Kubernetes, Docker o un balanceador sepan si tu app está viva y lista para recibir tráfico.
 sidebar:
   order: 8
 ---
 
-Kubernetes, Docker y los balanceadores preguntan a tu app periódicamente cómo está, para reiniciarla o dejar de enviarle tráfico si algo va mal. `viga/health` añade las dos rutas que necesitan:
+Kubernetes, Docker y los balanceadores preguntan a tu app periódicamente cómo está, para reiniciarla o dejar de enviarle tráfico si algo va mal. `@vigajs/core/health` añade las dos rutas que necesitan:
 
 | Ruta | Pregunta | Qué hace | Si falla |
 | --- | --- | --- | --- |
@@ -19,10 +19,10 @@ Kubernetes, Docker y los balanceadores preguntan a tu app periódicamente cómo 
 Importa `HealthModule` en el módulo raíz y declara qué tiene que funcionar para que la app esté lista:
 
 ```ts title="src/app.module.ts"
-import { Module, inject } from 'viga';
-import { CONFIG, ConfigModule } from 'viga/config';
-import { DatabaseService, DrizzleModule } from 'viga/drizzle';
-import { HealthModule } from 'viga/health';
+import { Module, inject } from '@vigajs/core';
+import { CONFIG, ConfigModule } from '@vigajs/core/config';
+import { DatabaseService, DrizzleModule } from '@vigajs/core/drizzle';
+import { HealthModule } from '@vigajs/core/health';
 import { Env } from './config.ts';
 
 @Module({
@@ -155,8 +155,8 @@ Las sondas son peticiones normales, así que cuentan para un [`rateLimit()`](../
 `/ready` se prueba como cualquier ruta con [`createTestingApp`](../testing/). Para simular un fallo, reemplaza `HEALTH_OPTIONS`:
 
 ```ts title="test/health.test.ts"
-import { HEALTH_OPTIONS } from 'viga/health';
-import { createTestingApp } from 'viga/testing';
+import { HEALTH_OPTIONS } from '@vigajs/core/health';
+import { createTestingApp } from '@vigajs/core/testing';
 
 const app = await createTestingApp(AppModule, {
   overrides: [{ provide: HEALTH_OPTIONS, useValue: { checks: { database: () => false } } }],

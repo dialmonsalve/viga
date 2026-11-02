@@ -33,7 +33,7 @@ export function namesOf(name: string): Names {
 }
 
 export function moduleTemplate({ plural }: Names, parts: { controller: boolean; service: boolean; file: string }) {
-  const imports = ["import { Module } from 'viga';"];
+  const imports = ["import { Module } from '@vigajs/core';"];
   const options: string[] = [];
   if (parts.controller) {
     imports.push(`import { ${plural}Controller } from './${parts.file}.controller.ts';`);
@@ -48,7 +48,7 @@ export function moduleTemplate({ plural }: Names, parts: { controller: boolean; 
 }
 
 export function controllerTemplate({ plural, route }: Names) {
-  return `import { Controller, Get } from 'viga';
+  return `import { Controller, Get } from '@vigajs/core';
 
 @Controller('${route}')
 export class ${plural}Controller {
@@ -61,7 +61,7 @@ export class ${plural}Controller {
 }
 
 export function serviceTemplate({ plural }: Names) {
-  return `import { Injectable } from 'viga';
+  return `import { Injectable } from '@vigajs/core';
 
 @Injectable()
 export class ${plural}Service {}
@@ -98,7 +98,7 @@ export const ${singular}Params = z.object({
 }
 
 export function resourceServiceTemplate({ plural, singular }: Names) {
-  return `import { Injectable, NotFoundException } from 'viga';
+  return `import { Injectable, NotFoundException } from '@vigajs/core';
 
 export interface ${singular} {
   id: number;
@@ -141,8 +141,8 @@ export class ${plural}Service {
 }
 
 export function resourceControllerTemplate({ file, plural, route, singular, variable }: Names) {
-  return `import { Controller, Delete, Get, Patch, Post, inject, type HttpContext } from 'viga';
-import { Validate } from 'viga/validation';
+  return `import { Controller, Delete, Get, Patch, Post, inject, type HttpContext } from '@vigajs/core';
+import { Validate } from '@vigajs/core/validation';
 import { Create${singular}, ${singular}Params, Update${singular} } from './${file}.schemas.ts';
 import { ${plural}Service } from './${file}.service.ts';
 

@@ -1,11 +1,11 @@
 ---
-title: viga/crypto
+title: '@vigajs/core/crypto'
 description: Guarde senhas com Argon2id, gere tokens aleatórios, assine URLs com validade e criptografe dados com AES-256-GCM, sem instalar dependências.
 sidebar:
   order: 9
 ---
 
-O `viga/crypto` reúne as operações criptográficas de que quase toda API precisa, para que você não tenha que escolher algoritmos e parâmetros por conta própria. Ele usa apenas `node:crypto`, então não há nada para instalar.
+O `@vigajs/core/crypto` reúne as operações criptográficas de que quase toda API precisa, para que você não tenha que escolher algoritmos e parâmetros por conta própria. Ele usa apenas `node:crypto`, então não há nada para instalar.
 
 | Para | Use | Precisa de chaves |
 | --- | --- | --- |
@@ -19,8 +19,8 @@ O `viga/crypto` reúne as operações criptográficas de que quase toda API prec
 Uma senha nunca é guardada nem criptografada: guarda-se o hash dela, do qual não é possível recuperá-la. `hashPassword` usa Argon2id com a configuração mínima [recomendada pela OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html): 19 MiB de memória, 2 iterações e 1 thread.
 
 ```ts title="src/users/users.service.ts"
-import { Injectable, inject } from 'viga';
-import { hashPassword, needsRehash, randomToken, verifyPassword } from 'viga/crypto';
+import { Injectable, inject } from '@vigajs/core';
+import { hashPassword, needsRehash, randomToken, verifyPassword } from '@vigajs/core/crypto';
 import { UsersRepository } from './users.repository.ts';
 
 @Injectable()
@@ -91,7 +91,7 @@ Use `checkPassword` em vez de `verifyPassword`. `needsRehash` devolve `true` com
 `randomToken` gera um valor imprevisível para links de recuperação, convites ou API keys. Guarde apenas o hash, para que um vazamento do banco de dados não permita usá-los:
 
 ```ts
-import { hashToken, randomToken } from 'viga/crypto';
+import { hashToken, randomToken } from '@vigajs/core/crypto';
 
 const token = randomToken();
 await this.resets.create({ tokenHash: hashToken(token), userId, expiresAt });
@@ -120,7 +120,7 @@ if (!safeEqual(req.headers['x-webhook-secret']?.toString() ?? '', this.config.WE
 
 ## As chaves
 
-As URLs assinadas e a criptografia precisam de chaves. Declare-as no schema de [`viga/config`](../config/), com um mínimo de 32 caracteres:
+As URLs assinadas e a criptografia precisam de chaves. Declare-as no schema de [`@vigajs/core/config`](../config/), com um mínimo de 32 caracteres:
 
 ```ts title="src/config.ts"
 export const Env = z.object({
@@ -138,9 +138,9 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'
 E importe `CryptoModule` no módulo raiz. É um módulo global, e você só precisa das opções daquilo que usar:
 
 ```ts title="src/app.module.ts"
-import { inject } from 'viga';
-import { CONFIG } from 'viga/config';
-import { CryptoModule } from 'viga/crypto';
+import { inject } from '@vigajs/core';
+import { CONFIG } from '@vigajs/core/config';
+import { CryptoModule } from '@vigajs/core/crypto';
 
 CryptoModule.forRoot(() => {
   const config = inject(CONFIG);
@@ -159,8 +159,8 @@ O viga não inicia se uma chave tiver menos de 32 bytes, e o erro nomeia a chave
 Uma URL assinada dá acesso temporário a uma rota sem fazer login, por exemplo para baixar uma fatura a partir de um email:
 
 ```ts title="src/invoices/invoices.controller.ts"
-import { Controller, Get, Public, inject, type HttpContext } from 'viga';
-import { Signed, UrlSigner } from 'viga/crypto';
+import { Controller, Get, Public, inject, type HttpContext } from '@vigajs/core';
+import { Signed, UrlSigner } from '@vigajs/core/crypto';
 
 @Controller('/invoices')
 export class InvoicesController {
@@ -205,8 +205,8 @@ Tenha em conta também:
 Criptografe os dados que você precisa recuperar, como as API keys de um provedor que cada empresa configura na sua aplicação. Se você só precisa verificar um valor, use um hash.
 
 ```ts title="src/providers/provider-keys.service.ts"
-import { Injectable, inject } from 'viga';
-import { Encryptor } from 'viga/crypto';
+import { Injectable, inject } from '@vigajs/core';
+import { Encryptor } from '@vigajs/core/crypto';
 
 @Injectable()
 export class ProviderKeysService {
@@ -271,8 +271,8 @@ Cada valor usa um número aleatório de 12 bytes, então não criptografe mais d
 Passe chaves de teste substituindo `CRYPTO_OPTIONS`:
 
 ```ts title="test/invoices.test.ts"
-import { CRYPTO_OPTIONS, UrlSigner } from 'viga/crypto';
-import { createTestingApp } from 'viga/testing';
+import { CRYPTO_OPTIONS, UrlSigner } from '@vigajs/core/crypto';
+import { createTestingApp } from '@vigajs/core/testing';
 
 const app = await createTestingApp(AppModule, {
   overrides: [{ provide: CRYPTO_OPTIONS, useValue: { signingKeys: ['k'.repeat(32)] } }],

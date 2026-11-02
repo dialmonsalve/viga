@@ -1,5 +1,5 @@
 ---
-title: viga/validation
+title: '@vigajs/core/validation'
 description: Valida el cuerpo, los parámetros y la query de cada ruta con Zod, Valibot o ArkType, y recibe los datos ya tipados.
 sidebar:
   order: 2
@@ -7,13 +7,13 @@ sidebar:
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`viga/validation` comprueba que los datos de cada petición tienen la forma que esperas antes de que lleguen al método del controlador. Si no la tienen, responde 400 y el método no se ejecuta. Si la tienen, el método recibe los datos ya convertidos y con su tipo de TypeScript.
+`@vigajs/core/validation` comprueba que los datos de cada petición tienen la forma que esperas antes de que lleguen al método del controlador. Si no la tienen, responde 400 y el método no se ejecuta. Si la tienen, el método recibe los datos ya convertidos y con su tipo de TypeScript.
 
 No trae una librería de validación propia. Funciona con cualquier librería que implemente [Standard Schema](https://standardschema.dev), como Zod, Valibot o ArkType. Tú eliges cuál instalar.
 
 ## Instalación
 
-`viga/validation` viene con viga; solo instala la librería de esquemas que prefieras. Los ejemplos de esta página usan Zod:
+`@vigajs/core/validation` viene con viga; solo instala la librería de esquemas que prefieras. Los ejemplos de esta página usan Zod:
 
 <Tabs syncKey="pkg">
   <TabItem label="pnpm">
@@ -43,8 +43,8 @@ No trae una librería de validación propia. Funciona con cualquier librería qu
 Define un esquema y pásalo a `@Validate`, indicando qué parte de la petición valida:
 
 ```ts title="src/books/books.controller.ts"
-import { Controller, Post, type HttpContext } from 'viga';
-import { Validate } from 'viga/validation';
+import { Controller, Post, type HttpContext } from '@vigajs/core';
+import { Validate } from '@vigajs/core/validation';
 import { z } from 'zod';
 
 const CreateBook = z.object({
@@ -212,8 +212,8 @@ Este comportamiento se llama `requireValidation` y está activado por defecto. P
 `ValidationModule.forRoot` acepta `formatIssue`, una función que recibe cada error original de la librería y devuelve el mensaje. Si devuelve `undefined`, se usa el de la librería:
 
 ```ts title="src/app.module.ts"
-import { Module } from 'viga';
-import { ValidationModule } from 'viga/validation';
+import { Module } from '@vigajs/core';
+import { ValidationModule } from '@vigajs/core/validation';
 
 @Module({
   imports: [
@@ -226,7 +226,7 @@ import { ValidationModule } from 'viga/validation';
 export class AppModule {}
 ```
 
-`formatIssue` recibe el error completo de la librería, así que puede leer cualquiera de sus campos, como los mínimos o máximos, para construir el mensaje. El tipo de Standard Schema solo garantiza `message` y `path`. Para leer un campo propio de una librería, como el `code` de Zod, comprueba primero que existe con `in`: TypeScript le da el tipo `unknown` y te obliga a comprobar su valor antes de usarlo. Es el lugar para traducir los mensajes de validación, junto con `viga/i18n`.
+`formatIssue` recibe el error completo de la librería, así que puede leer cualquiera de sus campos, como los mínimos o máximos, para construir el mensaje. El tipo de Standard Schema solo garantiza `message` y `path`. Para leer un campo propio de una librería, como el `code` de Zod, comprueba primero que existe con `in`: TypeScript le da el tipo `unknown` y te obliga a comprobar su valor antes de usarlo. Es el lugar para traducir los mensajes de validación, junto con `@vigajs/core/i18n`.
 
 `ValidationModule` es un módulo global, así que va en los `imports` del módulo raíz. No es obligatorio: sin él, `@Validate` funciona con los mensajes de la librería.
 

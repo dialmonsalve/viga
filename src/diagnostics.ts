@@ -24,7 +24,7 @@ export const DIAGNOSTICS = {
   'rateLimit.invalidMaxKeys': 'maxKeys must be a positive integer, received {maxKeys}',
   'rateLimit.invalidIpv6Subnet': 'ipv6Subnet must be an integer between 1 and 128, received {ipv6Subnet}',
   'rateLimit.httpOnly':
-    '@RateLimit from "viga" only works on HTTP routes; in a gateway use RateLimit from "viga/websocket"',
+    '@RateLimit from "@vigajs/core" only works on HTTP routes; in a gateway use RateLimit from "@vigajs/core/websocket"',
   'testing.unknownOverride':
     'The override for {token} does not match any provider; check that the token is the same one the module declares',
   'lifecycle.destroyFailed': 'One or more providers failed to shut down',

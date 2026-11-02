@@ -20,22 +20,22 @@ The fastest way is to create the project with a command:
 <Tabs syncKey="pkg">
   <TabItem label="pnpm">
     ```sh
-    pnpm create viga my-app
+    pnpm create @vigajs my-app
     ```
   </TabItem>
   <TabItem label="npm">
     ```sh
-    npm create viga@latest my-app
+    npm create @vigajs@latest my-app
     ```
   </TabItem>
   <TabItem label="yarn">
     ```sh
-    yarn create viga my-app
+    yarn create @vigajs my-app
     ```
   </TabItem>
   <TabItem label="bun">
     ```sh
-    bun create viga my-app
+    bunx @vigajs/create my-app
     ```
   </TabItem>
 </Tabs>
@@ -44,7 +44,7 @@ It creates the folder with `package.json`, `tsconfig.json`, the scripts and a fi
 
 It uses Zod for validation. To change that, add `--schema valibot` or `--schema none`.
 
-If you prefer to do it by hand or add viga to an existing project, follow the rest of this page.
+If you prefer to do it by hand or add @vigajs/core to an existing project, follow the rest of this page.
 
 ## Install viga
 
@@ -53,25 +53,25 @@ viga runs on top of Express, so you install it yourself alongside the framework.
 <Tabs syncKey="pkg">
   <TabItem label="pnpm">
     ```sh
-    pnpm add viga express
+    pnpm add @vigajs/core express
     pnpm add -D typescript tsx @types/express @types/node
     ```
   </TabItem>
   <TabItem label="npm">
     ```sh
-    npm install viga express
+    npm install @vigajs/core express
     npm install -D typescript tsx @types/express @types/node
     ```
   </TabItem>
   <TabItem label="yarn">
     ```sh
-    yarn add viga express
+    yarn add @vigajs/core express
     yarn add -D typescript tsx @types/express @types/node
     ```
   </TabItem>
   <TabItem label="bun">
     ```sh
-    bun add viga express
+    bun add @vigajs/core express
     bun add -d typescript tsx @types/express @types/node
     ```
   </TabItem>
@@ -100,7 +100,7 @@ Create a `tsconfig.json` at the project root, which inherits viga's configuratio
 
 ```json title="tsconfig.json"
 {
-  "extends": "viga/tsconfig.json",
+  "extends": "@vigajs/core/tsconfig.json",
   "include": ["src"]
 }
 ```
@@ -166,7 +166,7 @@ And the `build` script in your `package.json`:
 **With CommonJS, the format NestJS uses.** Remove `"type": "module"` from your `package.json`, and `tsc` will generate `require(...)`, which doesn't need an extension. This works because Node.js 24 can load ES module packages like viga with `require`. CommonJS doesn't allow `await` outside a function, so the startup goes inside one:
 
 ```ts title="src/main.ts"
-import { createApp } from 'viga';
+import { createApp } from '@vigajs/core';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -185,9 +185,9 @@ The core and most optional modules don't need anything else. Some depend on pack
 
 | Module | Packages it needs |
 |---|---|
-| `viga/validation` | A Standard Schema compatible library, like `zod`, `valibot` or `arktype` |
-| `viga/drizzle` | `drizzle-orm@0.45` and `pg`, and `@types/pg` as a development dependency |
-| `viga/websocket` | `ws`, if you use the default adapter |
-| `viga/upload` | `multer` and `file-type` |
+| `@vigajs/core/validation` | A Standard Schema compatible library, like `zod`, `valibot` or `arktype` |
+| `@vigajs/core/drizzle` | `drizzle-orm@0.45` and `pg`, and `@types/pg` as a development dependency |
+| `@vigajs/core/websocket` | `ws`, if you use the default adapter |
+| `@vigajs/core/upload` | `multer` and `file-type` |
 
 You install them the same way as viga, with your package manager.

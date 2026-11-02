@@ -1,11 +1,11 @@
 ---
-title: viga/pagination
+title: '@vigajs/core/pagination'
 description: Pagina listados con ?page y ?limit, con resultados tipados, enlaces a la página siguiente y anterior, y límites que protegen la base de datos.
 sidebar:
   order: 4
 ---
 
-`viga/pagination` lee los parámetros `?page` y `?limit` de la URL, los valida y le da a tu método lo que necesita para consultar una página: el número de página, el tamaño y el desplazamiento. Después arma la respuesta con los datos, el total y los enlaces a la página siguiente y anterior.
+`@vigajs/core/pagination` lee los parámetros `?page` y `?limit` de la URL, los valida y le da a tu método lo que necesita para consultar una página: el número de página, el tamaño y el desplazamiento. Después arma la respuesta con los datos, el total y los enlaces a la página siguiente y anterior.
 
 No consulta la base de datos por ti. Funciona con cualquier ORM o con SQL directo: tú haces la consulta con los números que te da.
 
@@ -14,8 +14,8 @@ No consulta la base de datos por ti. Funciona con cualquier ORM o con SQL direct
 Añade `@Paginate()` a la ruta y usa `PageContext` como tipo del contexto:
 
 ```ts title="src/books/books.controller.ts"
-import { Controller, Get } from 'viga';
-import { Paginate, type PageContext } from 'viga/pagination';
+import { Controller, Get } from '@vigajs/core';
+import { Paginate, type PageContext } from '@vigajs/core/pagination';
 
 @Controller('/books')
 export class BooksController {
@@ -89,7 +89,7 @@ Si alguien pide una página posterior a la última, recibe `data` vacío y un `p
 `page.result()` es genérico: si le pasas `Book[]`, el método devuelve `PaginatedResult<Book>`. Puedes exportar ese tipo para compartirlo con tu frontend:
 
 ```ts
-import type { PaginatedResult } from 'viga/pagination';
+import type { PaginatedResult } from '@vigajs/core/pagination';
 
 export type BooksPage = PaginatedResult<Book>;
 ```

@@ -7,14 +7,14 @@ sidebar:
 
 Um limite de requisições conta quantas requisições cada cliente faz em uma janela de tempo e, se passar do máximo, responde 429 até a janela terminar. Serve para frear ataques de força bruta contra o login, o abuso de rotas custosas ou os scripts que chamam sua API sem parar.
 
-No HTTP ele vem **desativado**: você decide onde colocá-lo. Ele não é ativado sozinho porque, atrás de um proxy mal configurado, todos os usuários compartilhariam o IP do proxy e seriam bloqueados ao mesmo tempo. Leia [IP do cliente e proxies](../client-ip/) antes de ativá-lo. No WebSocket há um limite por conexão ativado por padrão, como explicado em [`viga/websocket`](../../optional/websocket/#limites-por-padrão).
+No HTTP ele vem **desativado**: você decide onde colocá-lo. Ele não é ativado sozinho porque, atrás de um proxy mal configurado, todos os usuários compartilhariam o IP do proxy e seriam bloqueados ao mesmo tempo. Leia [IP do cliente e proxies](../client-ip/) antes de ativá-lo. No WebSocket há um limite por conexão ativado por padrão, como explicado em [`@vigajs/core/websocket`](../../optional/websocket/#limites-por-padrão).
 
 ## Para toda a aplicação
 
 `rateLimit()` é um middleware que limita todas as requisições de cada cliente:
 
 ```ts title="src/main.ts"
-import { createApp, rateLimit } from 'viga';
+import { createApp, rateLimit } from '@vigajs/core';
 
 const app = createApp({ rootModule: AppModule }).enableShutdownHooks();
 app.use(rateLimit({ max: 300, windowMs: 60_000 }));
@@ -27,8 +27,8 @@ Aqui cada IP pode fazer 300 requisições por minuto, somando todas as rotas.
 `@RateLimit()` dá a uma rota seu próprio limite, ou a todas as de um controller se você o colocar sobre a classe. É o adequado para as rotas sensíveis, como o login:
 
 ```ts title="src/auth/auth.controller.ts"
-import { Controller, Post, Public, RateLimit, type HttpContext } from 'viga';
-import { Validate } from 'viga/validation';
+import { Controller, Post, Public, RateLimit, type HttpContext } from '@vigajs/core';
+import { Validate } from '@vigajs/core/validation';
 import { z } from 'zod';
 
 const Login = z.object({ email: z.email(), password: z.string() });
@@ -73,7 +73,7 @@ O contador é mantido por chave: duas requisições com a mesma chave somam no m
 A opção `key` recebe a requisição e devolve a chave. Para o login, limitar por IP e por email ao mesmo tempo freia quem testa muitas senhas para uma mesma conta, sem bloquear outros usuários da mesma rede:
 
 ```ts
-import { RateLimit, ipKey } from 'viga';
+import { RateLimit, ipKey } from '@vigajs/core';
 
 @RateLimit({
   max: 5,
@@ -99,7 +99,7 @@ Por padrão, o contador vive na memória do processo, em um `MemoryRateLimitStor
 O contador em memória é de cada processo. Se sua aplicação roda em várias instâncias, cada uma conta por conta própria e o limite real se multiplica pelo número de instâncias. Para compartilhar o contador, implemente a interface `RateLimitStore` sobre Redis ou outro armazenamento compartilhado e passe-a em `store`:
 
 ```ts
-import type { RateLimitHit, RateLimitStore } from 'viga';
+import type { RateLimitHit, RateLimitStore } from '@vigajs/core';
 
 export class SharedRateLimitStore implements RateLimitStore {
   async hit(key: string, windowMs: number): Promise<RateLimitHit> {
@@ -116,4 +116,4 @@ A janela é fixa: começa com a primeira requisição e dura `windowMs`. Um clie
 
 ## No WebSocket
 
-Para limitar eventos de um gateway, use o `RateLimit` importado de `viga/websocket`, não o de `viga`. Isso é explicado em [`viga/websocket`](../../optional/websocket/#guards-interceptores-e-limites-por-evento).
+Para limitar eventos de um gateway, use o `RateLimit` importado de `@vigajs/core/websocket`, não o de `@vigajs/core`. Isso é explicado em [`@vigajs/core/websocket`](../../optional/websocket/#guards-interceptores-e-limites-por-evento).

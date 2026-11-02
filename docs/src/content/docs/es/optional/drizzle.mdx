@@ -1,5 +1,5 @@
 ---
-title: viga/drizzle
+title: '@vigajs/core/drizzle'
 description: Conecta tu app a PostgreSQL con Drizzle ORM, con transacciones que atraviesan servicios y repositorios sin pasarlas como parámetro.
 sidebar:
   order: 6
@@ -10,11 +10,11 @@ sidebar:
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`viga/drizzle` conecta tu app a PostgreSQL con [Drizzle ORM](https://orm.drizzle.team). Crea el pool de conexiones, lo cierra al detener la app y te da un `DatabaseService` que puedes inyectar en cualquier repositorio. Su parte más útil son las transacciones: varios repositorios escriben dentro de la misma transacción sin que tengas que pasarla de un método a otro.
+`@vigajs/core/drizzle` conecta tu app a PostgreSQL con [Drizzle ORM](https://orm.drizzle.team). Crea el pool de conexiones, lo cierra al detener la app y te da un `DatabaseService` que puedes inyectar en cualquier repositorio. Su parte más útil son las transacciones: varios repositorios escriben dentro de la misma transacción sin que tengas que pasarla de un método a otro.
 
 ## Instalación
 
-`viga/drizzle` usa Drizzle ORM y el driver `pg`, que instalas tú:
+`@vigajs/core/drizzle` usa Drizzle ORM y el driver `pg`, que instalas tú:
 
 <Tabs syncKey="pkg">
   <TabItem label="pnpm">
@@ -49,7 +49,7 @@ viga funciona con `drizzle-orm` desde la versión 0.45 y anterior a la 1.0, que 
 
 ## Define el esquema
 
-Describe tus tablas con Drizzle y registra el esquema en `viga/drizzle`:
+Describe tus tablas con Drizzle y registra el esquema en `@vigajs/core/drizzle`:
 
 ```ts title="src/database/schema.ts"
 import { integer, pgTable, serial, text } from 'drizzle-orm/pg-core';
@@ -60,23 +60,23 @@ export const books = pgTable('books', {
   stock: integer('stock').notNull().default(0),
 });
 
-declare module 'viga/drizzle' {
+declare module '@vigajs/core/drizzle' {
   interface Register {
     schema: typeof import('./schema.ts');
   }
 }
 ```
 
-El bloque `declare module` hace que `database.db` conozca tus tablas, igual que en [`viga/config`](../config/). Solo hace falta una vez en el proyecto.
+El bloque `declare module` hace que `database.db` conozca tus tablas, igual que en [`@vigajs/core/config`](../config/). Solo hace falta una vez en el proyecto.
 
 ## Registra el módulo
 
 `DrizzleModule.forRoot` es un módulo global y va en el módulo raíz:
 
 ```ts title="src/app.module.ts"
-import { Module, inject } from 'viga';
-import { CONFIG, ConfigModule } from 'viga/config';
-import { DrizzleModule } from 'viga/drizzle';
+import { Module, inject } from '@vigajs/core';
+import { CONFIG, ConfigModule } from '@vigajs/core/config';
+import { DrizzleModule } from '@vigajs/core/drizzle';
 import { BooksModule } from './books/books.module.ts';
 import { Env } from './config.ts';
 import * as schema from './database/schema.ts';
@@ -91,9 +91,9 @@ import * as schema from './database/schema.ts';
 export class AppModule {}
 ```
 
-`forRoot` recibe una función que se ejecuta dentro del contenedor al arrancar la app, así que puede pedir `CONFIG` con `inject()`: la URL sale de la configuración ya validada con [`viga/config`](../config/), y una URL que falta o no es válida impide arrancar la app. La función solo ve los providers de los módulos globales, como `CONFIG`.
+`forRoot` recibe una función que se ejecuta dentro del contenedor al arrancar la app, así que puede pedir `CONFIG` con `inject()`: la URL sale de la configuración ya validada con [`@vigajs/core/config`](../config/), y una URL que falta o no es válida impide arrancar la app. La función solo ve los providers de los módulos globales, como `CONFIG`.
 
-Si no usas `viga/config`, `forRoot` también acepta un objeto con las opciones directamente.
+Si no usas `@vigajs/core/config`, `forRoot` también acepta un objeto con las opciones directamente.
 
 `connection` acepta una URL o la configuración completa del `Pool` de `pg`, con `host`, `user`, `max` y el resto de opciones.
 
@@ -102,8 +102,8 @@ Si no usas `viga/config`, `forRoot` también acepta un objeto con las opciones d
 Pide `DatabaseService` en tus repositorios y usa `database.db`:
 
 ```ts title="src/books/books.repository.ts"
-import { Injectable, inject } from 'viga';
-import { DatabaseService } from 'viga/drizzle';
+import { Injectable, inject } from '@vigajs/core';
+import { DatabaseService } from '@vigajs/core/drizzle';
 import { eq } from 'drizzle-orm';
 import { books } from '../database/schema.ts';
 
@@ -157,7 +157,7 @@ Los tres repositorios no reciben la transacción como parámetro: usan `database
 `@Transactional()` envuelve un método entero en una transacción:
 
 ```ts
-import { Transactional } from 'viga/drizzle';
+import { Transactional } from '@vigajs/core/drizzle';
 
 @Transactional()
 async receive(orderId: number, lines: ReceivedLine[]) {
@@ -241,14 +241,14 @@ En producción, añade `?sslmode=verify-full` a la URL o pasa el certificado de 
 
 ## Migraciones
 
-`viga/drizzle` no gestiona las migraciones. Usa [drizzle-kit](https://orm.drizzle.team/docs/kit-overview), la herramienta de Drizzle, que genera y aplica las migraciones a partir del mismo esquema.
+`@vigajs/core/drizzle` no gestiona las migraciones. Usa [drizzle-kit](https://orm.drizzle.team/docs/kit-overview), la herramienta de Drizzle, que genera y aplica las migraciones a partir del mismo esquema.
 
 ## Otro ORM
 
 viga no necesita un adaptador para otros ORM, como Prisma o Kysely. Regístralos como un provider que cierre su conexión en `onModuleDestroy`:
 
 ```ts title="src/database/prisma.service.ts"
-import { Injectable, type OnModuleDestroy } from 'viga';
+import { Injectable, type OnModuleDestroy } from '@vigajs/core';
 import { PrismaClient } from '@prisma/client';
 
 @Injectable()
@@ -261,4 +261,4 @@ export class PrismaService implements OnModuleDestroy {
 }
 ```
 
-Lo que pierdes respecto a `viga/drizzle` son las transacciones que atraviesan repositorios sin pasarlas como parámetro; si las necesitas, puedes construirlas con una [clave de contexto](../../core/request-lifecycle/#el-contexto-de-la-petición), igual que hace `viga/drizzle`.
+Lo que pierdes respecto a `@vigajs/core/drizzle` son las transacciones que atraviesan repositorios sin pasarlas como parámetro; si las necesitas, puedes construirlas con una [clave de contexto](../../core/request-lifecycle/#el-contexto-de-la-petición), igual que hace `@vigajs/core/drizzle`.

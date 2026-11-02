@@ -6,13 +6,13 @@ import { join } from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const script = fileURLToPath(new URL('../../packages/create-viga/index.js', import.meta.url));
+const script = fileURLToPath(new URL('../../packages/create/index.js', import.meta.url));
 
-describe('create-viga', () => {
+describe('@vigajs/create', () => {
   let directory: string;
 
   before(() => {
-    directory = mkdtempSync(join(tmpdir(), 'create-viga-test-'));
+    directory = mkdtempSync(join(tmpdir(), 'vigajs-create-test-'));
   });
 
   after(() => rmSync(directory, { recursive: true, force: true }));
@@ -36,8 +36,8 @@ describe('create-viga', () => {
     assert.equal(pkg.type, 'module');
     assert.equal(pkg.private, true);
     assert.deepEqual(Object.keys(pkg.scripts), ['dev', 'build', 'start']);
-    assert.deepEqual(Object.keys(pkg.dependencies), ['express', 'viga', 'zod']);
-    assert.deepEqual(JSON.parse(read('my-app', 'tsconfig.json')), { extends: 'viga/tsconfig.json', include: ['src'] });
+    assert.deepEqual(Object.keys(pkg.dependencies), ['@vigajs/core', 'express', 'zod']);
+    assert.deepEqual(JSON.parse(read('my-app', 'tsconfig.json')), { extends: '@vigajs/core/tsconfig.json', include: ['src'] });
     for (const file of ['.gitignore', 'src/main.ts', 'src/app.module.ts', 'src/hello/hello.controller.ts']) {
       assert.ok(existsSync(join(directory, 'my-app', file)), file);
     }
@@ -47,10 +47,10 @@ describe('create-viga', () => {
 
   it('elige la librería de validación', () => {
     assert.equal(run(['with-valibot', '--schema', 'valibot']).status, 0);
-    assert.deepEqual(Object.keys(JSON.parse(read('with-valibot', 'package.json')).dependencies), ['express', 'valibot', 'viga']);
+    assert.deepEqual(Object.keys(JSON.parse(read('with-valibot', 'package.json')).dependencies), ['@vigajs/core', 'express', 'valibot']);
 
     assert.equal(run(['without-schema', '--schema', 'none']).status, 0);
-    assert.deepEqual(Object.keys(JSON.parse(read('without-schema', 'package.json')).dependencies), ['express', 'viga']);
+    assert.deepEqual(Object.keys(JSON.parse(read('without-schema', 'package.json')).dependencies), ['@vigajs/core', 'express']);
   });
 
   it('adapta los siguientes pasos a cada gestor de paquetes', () => {

@@ -45,7 +45,7 @@ Un JWT no se puede anular antes de que caduque: es válido mientras su firma y s
 
 ## El secreto
 
-Los access tokens se firman con un secreto que solo conoce tu servidor. Declara `JWT_SECRET` en tu esquema de [`viga/config`](../../optional/config/) con un mínimo de 32 caracteres, para que la app no arranque con un secreto débil:
+Los access tokens se firman con un secreto que solo conoce tu servidor. Declara `JWT_SECRET` en tu esquema de [`@vigajs/core/config`](../../optional/config/) con un mínimo de 32 caracteres, para que la app no arranque con un secreto débil:
 
 ```ts title="src/config.ts"
 export const Env = z.object({
@@ -62,8 +62,8 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'
 ## Firma y verifica los access tokens
 
 ```ts title="src/auth/tokens.service.ts"
-import { Injectable, inject } from 'viga';
-import { CONFIG } from 'viga/config';
+import { Injectable, inject } from '@vigajs/core';
+import { CONFIG } from '@vigajs/core/config';
 import { SignJWT, jwtVerify } from 'jose';
 
 @Injectable()
@@ -96,13 +96,13 @@ No guardes datos sensibles en el token. Un JWT está firmado, no cifrado: cualqu
 El guard lee el token de la cabecera `Authorization: Bearer <token>`, lo verifica y guarda el usuario en `CURRENT_USER`, una clave de contexto como la que viste en [guards](../../core/guards/#comparte-el-usuario-con-el-resto-del-código). Aquí el `id` es el `sub` del token:
 
 ```ts title="src/auth/current-user.ts"
-import { createContextKey } from 'viga';
+import { createContextKey } from '@vigajs/core';
 
 export const CURRENT_USER = createContextKey<{ id: string }>('currentUser');
 ```
 
 ```ts title="src/auth/auth.guard.ts"
-import { Injectable, inject, type CanActivate, type HttpContext } from 'viga';
+import { Injectable, inject, type CanActivate, type HttpContext } from '@vigajs/core';
 import { CURRENT_USER } from './current-user.ts';
 import { TokensService } from './tokens.service.ts';
 
@@ -144,7 +144,7 @@ Cada refresh token pertenece a una **familia**, que representa una sesión. Al u
 
 ```ts title="src/auth/refresh-tokens.service.ts"
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { Injectable, UnauthorizedException } from 'viga';
+import { Injectable, UnauthorizedException } from '@vigajs/core';
 
 interface StoredToken {
   userId: string;
@@ -200,8 +200,8 @@ Para que la guía sea corta, los tokens se guardan en memoria. En una app real g
 ## Las rutas
 
 ```ts title="src/auth/auth.controller.ts"
-import { Controller, Get, Post, Public, RateLimit, UnauthorizedException, inject, type HttpContext } from 'viga';
-import { Validate } from 'viga/validation';
+import { Controller, Get, Post, Public, RateLimit, UnauthorizedException, inject, type HttpContext } from '@vigajs/core';
+import { Validate } from '@vigajs/core/validation';
 import { z } from 'zod';
 import { CURRENT_USER } from './current-user.ts';
 import { RefreshTokensService } from './refresh-tokens.service.ts';
@@ -258,7 +258,7 @@ export class AuthController {
 Las tres primeras son `@Public()`, porque se usan sin un access token válido.
 
 :::tip
-[`viga/crypto`](../../optional/crypto/#contraseñas) incluye `hashPassword` y `verifyPassword` para implementar `verifyCredentials`, y `randomToken` y `hashToken` para generar los refresh tokens y guardar su hash.
+[`@vigajs/core/crypto`](../../optional/crypto/#contraseñas) incluye `hashPassword` y `verifyPassword` para implementar `verifyCredentials`, y `randomToken` y `hashToken` para generar los refresh tokens y guardar su hash.
 :::
 
 ## En el cliente
@@ -277,9 +277,9 @@ Para guardar el refresh token en el navegador, lo más seguro es una cookie `Htt
 El mismo access token sirve para autenticar un WebSocket. Pasa a `WebSocketModule.forRoot` una función, que se ejecuta dentro del contenedor y puede pedir `CONFIG` con `inject()`. Usa la caducidad del token como `expiresAt`, para que la conexión se cierre cuando caduque:
 
 ```ts title="src/app.module.ts"
-import { inject } from 'viga';
-import { CONFIG } from 'viga/config';
-import { WebSocketModule } from 'viga/websocket';
+import { inject } from '@vigajs/core';
+import { CONFIG } from '@vigajs/core/config';
+import { WebSocketModule } from '@vigajs/core/websocket';
 import { jwtVerify } from 'jose';
 
 WebSocketModule.forRoot(() => {
@@ -304,4 +304,4 @@ WebSocketModule.forRoot(() => {
 
 La función solo ve los providers de los módulos globales, como `CONFIG`, así que aquí no se puede pedir `TokensService`.
 
-El navegador no puede enviar la cabecera `Authorization` en un WebSocket, así que el token va en la URL. Como las URLs suelen quedar en los logs, es otra razón para que el access token dure poco. Se explica en [`viga/websocket`](../../optional/websocket/#autenticación).
+El navegador no puede enviar la cabecera `Authorization` en un WebSocket, así que el token va en la URL. Como las URLs suelen quedar en los logs, es otra razón para que el access token dure poco. Se explica en [`@vigajs/core/websocket`](../../optional/websocket/#autenticación).

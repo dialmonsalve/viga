@@ -1,5 +1,5 @@
 ---
-title: viga/i18n
+title: '@vigajs/core/i18n'
 description: Responda no idioma de cada usuário, com catálogos de mensagens, negociação com Accept-Language e os erros do framework já traduzidos.
 sidebar:
   order: 5
@@ -7,7 +7,7 @@ sidebar:
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`viga/i18n` escolhe o idioma de cada requisição e traduz as mensagens da sua API para esse idioma, incluindo as dos erros. Você escreve os textos em catálogos, um por idioma, e o viga escolhe qual usar conforme o que o cliente pedir.
+`@vigajs/core/i18n` escolhe o idioma de cada requisição e traduz as mensagens da sua API para esse idioma, incluindo as dos erros. Você escreve os textos em catálogos, um por idioma, e o viga escolhe qual usar conforme o que o cliente pedir.
 
 As mensagens de erro do próprio framework já vêm traduzidas para inglês e espanhol. Para português, você as traduz no seu catálogo, como explicado em [Outros idiomas](#outros-idiomas).
 
@@ -16,7 +16,7 @@ As mensagens de erro do próprio framework já vêm traduzidas para inglês e es
 Escreva um catálogo por idioma. As chaves podem ser aninhadas:
 
 ```ts title="src/i18n.ts"
-import { I18n } from 'viga/i18n';
+import { I18n } from '@vigajs/core/i18n';
 
 const pt = {
   books: {
@@ -40,7 +40,7 @@ A chave `books.notFound` procura `{ books: { notFound: '…' } }`. O que vai ent
 Depois conecte `i18n` à aplicação em `main.ts`:
 
 ```ts title="src/main.ts" ins={3,5,6}
-import { createApp } from 'viga';
+import { createApp } from '@vigajs/core';
 import { AppModule } from './app.module.ts';
 import { i18n } from './i18n.ts';
 
@@ -122,7 +122,7 @@ Se devolver um idioma que não está nos seus catálogos, ou `undefined`, o viga
 `i18n.t(key, params)` traduz qualquer chave para o idioma da requisição atual, a partir de qualquer serviço:
 
 ```ts title="src/books/books.service.ts"
-import { Injectable } from 'viga';
+import { Injectable } from '@vigajs/core';
 import { i18n } from '../i18n.ts';
 
 @Injectable()
@@ -141,7 +141,7 @@ export class BooksService {
 Em um script ou uma tarefa em segundo plano não há requisição, então `i18n.t()` usa o idioma padrão. Para usar outro, por exemplo ao enviar um email no idioma do destinatário, envolva o código em `runWithLocale`:
 
 ```ts
-import { runWithLocale } from 'viga/i18n';
+import { runWithLocale } from '@vigajs/core/i18n';
 
 await runWithLocale(user.locale, () => mailer.send(user.email, i18n.t('emails.welcome')));
 ```
@@ -154,7 +154,7 @@ await runWithLocale(user.locale, () => mailer.send(user.email, i18n.t('emails.we
 
 ## Mensagens de validação
 
-As mensagens de [`viga/validation`](../validation/) são geradas pela biblioteca de schemas, normalmente em inglês. Para traduzi-las, use `formatIssue` com o identificador de cada erro. Cada biblioteca o nomeia à sua maneira, `code` no Zod e `type` no Valibot, e as chaves do catálogo são os seus valores:
+As mensagens de [`@vigajs/core/validation`](../validation/) são geradas pela biblioteca de schemas, normalmente em inglês. Para traduzi-las, use `formatIssue` com o identificador de cada erro. Cada biblioteca o nomeia à sua maneira, `code` no Zod e `type` no Valibot, e as chaves do catálogo são os seus valores:
 
 <Tabs syncKey="schema">
   <TabItem label="Zod">
@@ -283,8 +283,8 @@ Muitas vezes é melhor que o frontend monte a mensagem. Cada erro já traz `path
 Os erros e avisos do próprio framework, como `[DI] BooksModule cannot resolve BooksService…`, estão em inglês. São para quem desenvolve, não para o usuário final. O viga traz uma versão em espanhol; para usá-la, ative-a em `main.ts` antes de `createApp()`:
 
 ```ts title="src/main.ts"
-import { setDiagnostics } from 'viga';
-import { diagnosticsEs } from 'viga/i18n';
+import { setDiagnostics } from '@vigajs/core';
+import { diagnosticsEs } from '@vigajs/core/i18n';
 
 setDiagnostics(diagnosticsEs);
 ```
@@ -292,5 +292,5 @@ setDiagnostics(diagnosticsEs);
 Esse mesmo erro passa a ser `[DI] BooksModule no puede resolver BooksService…`.
 
 - `setDiagnostics` também aceita um dicionário próprio, para outro idioma, como o português. Pode ser parcial: o que ele não traduzir continua em inglês.
-- `DIAGNOSTICS`, que é importado de `viga`, contém os textos originais em inglês, como referência para escrever outro dicionário.
+- `DIAGNOSTICS`, que é importado de `@vigajs/core`, contém os textos originais em inglês, como referência para escrever outro dicionário.
 - `setDiagnostics({})` volta para o inglês.

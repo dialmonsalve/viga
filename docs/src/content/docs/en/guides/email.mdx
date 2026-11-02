@@ -38,7 +38,7 @@ viga ships no email sending, because it depends on your provider. This guide use
   </TabItem>
 </Tabs>
 
-Declare the connection in your [`viga/config`](../../optional/config/) schema:
+Declare the connection in your [`@vigajs/core/config`](../../optional/config/) schema:
 
 ```ts title="src/config.ts"
 export const Env = z.object({
@@ -59,7 +59,7 @@ MAIL_FROM="My App <hello@my-app.com>"
 Define an interface, so the rest of the app doesn't depend on Nodemailer:
 
 ```ts title="src/mail/mailer.ts"
-import { InjectionToken } from 'viga';
+import { InjectionToken } from '@vigajs/core';
 
 export interface Email {
   to: string;
@@ -76,8 +76,8 @@ export const MAILER = new InjectionToken<Mailer>('MAILER');
 ```
 
 ```ts title="src/mail/smtp.mailer.ts"
-import { Injectable, inject, type OnModuleDestroy } from 'viga';
-import { CONFIG } from 'viga/config';
+import { Injectable, inject, type OnModuleDestroy } from '@vigajs/core';
+import { CONFIG } from '@vigajs/core/config';
 import { createTransport } from 'nodemailer';
 import type { Email, Mailer } from './mailer.ts';
 
@@ -97,7 +97,7 @@ export class SmtpMailer implements Mailer, OnModuleDestroy {
 ```
 
 ```ts title="src/mail/mail.module.ts"
-import { Module } from 'viga';
+import { Module } from '@vigajs/core';
 import { MAILER } from './mailer.ts';
 import { SmtpMailer } from './smtp.mailer.ts';
 
@@ -142,8 +142,8 @@ Also validate addresses with your schema, like `z.email()`, before using them in
 Sending an email takes time, and the SMTP server may be down. That's why a request shouldn't send it directly: store it in a [queue](../queues-workers/) and respond.
 
 ```ts title="src/mail/mail.queue.ts"
-import { Injectable, inject, type OnModuleDestroy } from 'viga';
-import { CONFIG } from 'viga/config';
+import { Injectable, inject, type OnModuleDestroy } from '@vigajs/core';
+import { CONFIG } from '@vigajs/core/config';
 import { Queue } from 'bullmq';
 import type { Email } from './mailer.ts';
 
@@ -172,8 +172,8 @@ export class MailQueue implements OnModuleDestroy {
 The worker sends each email and decides whether retrying makes sense:
 
 ```ts title="src/mail/mail.worker.ts"
-import { Injectable, LOGGER, inject, type OnModuleDestroy, type OnModuleInit } from 'viga';
-import { CONFIG } from 'viga/config';
+import { Injectable, LOGGER, inject, type OnModuleDestroy, type OnModuleInit } from '@vigajs/core';
+import { CONFIG } from '@vigajs/core/config';
 import { UnrecoverableError, Worker, type Job } from 'bullmq';
 import { MAILER, type Email } from './mailer.ts';
 
@@ -229,7 +229,7 @@ Run the worker like [any other](../queues-workers/#process-the-jobs), with its e
 
 ## Send when something happens
 
-With [`viga/events`](../../optional/events/), the users service doesn't have to know emails exist. It only announces that someone has registered:
+With [`@vigajs/core/events`](../../optional/events/), the users service doesn't have to know emails exist. It only announces that someone has registered:
 
 ```ts title="src/users/users.service.ts"
 async register(data: NewUser) {
@@ -240,8 +240,8 @@ async register(data: NewUser) {
 ```
 
 ```ts title="src/mail/welcome.listener.ts"
-import { Injectable, inject } from 'viga';
-import { OnEvent } from 'viga/events';
+import { Injectable, inject } from '@vigajs/core';
+import { OnEvent } from '@vigajs/core/events';
 import { UserRegistered } from '../users/user-registered.event.ts';
 import { MailQueue } from './mail.queue.ts';
 import { welcomeEmail } from './templates.ts';
@@ -297,7 +297,7 @@ private async process(job: Job<{ email: string }>) {
 }
 ```
 
-`replaceFor` deletes the user's previous tokens, so a retry invalidates the previous attempt's link. To check the token when it comes back, follow the steps in [`viga/crypto`](../../optional/crypto/#random-tokens). The link is built with `APP_URL`, from your configuration, and never with the request's `Host` header, which can be forged to send the link to another domain.
+`replaceFor` deletes the user's previous tokens, so a retry invalidates the previous attempt's link. To check the token when it comes back, follow the steps in [`@vigajs/core/crypto`](../../optional/crypto/#random-tokens). The link is built with `APP_URL`, from your configuration, and never with the request's `Host` header, which can be forged to send the link to another domain.
 
 ## Bounces and complaints
 

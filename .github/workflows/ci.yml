@@ -45,7 +45,7 @@ jobs:
           node-version: 24.13.0
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile --filter viga
+      - run: pnpm install --frozen-lockfile --filter @vigajs/core
       - run: pnpm check-types
       - run: pnpm test:db
       - run: pnpm build

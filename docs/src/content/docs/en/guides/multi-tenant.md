@@ -18,7 +18,7 @@ The most serious mistake in a multi-tenant app is a user seeing another company'
 A context key stores the current request's company:
 
 ```ts title="src/tenants/current-tenant.ts"
-import { createContextKey } from 'viga';
+import { createContextKey } from '@vigajs/core';
 
 export interface Tenant {
   id: number;
@@ -32,7 +32,7 @@ A middleware reads the subdomain, looks up the company and stores it. If it does
 
 ```ts title="src/tenants/tenant.middleware.ts"
 import type { RequestHandler } from 'express';
-import { NotFoundException } from 'viga';
+import { NotFoundException } from '@vigajs/core';
 import { CURRENT_TENANT } from './current-tenant.ts';
 import type { TenantsService } from './tenants.service.ts';
 

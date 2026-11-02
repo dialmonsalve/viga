@@ -1,5 +1,5 @@
 ---
-title: viga/upload
+title: '@vigajs/core/upload'
 description: Recibe archivos en una ruta con límites, tipos detectados por su contenido, nombres generados y limpieza automática de los temporales.
 sidebar:
   order: 12
@@ -10,7 +10,7 @@ sidebar:
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Recibir archivos de los usuarios es una de las funciones más delicadas de una API: un archivo puede ser enorme, no ser lo que dice ser o tener un nombre pensado para escribir fuera de tu carpeta. `viga/upload` añade el decorador `@Upload()`, que usa [Multer](https://github.com/expressjs/multer) para recibir el archivo y [file-type](https://github.com/sindresorhus/file-type) para comprobar su contenido.
+Recibir archivos de los usuarios es una de las funciones más delicadas de una API: un archivo puede ser enorme, no ser lo que dice ser o tener un nombre pensado para escribir fuera de tu carpeta. `@vigajs/core/upload` añade el decorador `@Upload()`, que usa [Multer](https://github.com/expressjs/multer) para recibir el archivo y [file-type](https://github.com/sindresorhus/file-type) para comprobar su contenido.
 
 ## Instalación
 
@@ -42,9 +42,9 @@ Recibir archivos de los usuarios es una de las funciones más delicadas de una A
 Añade `@Upload()` a la ruta, con el nombre del campo del formulario y los tipos permitidos:
 
 ```ts title="src/users/avatars.controller.ts"
-import { Controller, Post } from 'viga';
-import { randomToken } from 'viga/crypto';
-import { Upload, type UploadContext } from 'viga/upload';
+import { Controller, Post } from '@vigajs/core';
+import { randomToken } from '@vigajs/core/crypto';
+import { Upload, type UploadContext } from '@vigajs/core/upload';
 
 @Controller('/avatars')
 export class AvatarsController {

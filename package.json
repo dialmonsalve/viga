@@ -1,5 +1,5 @@
 {
-  "name": "viga",
+  "name": "@vigajs/core",
   "version": "0.1.0",
   "description": "HTTP framework for Node.js with modules, dependency injection and standard JavaScript decorators (TC39), without reflect-metadata",
   "type": "module",

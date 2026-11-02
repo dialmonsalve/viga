@@ -38,7 +38,7 @@ O viga não traz envio de emails, porque isso depende do seu provedor. Este guia
   </TabItem>
 </Tabs>
 
-Declare a conexão no schema de [`viga/config`](../../optional/config/):
+Declare a conexão no schema de [`@vigajs/core/config`](../../optional/config/):
 
 ```ts title="src/config.ts"
 export const Env = z.object({
@@ -59,7 +59,7 @@ MAIL_FROM="Meu App <ola@meu-app.com>"
 Defina uma interface, para que o resto da aplicação não dependa do Nodemailer:
 
 ```ts title="src/mail/mailer.ts"
-import { InjectionToken } from 'viga';
+import { InjectionToken } from '@vigajs/core';
 
 export interface Email {
   to: string;
@@ -76,8 +76,8 @@ export const MAILER = new InjectionToken<Mailer>('MAILER');
 ```
 
 ```ts title="src/mail/smtp.mailer.ts"
-import { Injectable, inject, type OnModuleDestroy } from 'viga';
-import { CONFIG } from 'viga/config';
+import { Injectable, inject, type OnModuleDestroy } from '@vigajs/core';
+import { CONFIG } from '@vigajs/core/config';
 import { createTransport } from 'nodemailer';
 import type { Email, Mailer } from './mailer.ts';
 
@@ -97,7 +97,7 @@ export class SmtpMailer implements Mailer, OnModuleDestroy {
 ```
 
 ```ts title="src/mail/mail.module.ts"
-import { Module } from 'viga';
+import { Module } from '@vigajs/core';
 import { MAILER } from './mailer.ts';
 import { SmtpMailer } from './smtp.mailer.ts';
 
@@ -142,8 +142,8 @@ Valide também os endereços com o seu schema, como `z.email()`, antes de usá-l
 Enviar um email demora, e o servidor SMTP pode estar fora do ar. Por isso uma requisição não deveria enviá-lo diretamente: guarde-o em uma [fila](../queues-workers/) e responda.
 
 ```ts title="src/mail/mail.queue.ts"
-import { Injectable, inject, type OnModuleDestroy } from 'viga';
-import { CONFIG } from 'viga/config';
+import { Injectable, inject, type OnModuleDestroy } from '@vigajs/core';
+import { CONFIG } from '@vigajs/core/config';
 import { Queue } from 'bullmq';
 import type { Email } from './mailer.ts';
 
@@ -172,8 +172,8 @@ export class MailQueue implements OnModuleDestroy {
 O worker envia cada email e decide se faz sentido repetir:
 
 ```ts title="src/mail/mail.worker.ts"
-import { Injectable, LOGGER, inject, type OnModuleDestroy, type OnModuleInit } from 'viga';
-import { CONFIG } from 'viga/config';
+import { Injectable, LOGGER, inject, type OnModuleDestroy, type OnModuleInit } from '@vigajs/core';
+import { CONFIG } from '@vigajs/core/config';
 import { UnrecoverableError, Worker, type Job } from 'bullmq';
 import { MAILER, type Email } from './mailer.ts';
 
@@ -229,7 +229,7 @@ Execute o worker como [qualquer outro](../queues-workers/#processe-os-trabalhos)
 
 ## Envie quando algo acontecer
 
-Com [`viga/events`](../../optional/events/), o serviço de usuários não precisa saber que os emails existem. Ele só anuncia que alguém se cadastrou:
+Com [`@vigajs/core/events`](../../optional/events/), o serviço de usuários não precisa saber que os emails existem. Ele só anuncia que alguém se cadastrou:
 
 ```ts title="src/users/users.service.ts"
 async register(data: NewUser) {
@@ -240,8 +240,8 @@ async register(data: NewUser) {
 ```
 
 ```ts title="src/mail/welcome.listener.ts"
-import { Injectable, inject } from 'viga';
-import { OnEvent } from 'viga/events';
+import { Injectable, inject } from '@vigajs/core';
+import { OnEvent } from '@vigajs/core/events';
 import { UserRegistered } from '../users/user-registered.event.ts';
 import { MailQueue } from './mail.queue.ts';
 import { welcomeEmail } from './templates.ts';
@@ -297,7 +297,7 @@ private async process(job: Job<{ email: string }>) {
 }
 ```
 
-`replaceFor` apaga os tokens anteriores do usuário, então uma repetição invalida o link da tentativa anterior. Para verificar o token quando ele voltar, siga os passos de [`viga/crypto`](../../optional/crypto/#tokens-aleatórios). O link é construído com `APP_URL`, da sua configuração, e nunca com o cabeçalho `Host` da requisição, que pode ser falsificado para enviar o link a outro domínio.
+`replaceFor` apaga os tokens anteriores do usuário, então uma repetição invalida o link da tentativa anterior. Para verificar o token quando ele voltar, siga os passos de [`@vigajs/core/crypto`](../../optional/crypto/#tokens-aleatórios). O link é construído com `APP_URL`, da sua configuração, e nunca com o cabeçalho `Host` da requisição, que pode ser falsificado para enviar o link a outro domínio.
 
 ## Rejeições e reclamações
 

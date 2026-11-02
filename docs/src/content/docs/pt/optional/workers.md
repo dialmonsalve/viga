@@ -1,21 +1,21 @@
 ---
-title: viga/workers
+title: '@vigajs/core/workers'
 description: Execute trabalho em segundo plano com o mesmo código dentro da API, em processos filhos ou em outro servidor, com um supervisor que reinicia os processos que caem.
 sidebar:
   order: 11
 ---
 
-Um worker é a parte da sua aplicação que faz trabalho em segundo plano, fora das requisições: importar um CSV, enviar emails ou gerar relatórios. O `viga/workers` permite escrevê-lo uma vez e decidir depois onde ele é executado. Ele também traz um supervisor que cria um processo para cada chave, por exemplo um por empresa, e o reinicia se cair.
+Um worker é a parte da sua aplicação que faz trabalho em segundo plano, fora das requisições: importar um CSV, enviar emails ou gerar relatórios. O `@vigajs/core/workers` permite escrevê-lo uma vez e decidir depois onde ele é executado. Ele também traz um supervisor que cria um processo para cada chave, por exemplo um por empresa, e o reinicia se cair.
 
-**Não é um sistema de filas.** O viga não guarda trabalhos, não os repete nem os agenda: para isso, use uma biblioteca como BullMQ ou pg-boss. O que o `viga/workers` faz é iniciar, parar e vigiar o processo onde essa biblioteca é executada.
+**Não é um sistema de filas.** O viga não guarda trabalhos, não os repete nem os agenda: para isso, use uma biblioteca como BullMQ ou pg-boss. O que o `@vigajs/core/workers` faz é iniciar, parar e vigiar o processo onde essa biblioteca é executada.
 
 ## Escreva o worker
 
 Um worker é um provider normal: começa a consumir trabalhos em `onModuleInit` e para em `onModuleDestroy`. `WORKER_KEY` indica qual chave ele atende:
 
 ```ts title="src/imports/imports.worker.ts"
-import { Injectable, inject, runInNewContext, type OnModuleDestroy, type OnModuleInit } from 'viga';
-import { WORKER_KEY } from 'viga/workers';
+import { Injectable, inject, runInNewContext, type OnModuleDestroy, type OnModuleInit } from '@vigajs/core';
+import { WORKER_KEY } from '@vigajs/core/workers';
 import { Worker, type Job } from 'bullmq';
 
 @Injectable()
@@ -43,7 +43,7 @@ export class ImportsWorker implements OnModuleInit, OnModuleDestroy {
 Agrupe-o no módulo dele, sem controladores nem nada que dependa de HTTP:
 
 ```ts title="src/imports/imports-worker.module.ts"
-import { Module } from 'viga';
+import { Module } from '@vigajs/core';
 
 @Module({
   imports: [ImportsModule],
@@ -67,7 +67,7 @@ O trabalho que usa muita CPU, como processar um CSV de 100 000 linhas, precisa p
 Importe o módulo na API, com a chave que ele atende:
 
 ```ts title="src/app.module.ts"
-import { WorkerModule } from 'viga/workers';
+import { WorkerModule } from '@vigajs/core/workers';
 
 @Module({
   imports: [WorkerModule.forKey('emails'), ImportsWorkerModule],
@@ -80,7 +80,7 @@ export class AppModule {}
 Crie um arquivo de entrada para o worker:
 
 ```ts title="src/worker.ts"
-import { startWorker } from 'viga/workers';
+import { startWorker } from '@vigajs/core/workers';
 import { ImportsWorkerModule } from './imports/imports-worker.module.ts';
 
 await startWorker(ImportsWorkerModule);
@@ -89,7 +89,7 @@ await startWorker(ImportsWorkerModule);
 E adicione o supervisor à API:
 
 ```ts title="src/app.module.ts"
-import { WorkersModule } from 'viga/workers';
+import { WorkersModule } from '@vigajs/core/workers';
 
 WorkersModule.forRoot({
   entry: new URL('./worker.ts', import.meta.url),
@@ -136,7 +136,7 @@ WorkersModule.forRoot(() => {
 Com `WorkerSupervisor` você gerencia os workers com a aplicação em execução, por exemplo ao cadastrar uma empresa:
 
 ```ts
-import { WorkerSupervisor } from 'viga/workers';
+import { WorkerSupervisor } from '@vigajs/core/workers';
 
 private readonly workers = inject(WorkerSupervisor);
 
@@ -213,8 +213,8 @@ Se você usa `process.loadEnvFile()` em `main.ts`, os filhos recebem essas vari�
 Teste a lógica do worker sem processos, entregando a chave com `WorkerModule.forKey`:
 
 ```ts title="test/imports.test.ts"
-import { createTestingApp } from 'viga/testing';
-import { WorkerModule } from 'viga/workers';
+import { createTestingApp } from '@vigajs/core/testing';
+import { WorkerModule } from '@vigajs/core/workers';
 
 @Module({ imports: [WorkerModule.forKey('test'), ImportsWorkerModule] })
 class TestModule {}

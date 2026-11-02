@@ -14,7 +14,7 @@ Este guia parte do projeto da [primeira aplicação](../first-app/).
 Primeiro você define o que o repositório oferece, com uma interface:
 
 ```ts title="src/books/books.repository.ts"
-import { InjectionToken } from 'viga';
+import { InjectionToken } from '@vigajs/core';
 
 export interface Book {
   id: number;
@@ -35,7 +35,7 @@ O TypeScript apaga as interfaces ao compilar, então elas não podem ser usadas 
 Esta implementação guarda os livros na memória. A interface `Book` agora fica no repositório:
 
 ```ts title="src/books/in-memory-books.repository.ts"
-import { Injectable } from 'viga';
+import { Injectable } from '@vigajs/core';
 import type { Book, BooksRepository } from './books.repository.ts';
 
 @Injectable()
@@ -56,7 +56,7 @@ export class InMemoryBooksRepository implements BooksRepository {
 O serviço pede o repositório pelo token e não sabe qual implementação está por trás:
 
 ```ts title="src/books/books.service.ts"
-import { Injectable, inject } from 'viga';
+import { Injectable, inject } from '@vigajs/core';
 import { BOOKS_REPOSITORY } from './books.repository.ts';
 
 @Injectable()
@@ -76,7 +76,7 @@ export class BooksService {
 O módulo decide qual implementação corresponde ao token:
 
 ```ts title="src/books/books.module.ts"
-import { Module } from 'viga';
+import { Module } from '@vigajs/core';
 import { BOOKS_REPOSITORY } from './books.repository.ts';
 import { BooksController } from './books.controller.ts';
 import { BooksService } from './books.service.ts';
@@ -93,10 +93,10 @@ Para passar a um banco de dados, você escreve outra implementação e só muda 
 
 ## Substitua-o nos testes
 
-`createTestingApp`, de `viga/testing`, inicia a aplicação substituindo o repositório sem mexer no seu código:
+`createTestingApp`, de `@vigajs/core/testing`, inicia a aplicação substituindo o repositório sem mexer no seu código:
 
 ```ts title="src/books/books.test.ts"
-import { createTestingApp } from 'viga/testing';
+import { createTestingApp } from '@vigajs/core/testing';
 import { AppModule } from '../app.module.ts';
 import { BOOKS_REPOSITORY } from './books.repository.ts';
 
@@ -110,4 +110,4 @@ const { body } = await app.request('/books');
 await app.close();
 ```
 
-`body` contém o livro de teste: o serviço e o controller são os reais, e só o repositório mudou. Você pode executar este arquivo com o `tsx` ou dentro da sua ferramenta de testes, como o `node:test`, que você verá em [viga/testing](../../optional/testing/).
+`body` contém o livro de teste: o serviço e o controller são os reais, e só o repositório mudou. Você pode executar este arquivo com o `tsx` ou dentro da sua ferramenta de testes, como o `node:test`, que você verá em [@vigajs/core/testing](../../optional/testing/).

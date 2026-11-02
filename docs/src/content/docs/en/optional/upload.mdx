@@ -1,5 +1,5 @@
 ---
-title: viga/upload
+title: '@vigajs/core/upload'
 description: Receive files on a route with limits, types detected from their content, generated names and automatic cleanup of temporary files.
 sidebar:
   order: 12
@@ -10,7 +10,7 @@ sidebar:
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Receiving files from users is one of the most delicate features of an API: a file can be huge, not be what it claims or have a name designed to write outside your folder. `viga/upload` adds the `@Upload()` decorator, which uses [Multer](https://github.com/expressjs/multer) to receive the file and [file-type](https://github.com/sindresorhus/file-type) to check its content.
+Receiving files from users is one of the most delicate features of an API: a file can be huge, not be what it claims or have a name designed to write outside your folder. `@vigajs/core/upload` adds the `@Upload()` decorator, which uses [Multer](https://github.com/expressjs/multer) to receive the file and [file-type](https://github.com/sindresorhus/file-type) to check its content.
 
 ## Installation
 
@@ -42,9 +42,9 @@ Receiving files from users is one of the most delicate features of an API: a fil
 Add `@Upload()` to the route, with the form field's name and the allowed types:
 
 ```ts title="src/users/avatars.controller.ts"
-import { Controller, Post } from 'viga';
-import { randomToken } from 'viga/crypto';
-import { Upload, type UploadContext } from 'viga/upload';
+import { Controller, Post } from '@vigajs/core';
+import { randomToken } from '@vigajs/core/crypto';
+import { Upload, type UploadContext } from '@vigajs/core/upload';
 
 @Controller('/avatars')
 export class AvatarsController {

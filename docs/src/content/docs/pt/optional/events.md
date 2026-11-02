@@ -1,11 +1,11 @@
 ---
-title: viga/events
+title: '@vigajs/core/events'
 description: Separe seus serviços com um barramento de eventos em memória, com eventos tipados, erros isolados e listeners que terminam antes de a aplicação ser encerrada.
 sidebar:
   order: 10
 ---
 
-Quando algo acontece na sua aplicação, muitas vezes várias partes precisam reagir. Se `CampaignsService` chama diretamente os serviços de email, de estatísticas e de auditoria, ele precisa conhecer todos. Com o `viga/events`, ele só anuncia o que aconteceu, e cada parte interessada se inscreve por conta própria.
+Quando algo acontece na sua aplicação, muitas vezes várias partes precisam reagir. Se `CampaignsService` chama diretamente os serviços de email, de estatísticas e de auditoria, ele precisa conhecer todos. Com o `@vigajs/core/events`, ele só anuncia o que aconteceu, e cada parte interessada se inscreve por conta própria.
 
 Os eventos vivem na memória do processo. Antes de usá-los, leia [o que eles não fazem](#o-que-ele-não-faz).
 
@@ -14,8 +14,8 @@ Os eventos vivem na memória do processo. Antes de usá-los, leia [o que eles n�
 Importe `EventsModule` no módulo raiz. É um módulo global, então `EventBus` fica disponível em toda a aplicação:
 
 ```ts title="src/app.module.ts"
-import { Module } from 'viga';
-import { EventsModule } from 'viga/events';
+import { Module } from '@vigajs/core';
+import { EventsModule } from '@vigajs/core/events';
 
 @Module({
   imports: [EventsModule.forRoot()],
@@ -37,8 +37,8 @@ export class CampaignPaused {
 Emita-o com `EventBus`:
 
 ```ts title="src/campaigns/campaigns.service.ts"
-import { Injectable, inject } from 'viga';
-import { EventBus } from 'viga/events';
+import { Injectable, inject } from '@vigajs/core';
+import { EventBus } from '@vigajs/core/events';
 import { CampaignPaused } from './campaign-paused.event.ts';
 
 @Injectable()
@@ -55,8 +55,8 @@ export class CampaignsService {
 E escute-o com `@OnEvent`, em um método de qualquer provider:
 
 ```ts title="src/campaigns/notify-admin.listener.ts"
-import { Injectable, inject } from 'viga';
-import { OnEvent } from 'viga/events';
+import { Injectable, inject } from '@vigajs/core';
+import { OnEvent } from '@vigajs/core/events';
 import { CampaignPaused } from './campaign-paused.event.ts';
 
 @Injectable()
@@ -187,8 +187,8 @@ Se você tem seu próprio trabalho pendente, pode fazer o mesmo com o hook [`OnD
 Como `emit` espera os listeners, você pode verificar o resultado logo depois:
 
 ```ts title="test/campaigns.test.ts"
-import { EventBus } from 'viga/events';
-import { createTestingApp } from 'viga/testing';
+import { EventBus } from '@vigajs/core/events';
+import { createTestingApp } from '@vigajs/core/testing';
 
 const sent: string[] = [];
 

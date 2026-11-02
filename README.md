@@ -8,19 +8,19 @@ The core only covers what every server needs. Everything else lives in optional 
 
 | Import | What it provides | Requires |
 |---|---|---|
-| `viga` | Modules, DI, controllers, guards, interceptors, `@Public`, HTTP exceptions, lifecycle, logger | `express` |
-| `viga/validation` | `@Validate` and `ValidationModule` with any [Standard Schema](https://standardschema.dev) library | Nothing (you pick Zod, Valibot, ArkType…) |
-| `viga/i18n` | Message catalogs, `Accept-Language` negotiation, framework messages in en/es | Nothing |
-| `viga/drizzle` | `DrizzleModule` and `DatabaseService` with pool shutdown | `drizzle-orm`, `pg` |
-| `viga/config` | `ConfigModule` that validates and types environment variables at startup | Nothing |
-| `viga/pagination` | `@Paginate` with typed results, relative links and limits | Nothing |
-| `viga/websocket` | Gateways, rooms and a public adapter interface, with restrictive defaults | `ws` |
-| `viga/testing` | `createTestingApp` to test the app with real HTTP requests and replaced providers | Nothing |
-| `viga/health` | `/health` and `/ready` routes with your own checks, without revealing details | Nothing |
-| `viga/crypto` | Password hashing with Argon2id, random tokens, signed URLs and AES-256-GCM encryption | Nothing |
-| `viga/events` | In-memory event bus with typed events, isolated errors and listeners that finish before shutdown | Nothing |
-| `viga/workers` | The same worker in the API, in child processes or on another server, with a supervisor that restarts them | Nothing |
-| `viga/upload` | `@Upload` with limits, file types detected from the content and automatic cleanup | `multer`, `file-type` |
+| `@vigajs/core` | Modules, DI, controllers, guards, interceptors, `@Public`, HTTP exceptions, lifecycle, logger | `express` |
+| `@vigajs/core/validation` | `@Validate` and `ValidationModule` with any [Standard Schema](https://standardschema.dev) library | Nothing (you pick Zod, Valibot, ArkType…) |
+| `@vigajs/core/i18n` | Message catalogs, `Accept-Language` negotiation, framework messages in en/es | Nothing |
+| `@vigajs/core/drizzle` | `DrizzleModule` and `DatabaseService` with pool shutdown | `drizzle-orm`, `pg` |
+| `@vigajs/core/config` | `ConfigModule` that validates and types environment variables at startup | Nothing |
+| `@vigajs/core/pagination` | `@Paginate` with typed results, relative links and limits | Nothing |
+| `@vigajs/core/websocket` | Gateways, rooms and a public adapter interface, with restrictive defaults | `ws` |
+| `@vigajs/core/testing` | `createTestingApp` to test the app with real HTTP requests and replaced providers | Nothing |
+| `@vigajs/core/health` | `/health` and `/ready` routes with your own checks, without revealing details | Nothing |
+| `@vigajs/core/crypto` | Password hashing with Argon2id, random tokens, signed URLs and AES-256-GCM encryption | Nothing |
+| `@vigajs/core/events` | In-memory event bus with typed events, isolated errors and listeners that finish before shutdown | Nothing |
+| `@vigajs/core/workers` | The same worker in the API, in child processes or on another server, with a supervisor that restarts them | Nothing |
+| `@vigajs/core/upload` | `@Upload` with limits, file types detected from the content and automatic cleanup | `multer`, `file-type` |
 
 ## Acknowledgements
 
@@ -34,7 +34,7 @@ It also builds on the work of [Express](https://expressjs.com), [Standard Schema
 
 - Node.js 24.13 or later
 - Express 5
-- TypeScript with standard decorators (no `experimentalDecorators`). Extending `viga/tsconfig.json` sets this up for you
+- TypeScript with standard decorators (no `experimentalDecorators`). Extending `@vigajs/core/tsconfig.json` sets this up for you
 - A compiler that transforms decorators, such as `tsc` or `tsx`. Node runs TypeScript by stripping types, but it doesn't support decorators yet: `node main.ts` fails at the first `@`.
 
 ## Installation
@@ -42,37 +42,37 @@ It also builds on the work of [Express](https://expressjs.com), [Standard Schema
 The fastest way is to create a project:
 
 ```bash
-pnpm create viga my-app
+pnpm create @vigajs my-app
 ```
 
-To add viga to an existing project:
+To add @vigajs/core to an existing project:
 
 ```bash
-pnpm add viga express
+pnpm add @vigajs/core express
 pnpm add -D typescript tsx @types/express @types/node
 ```
 
 ```json
 {
-  "extends": "viga/tsconfig.json",
+  "extends": "@vigajs/core/tsconfig.json",
   "include": ["src"]
 }
 ```
 
-Only if you use `viga/drizzle`:
+Only if you use `@vigajs/core/drizzle`:
 
 ```bash
 pnpm add drizzle-orm@0.45 pg
 pnpm add -D @types/pg
 ```
 
-Only if you use `viga/websocket` with the default adapter:
+Only if you use `@vigajs/core/websocket` with the default adapter:
 
 ```bash
 pnpm add ws
 ```
 
-Only if you use `viga/upload`:
+Only if you use `@vigajs/core/upload`:
 
 ```bash
 pnpm add multer file-type
@@ -81,7 +81,7 @@ pnpm add multer file-type
 ## Minimal example
 
 ```ts
-import { Controller, Get, Injectable, Module, Public, createApp, inject } from 'viga';
+import { Controller, Get, Injectable, Module, Public, createApp, inject } from '@vigajs/core';
 
 @Injectable()
 class BooksService {
@@ -111,7 +111,7 @@ await app.listen(3000);
 
 Routes are private by default: without `@Public()`, `GET /api/v1/books` would respond 401 until you set a guard with `app.useAuthGuard()` (see [Guards](https://vigajs.dev/en/core/guards/)).
 
-## Core (`viga`)
+## Core (`@vigajs/core`)
 
 ### Modules and dependency injection
 
@@ -123,7 +123,7 @@ See [App lifecycle](https://vigajs.dev/en/core/app-lifecycle/) in the documentat
 
 ### Private routes by default
 
-See [Guards](https://vigajs.dev/en/core/guards/) in the documentation. The same rules, `@Public` not being inherited included, apply to `viga/websocket` gateways.
+See [Guards](https://vigajs.dev/en/core/guards/) in the documentation. The same rules, `@Public` not being inherited included, apply to `@vigajs/core/websocket` gateways.
 
 ### Request order
 
@@ -165,53 +165,53 @@ See [Developer messages](https://vigajs.dev/en/optional/i18n/#developer-messages
 
 See [Use your own logger](https://vigajs.dev/en/core/providers/#use-your-own-logger) in the documentation.
 
-## viga/validation
+## @vigajs/core/validation
 
-See [viga/validation](https://vigajs.dev/en/optional/validation/) in the documentation.
+See [@vigajs/core/validation](https://vigajs.dev/en/optional/validation/) in the documentation.
 
-## viga/i18n
+## @vigajs/core/i18n
 
-See [viga/i18n](https://vigajs.dev/en/optional/i18n/) in the documentation.
+See [@vigajs/core/i18n](https://vigajs.dev/en/optional/i18n/) in the documentation.
 
-## viga/config
+## @vigajs/core/config
 
-See [viga/config](https://vigajs.dev/en/optional/config/) in the documentation.
+See [@vigajs/core/config](https://vigajs.dev/en/optional/config/) in the documentation.
 
-## viga/pagination
+## @vigajs/core/pagination
 
-See [viga/pagination](https://vigajs.dev/en/optional/pagination/) in the documentation.
+See [@vigajs/core/pagination](https://vigajs.dev/en/optional/pagination/) in the documentation.
 
-## viga/drizzle
+## @vigajs/core/drizzle
 
-See [viga/drizzle](https://vigajs.dev/en/optional/drizzle/) in the documentation.
+See [@vigajs/core/drizzle](https://vigajs.dev/en/optional/drizzle/) in the documentation.
 
-## viga/websocket
+## @vigajs/core/websocket
 
-See [viga/websocket](https://vigajs.dev/en/optional/websocket/) in the documentation.
+See [@vigajs/core/websocket](https://vigajs.dev/en/optional/websocket/) in the documentation.
 
-## viga/testing
+## @vigajs/core/testing
 
-See [viga/testing](https://vigajs.dev/en/optional/testing/) in the documentation.
+See [@vigajs/core/testing](https://vigajs.dev/en/optional/testing/) in the documentation.
 
-## viga/health
+## @vigajs/core/health
 
-See [viga/health](https://vigajs.dev/en/optional/health/) in the documentation.
+See [@vigajs/core/health](https://vigajs.dev/en/optional/health/) in the documentation.
 
-## viga/crypto
+## @vigajs/core/crypto
 
-See [viga/crypto](https://vigajs.dev/en/optional/crypto/) in the documentation.
+See [@vigajs/core/crypto](https://vigajs.dev/en/optional/crypto/) in the documentation.
 
-## viga/events
+## @vigajs/core/events
 
-See [viga/events](https://vigajs.dev/en/optional/events/) in the documentation.
+See [@vigajs/core/events](https://vigajs.dev/en/optional/events/) in the documentation.
 
-## viga/workers
+## @vigajs/core/workers
 
-See [viga/workers](https://vigajs.dev/en/optional/workers/) in the documentation.
+See [@vigajs/core/workers](https://vigajs.dev/en/optional/workers/) in the documentation.
 
-## viga/upload
+## @vigajs/core/upload
 
-See [viga/upload](https://vigajs.dev/en/optional/upload/) in the documentation.
+See [@vigajs/core/upload](https://vigajs.dev/en/optional/upload/) in the documentation.
 
 ## Generating code
 

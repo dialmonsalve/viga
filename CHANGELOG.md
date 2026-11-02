@@ -10,11 +10,11 @@ First public release.
 
 - `viga generate` (`viga g`) creates a `resource`, `module`, `controller` or `service`. It has no dependencies, never changes existing files and prints what to register by hand.
 
-### `create-viga`
+### `@vigajs/create`
 
-- `pnpm create viga my-app`, also with npm, yarn and bun, creates a project with its scripts, TypeScript configuration and a first module. It has no dependencies and runs no installs.
+- `pnpm create @vigajs my-app`, also with npm, yarn and bun, creates a project with its scripts, TypeScript configuration and a first module. It has no dependencies and runs no installs.
 
-### Core (`viga`)
+### Core (`@vigajs/core`)
 
 - Modules with `imports`, `exports`, re-exports and global modules (which must be imported by the root module).
 - Dependency injection with `inject()` in class fields: class, `useClass`, `useValue` and `useFactory` providers, `InjectionToken`, and detection of circular dependencies and imports.
@@ -27,48 +27,48 @@ First public release.
 - Rate limiting with `rateLimit()` and `@RateLimit()`, with a pluggable store. The default key groups IPv6 clients by /56 network and IPv4-mapped addresses by their IPv4, through the exported `ipKey()`. The exported `CLIENT_IP` token resolves the client IP with the app's `trustProxy` from a raw Node.js request, such as a WebSocket handshake. The in-memory store is bounded (`maxKeys`), hashes long keys, and when full evicts only keys seen once, so a flood of new keys can't reset a counter under attack; with no room left it fails closed.
 - HTTP exceptions with stable codes, `resolveMessage` and developer diagnostics that can be translated with `setDiagnostics`. `HttpException` covers any other status; when its message is free text, the response `code` is `errors.badRequest` for 4xx and `errors.internal` for 5xx. A failure after the response started is logged once and closes the connection.
 - `listen()` defaults to port 3000.
-- `viga/tsconfig.json`, a base TypeScript configuration to extend, so a project only needs `extends` and `include`.
+- `@vigajs/core/tsconfig.json`, a base TypeScript configuration to extend, so a project only needs `extends` and `include`.
 - `OnServerListen`, `OnServerClose` and `OnDrain` lifecycle hooks. `OnDrain` runs once in-flight requests have finished and before any `onModuleDestroy`.
-- `createContextKey(name, { detached: true })` for values that must not reach `viga/events` listeners, such as a transaction.
+- `createContextKey(name, { detached: true })` for values that must not reach `@vigajs/core/events` listeners, such as a transaction.
 - Guards and interceptors accept a context type, so they can be used outside HTTP.
 
-### `viga/validation`
+### `@vigajs/core/validation`
 
 - `@Validate` for `body`, `query` and `params` with any Standard Schema library, typed against the handler's context (which may extend `HttpContext`). Each error's `code` comes from the library's `code` or `type` field, so it works with Zod, Valibot and ArkType.
 - `ValidationModule.forRoot({ formatIssue })` to customize or translate validation messages.
 
-### `viga/i18n`
+### `@vigajs/core/i18n`
 
 - `I18n` with nested catalogs, `Accept-Language` negotiation, `resolveLocale` (header name or function), and framework messages in English and Spanish.
 - `diagnosticsEs`, the Spanish dictionary for developer messages.
 
-### `viga/health`
+### `@vigajs/core/health`
 
 - `HealthModule.forRoot()` adds public `/health` and `/ready` routes (configurable, under `globalPrefix`). `/health` never runs the checks; `/ready` answers 503 if a check throws, returns `false` or exceeds `timeoutMs`. Responses carry no details, failures go to the logger, concurrent requests share one run and the result is cached for `cacheMs`.
-- `DatabaseService.ping()` in `viga/drizzle`.
+- `DatabaseService.ping()` in `@vigajs/core/drizzle`.
 
-### `viga/crypto`
+### `@vigajs/core/crypto`
 
 - `hashPassword`, `verifyPassword` and `needsRehash` with Argon2id from `node:crypto` (no dependencies), in the standard PHC format, with NFKC normalization.
 - `randomToken`, `hashToken` and `safeEqual`.
 - `CryptoModule.forRoot()` with `UrlSigner` and `@Signed()` for signed URLs with expiry, bound to the path, query and method, and `Encryptor` for AES-256-GCM with a context that binds a value to its owner. Both support key rotation and refuse keys under 32 bytes at startup.
 
-### `viga/events`
+### `@vigajs/core/events`
 
 - `EventsModule.forRoot()`, `EventBus` and `@OnEvent` for an in-memory event bus with class-based events. `emit()` resolves when every listener has finished and never rejects; listener errors are logged and isolated.
 - Listeners inherit a copy of the context without `detached` keys, so they don't join the emitter's transaction. Emitting inside a transaction logs a warning.
 - Shutdown waits for running listeners, up to `drainTimeoutMs`, before any `onModuleDestroy`.
 
-### `viga/workers`
+### `@vigajs/core/workers`
 
 - `WORKER_KEY`, `WorkerModule.forKey()` and `startWorker()` so the same worker module runs inside the API, as a child process or on another server, without a queue library of its own. A worker closes in an orderly way on a signal and when its parent dies, with `orphanTimeoutMs` as a limit in the second case.
 - `WorkersModule.forRoot()` and `WorkerSupervisor` fork one process per key, with `start`, `stop` and `list`, restart with backoff, a graceful stop that ends in `SIGKILL` after `stopTimeoutMs`, and a `maxWorkers` limit (8 by default).
 
-### `viga/upload`
+### `@vigajs/core/upload`
 
 - `@Upload()` over Multer and `file-type`, both optional peer dependencies. It reads files after authentication and guards, requires `types` or `check`, detects the type from the content, stores files under generated names in a temporary folder and removes what isn't moved with `moveTo` when the response ends, also when a request fails or is cut off. Text fields are rejected unless the route uses `@Validate({ body })`. `optional: true` with `OptionalUploadContext` covers forms where the file may be absent.
 
-### `viga/websocket`
+### `@vigajs/core/websocket`
 
 - `WebSocketModule.forRoot()` (an object or a function that runs in the container and can use `inject()`, also in `DrizzleModule.forRoot()`), `@Gateway`, `@OnMessage` with Standard Schema validation, `WsContext` and `WsServer`.
 - Rooms with `join`, `leave`, `to(room).send()` and `broadcast()`, limited per connection by `maxRoomsPerClient`.
@@ -77,22 +77,22 @@ First public release.
 - Public `WsAdapter` interface, with a default adapter on top of `ws` that is loaded only when needed. Adapters receive the gateway paths; a socket.io adapter in the test suite checks that the interface works beyond `ws`.
 - Security defaults: private gateways, handshake authentication with a timeout (`handshakeTimeoutMs`), session expiry from the `expiresAt` that `authenticate` returns (closes with 1008, renewable with `client.expireAt()`), a cap on simultaneous connections (`maxConnections`), a cap per client IP on by default (`connectionsPerKey`, 50, using `trustProxy` and grouping IPv6 by /56), a cap on handshakes still authenticating (`maxPendingHandshakes`), `Origin` allowlist, `maxPayload`, per-connection message rate limit counted on arrival (twice the limit disconnects with 1008, as does piling up more than 100 messages before `onConnection` ends), heartbeat, slow-client protection and `requireValidation`: an event without a schema doesn't accept data and answers 400 `errors.unexpectedData` when it arrives.
 
-### `viga/config`
+### `@vigajs/core/config`
 
 - `ConfigModule.forRoot({ schema, env? })` validates the configuration at startup with any Standard Schema library and fails listing every invalid variable, without showing their values, even short or nested ones.
 - `inject(CONFIG)` is typed through `Register` and returns a deeply frozen object.
 
-### `viga/pagination`
+### `@vigajs/core/pagination`
 
 - `@Paginate` with `page.offset`, `page.limit` and a generic `page.result(items, total)` that returns `PaginatedResult<T>` with `total`, `lastPage` and relative `next`/`prev` links that keep the query parameters.
 - Security defaults: `maxLimit` caps the page size, `maxPage` and `maxOffset` (10,000 rows) cap the depth, invalid values respond 400, and links never use the `Host` header.
 
-### `viga/drizzle`
+### `@vigajs/core/drizzle`
 
 - `DrizzleModule.forRoot()` and `DatabaseService` with pool shutdown, default timeouts for statements, connections and idle transactions, and a startup warning for connections without verified TLS to a remote host.
 - Transactions with `database.transaction()` and `@Transactional()`, nested savepoints and isolation options.
 
-### `viga/testing`
+### `@vigajs/core/testing`
 
 - `createTestingApp(Module, { overrides, configure })` starts the app on a free local port with the production defaults and a silent logger. `overrides` replaces providers in any module and fails on a token that matches no provider; `app.request()` returns the status, headers and parsed body.
 

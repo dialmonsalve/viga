@@ -28,7 +28,7 @@ Cada funcionalidad vive en su propia carpeta con su módulo. `app.module.ts` las
 Un servicio contiene la lógica de la app. Aquí devuelve una lista fija de libros. En una app real consultaría la base de datos.
 
 ```ts title="src/books/books.service.ts"
-import { Injectable } from 'viga';
+import { Injectable } from '@vigajs/core';
 
 export interface Book {
   id: number;
@@ -55,7 +55,7 @@ export class BooksService {
 Un controlador recibe las peticiones HTTP y responde. No contiene lógica: se la pide al servicio.
 
 ```ts title="src/books/books.controller.ts"
-import { Controller, Get, Public, inject } from 'viga';
+import { Controller, Get, Public, inject } from '@vigajs/core';
 import { BooksService } from './books.service.ts';
 
 @Controller('/books')
@@ -80,7 +80,7 @@ export class BooksController {
 Un módulo agrupa los controladores y servicios de una funcionalidad.
 
 ```ts title="src/books/books.module.ts"
-import { Module } from 'viga';
+import { Module } from '@vigajs/core';
 import { BooksController } from './books.controller.ts';
 import { BooksService } from './books.service.ts';
 
@@ -98,7 +98,7 @@ Los servicios van en `providers`. Solo los controladores y servicios de este mó
 El módulo raíz reúne los módulos de la app:
 
 ```ts title="src/app.module.ts"
-import { Module } from 'viga';
+import { Module } from '@vigajs/core';
 import { BooksModule } from './books/books.module.ts';
 
 @Module({ imports: [BooksModule] })
@@ -108,7 +108,7 @@ export class AppModule {}
 ## Arranca la app
 
 ```ts title="src/main.ts"
-import { createApp } from 'viga';
+import { createApp } from '@vigajs/core';
 import { AppModule } from './app.module.ts';
 
 const app = createApp({ rootModule: AppModule, globalPrefix: '/api' }).enableShutdownHooks();
@@ -118,7 +118,7 @@ await app.listen();
 
 - `globalPrefix` antepone `/api` a todas las rutas.
 - `enableShutdownHooks()` cierra la app de forma ordenada al detener el proceso, por ejemplo con `Ctrl+C`.
-- `listen()` empieza a escuchar en el puerto 3000. El puerto es opcional: `listen(8080)` usa otro. viga no lee la variable de entorno `PORT` por su cuenta; si la usas, pásala tú: `app.listen(Number(process.env.PORT ?? 3000))`, o valídala junto al resto de la configuración con [`viga/config`](../../optional/config/#en-maints).
+- `listen()` empieza a escuchar en el puerto 3000. El puerto es opcional: `listen(8080)` usa otro. viga no lee la variable de entorno `PORT` por su cuenta; si la usas, pásala tú: `app.listen(Number(process.env.PORT ?? 3000))`, o valídala junto al resto de la configuración con [`@vigajs/core/config`](../../optional/config/#en-maints).
 
 Arráncala en modo desarrollo:
 

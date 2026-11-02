@@ -55,7 +55,7 @@ O viga funciona sobre o Express, então você pode usar qualquer middleware do E
 
 ```ts title="src/main.ts"
 import cors from 'cors';
-import { createApp } from 'viga';
+import { createApp } from '@vigajs/core';
 import { AppModule } from './app.module.ts';
 
 const app = createApp({ rootModule: AppModule, globalPrefix: '/api' }).enableShutdownHooks();
@@ -77,7 +77,7 @@ Como são executados depois dos cabeçalhos de segurança, um middleware pode al
 Em [guards](../guards/#compartilhe-o-usuário-com-o-resto-do-código) você usou `CURRENT_USER` para que qualquer código conheça o usuário sem recebê-lo como parâmetro. `CURRENT_USER` é uma chave de contexto, criada com `createContextKey`:
 
 ```ts title="src/auth/current-user.ts"
-import { createContextKey } from 'viga';
+import { createContextKey } from '@vigajs/core';
 
 export const CURRENT_USER = createContextKey<User>('currentUser');
 ```
@@ -93,12 +93,12 @@ Uma chave tem quatro métodos:
 | `set(value)` | Guarda o valor para o resto da requisição. Funciona em middlewares, guards, interceptores, controllers e serviços. |
 | `run(value, fn)` | Executa `fn` com esse valor e, ao terminar, restaura o anterior. |
 
-`createContextKey('nome', { detached: true })` cria uma chave que não passa para os listeners de [`viga/events`](../../optional/events/#o-contexto). É para valores ligados a uma operação específica, como uma transação.
+`createContextKey('nome', { detached: true })` cria uma chave que não passa para os listeners de [`@vigajs/core/events`](../../optional/events/#o-contexto). É para valores ligados a uma operação específica, como uma transação.
 
 Um caso comum é registrar quem cria ou modifica algo, sem que o controller precise passar o usuário ao serviço:
 
 ```ts title="src/books/books.service.ts"
-import { Injectable } from 'viga';
+import { Injectable } from '@vigajs/core';
 import { CURRENT_USER } from '../auth/current-user.ts';
 
 @Injectable()
@@ -115,7 +115,7 @@ export class BooksService {
 O viga guarda o id de cada requisição em `REQUEST_ID`, uma chave de contexto que já vem com ele. Use-o para relacionar seus logs a uma requisição específica:
 
 ```ts
-import { REQUEST_ID } from 'viga';
+import { REQUEST_ID } from '@vigajs/core';
 
 this.logger.info('Livro criado', { requestId: REQUEST_ID.get(), bookId: book.id });
 ```
@@ -141,7 +141,7 @@ Em um script, uma tarefa agendada ou um teste não há requisição, então tamb
 `runInNewContext` abre um contexto vazio onde `set()` e `get()` funcionam:
 
 ```ts title="scripts/import-books.ts"
-import { runInNewContext } from 'viga';
+import { runInNewContext } from '@vigajs/core';
 
 await runInNewContext(async () => {
   CURRENT_USER.set(systemUser);

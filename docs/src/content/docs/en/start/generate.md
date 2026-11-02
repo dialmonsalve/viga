@@ -5,7 +5,7 @@ sidebar:
   order: 5
 ---
 
-`viga generate` creates the files for a new feature. It comes included in the `viga` package, so there's nothing else to install. Run it from your project's root:
+`viga generate` creates the files for a new feature. It comes included in the `@vigajs/core` package, so there's nothing else to install. Run it from your project's root:
 
 ```sh
 pnpm exec viga generate resource books
