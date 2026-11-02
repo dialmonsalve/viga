@@ -18,6 +18,10 @@ export interface OnServerClose {
   onServerClose(): unknown;
 }
 
+export interface OnDrain {
+  onDrain(): unknown;
+}
+
 export const PROVIDER_INSTANCES = new InjectionToken<() => readonly unknown[]>(
   'PROVIDER_INSTANCES'
 );
@@ -48,8 +52,8 @@ export async function runServerListenHooks(instances: readonly unknown[], server
 
 async function runReverseHooks(
   instances: readonly unknown[],
-  hook: 'onModuleDestroy' | 'onServerClose',
-  failure: 'lifecycle.destroyFailed' | 'lifecycle.serverCloseFailed'
+  hook: 'onModuleDestroy' | 'onServerClose' | 'onDrain',
+  failure: 'lifecycle.destroyFailed' | 'lifecycle.serverCloseFailed' | 'lifecycle.drainFailed'
 ) {
   const errors: unknown[] = [];
   for (const instance of [...instances].reverse()) {
@@ -67,6 +71,10 @@ async function runReverseHooks(
 
 export function runServerCloseHooks(instances: readonly unknown[]) {
   return runReverseHooks(instances, 'onServerClose', 'lifecycle.serverCloseFailed');
+}
+
+export function runDrainHooks(instances: readonly unknown[]) {
+  return runReverseHooks(instances, 'onDrain', 'lifecycle.drainFailed');
 }
 
 export function runDestroyHooks(instances: readonly unknown[]) {

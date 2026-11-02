@@ -5,6 +5,7 @@ import { after, before, beforeEach, describe, it } from 'node:test';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { Injectable, Module, createApp, inject, silentLogger, type App } from '../../src/index.ts';
 import { DatabaseService, DrizzleModule, Transactional } from '../../src/drizzle/index.ts';
+import { EventBus, EventsModule, OnEvent } from '../../src/events/index.ts';
 
 const connection = process.env.VIGA_TEST_DATABASE_URL;
 
@@ -79,6 +80,47 @@ class InventoryModule {}
 describe('transacciones de viga/drizzle con PostgreSQL', { skip: !connection && 'define VIGA_TEST_DATABASE_URL' }, () => {
   it('ping responde cuando la base de datos está disponible', async () => {
     await database.ping();
+  });
+
+  it('un listener de viga/events no hereda la transacción de quien emite', async () => {
+    const warnings: unknown[] = [];
+    const seen: { inTransaction: boolean; quantity: number | undefined }[] = [];
+
+    class StockChecked {}
+
+    @Injectable()
+    class Listener {
+      private readonly database = inject(DatabaseService);
+
+      @OnEvent(StockChecked)
+      async handle() {
+        await sleep(20);
+        const [row] = await this.database.db.select().from(stock).where(eq(stock.sku, 'labial'));
+        seen.push({ inTransaction: this.database.inTransaction(), quantity: row?.quantity });
+      }
+    }
+
+    @Module({
+      imports: [DrizzleModule.forRoot({ connection: connection! }), EventsModule.forRoot()],
+      providers: [Listener],
+    })
+    class EventsApp {}
+
+    const eventsApp = createApp({
+      rootModule: EventsApp,
+      logger: { ...silentLogger, warn: (message: unknown) => warnings.push(message) },
+    });
+    await eventsApp.init();
+
+    const events = eventsApp.get(EventBus);
+    await eventsApp.get(DatabaseService).transaction(async () => {
+      void events.emit(new StockChecked());
+    });
+    await eventsApp.close();
+
+    assert.deepEqual(seen, [{ inTransaction: false, quantity: 10 }]);
+    assert.equal(warnings.length, 1);
+    assert.match(String(warnings[0]), /inside a transaction/);
   });
 
   let app: App;

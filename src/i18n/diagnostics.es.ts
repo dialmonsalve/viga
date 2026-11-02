@@ -25,6 +25,7 @@ export const diagnosticsEs = {
     'El override de {token} no coincide con ningún provider; revisa que el token sea el mismo que declara el módulo',
   'lifecycle.destroyFailed': 'Falló el cierre de uno o más providers',
   'lifecycle.serverCloseFailed': 'Uno o más providers fallaron mientras se cerraba el servidor',
+  'lifecycle.drainFailed': 'Uno o más providers no pudieron terminar su trabajo pendiente',
   'app.noAuthGuard':
     'No hay un guard de autenticación configurado, así que las {count} rutas privadas responderán 401; añade app.useAuthGuard() o marca las rutas públicas con @Public()',
   'app.publicRoutes': 'Rutas públicas: {routes}',
@@ -71,6 +72,12 @@ export const diagnosticsEs = {
   'crypto.invalidKeyId': 'El id de clave de cifrado "{id}" solo puede contener letras, números, "_" y "-"',
   'crypto.unknownActiveKey': 'La clave de cifrado activa "{active}" no está entre las claves',
   'crypto.decryptFailed': 'No se pudo descifrar el valor',
+  'events.invalidListener': '@OnEvent solo se puede usar en métodos públicos de instancia, se recibió {name}',
+  'events.invalidOptions': 'drainTimeoutMs debe ser un entero positivo, se recibió {drainTimeoutMs}',
+  'events.listenerFailed': 'El listener {listener} falló al procesar {event}',
+  'events.emittedInTransaction':
+    'El evento {event} se emitió dentro de una transacción, así que sus listeners se ejecutan aunque se revierta; emítelo después del commit',
+  'events.drainTimedOut': '{count} listeners de eventos no terminaron en {drainTimeoutMs} ms',
   'ws.noAuthenticate':
     'No hay una función authenticate configurada, así que los {count} gateways privados rechazarán cada handshake con 401; define authenticate en WebSocketModule.forRoot() o marca los gateways públicos con @Public()',
   'ws.publicGateways': 'Gateways públicos: {paths}',

@@ -93,6 +93,8 @@ A key has four methods:
 | `set(value)` | Stores the value for the rest of the request. Works in middlewares, guards, interceptors, controllers and services. |
 | `run(value, fn)` | Runs `fn` with that value and, when it finishes, restores the previous one. |
 
+`createContextKey('name', { detached: true })` creates a key that doesn't pass to [`viga/events`](../../optional/events/#the-context) listeners. It's for values tied to a specific operation, like a transaction.
+
 A common case is recording who creates or changes something, without the controller having to pass the user to the service:
 
 ```ts title="src/books/books.service.ts"

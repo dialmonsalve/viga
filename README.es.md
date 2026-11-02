@@ -18,6 +18,7 @@ El core solo resuelve lo que todo servidor necesita. Lo demás son subrutas opci
 | `viga/testing` | `createTestingApp` para probar la app con peticiones HTTP reales y providers reemplazados | Nada |
 | `viga/health` | Rutas `/health` y `/ready` con tus propias comprobaciones, sin revelar detalles | Nada |
 | `viga/crypto` | Hash de contraseñas con Argon2id, tokens aleatorios, URLs firmadas y cifrado AES-256-GCM | Nada |
+| `viga/events` | Bus de eventos en memoria con eventos tipados, errores aislados y listeners que terminan antes de apagar | Nada |
 
 ## Agradecimientos
 
@@ -176,6 +177,10 @@ Consulta [viga/health](https://vigajs.dev/es/optional/health/) en la documentaci
 ## viga/crypto
 
 Consulta [viga/crypto](https://vigajs.dev/es/optional/crypto/) en la documentación.
+
+## viga/events
+
+Consulta [viga/events](https://vigajs.dev/es/optional/events/) en la documentación.
 
 ## Desarrollo
 

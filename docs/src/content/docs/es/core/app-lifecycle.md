@@ -58,6 +58,7 @@ Un provider puede implementar estas interfaces para ejecutar código en cada eta
 | `OnModuleInit` | `onModuleInit()` | Al arrancar, después de crear todos los providers. |
 | `OnServerListen` | `onServerListen(server)` | Justo antes de que el servidor empiece a escuchar. |
 | `OnServerClose` | `onServerClose()` | Cuando el servidor empieza a cerrarse. |
+| `OnDrain` | `onDrain()` | Al detenerse, cuando han terminado las peticiones en curso y antes de los `onModuleDestroy`. |
 | `OnModuleDestroy` | `onModuleDestroy()` | Al detenerse, después de cerrar el servidor. |
 
 Los métodos pueden ser `async`: viga espera a que terminen antes de seguir.
@@ -99,7 +100,8 @@ Los `onModuleDestroy` se ejecutan en el orden inverso: primero `CacheService` y 
 1. El servidor deja de aceptar conexiones nuevas y cierra las que están inactivas.
 2. Se ejecutan los hooks `onServerClose`.
 3. viga espera a que terminen las peticiones en curso.
-4. Se ejecutan los hooks `onModuleDestroy`, en orden inverso.
+4. Se ejecutan los hooks `onDrain`, para terminar el trabajo pendiente. Si uno falla, viga lo registra y sigue.
+5. Se ejecutan los hooks `onModuleDestroy`, en orden inverso.
 
 Si un `onModuleDestroy` falla, viga sigue cerrando los demás y, al final, `close()` lanza un `AggregateError` con todos los errores. Así, un fallo al cerrar la caché no deja abierta la conexión a la base de datos.
 

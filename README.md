@@ -18,6 +18,7 @@ The core only covers what every server needs. Everything else lives in optional 
 | `viga/testing` | `createTestingApp` to test the app with real HTTP requests and replaced providers | Nothing |
 | `viga/health` | `/health` and `/ready` routes with your own checks, without revealing details | Nothing |
 | `viga/crypto` | Password hashing with Argon2id, random tokens, signed URLs and AES-256-GCM encryption | Nothing |
+| `viga/events` | In-memory event bus with typed events, isolated errors and listeners that finish before shutdown | Nothing |
 
 ## Acknowledgements
 
@@ -176,6 +177,10 @@ See [viga/health](https://vigajs.dev/en/optional/health/) in the documentation.
 ## viga/crypto
 
 See [viga/crypto](https://vigajs.dev/en/optional/crypto/) in the documentation.
+
+## viga/events
+
+See [viga/events](https://vigajs.dev/en/optional/events/) in the documentation.
 
 ## Development
 

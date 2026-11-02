@@ -18,7 +18,8 @@ First public release.
 - Rate limiting with `rateLimit()` and `@RateLimit()`, with a pluggable store. The default key groups IPv6 clients by /56 network and IPv4-mapped addresses by their IPv4, through the exported `ipKey()`. The exported `CLIENT_IP` token resolves the client IP with the app's `trustProxy` from a raw Node.js request, such as a WebSocket handshake. The in-memory store is bounded (`maxKeys`), hashes long keys, and when full evicts only keys seen once, so a flood of new keys can't reset a counter under attack; with no room left it fails closed.
 - HTTP exceptions with stable codes, `resolveMessage` and developer diagnostics that can be translated with `setDiagnostics`. `HttpException` covers any other status; when its message is free text, the response `code` is `errors.badRequest` for 4xx and `errors.internal` for 5xx. A failure after the response started is logged once and closes the connection.
 - `listen()` defaults to port 3000.
-- `OnServerListen` and `OnServerClose` lifecycle hooks.
+- `OnServerListen`, `OnServerClose` and `OnDrain` lifecycle hooks. `OnDrain` runs once in-flight requests have finished and before any `onModuleDestroy`.
+- `createContextKey(name, { detached: true })` for values that must not reach `viga/events` listeners, such as a transaction.
 - Guards and interceptors accept a context type, so they can be used outside HTTP.
 
 ### `viga/validation`
@@ -41,6 +42,12 @@ First public release.
 - `hashPassword`, `verifyPassword` and `needsRehash` with Argon2id from `node:crypto` (no dependencies), in the standard PHC format, with NFKC normalization.
 - `randomToken`, `hashToken` and `safeEqual`.
 - `CryptoModule.forRoot()` with `UrlSigner` and `@Signed()` for signed URLs with expiry, bound to the path, query and method, and `Encryptor` for AES-256-GCM with a context that binds a value to its owner. Both support key rotation and refuse keys under 32 bytes at startup.
+
+### `viga/events`
+
+- `EventsModule.forRoot()`, `EventBus` and `@OnEvent` for an in-memory event bus with class-based events. `emit()` resolves when every listener has finished and never rejects; listener errors are logged and isolated.
+- Listeners inherit a copy of the context without `detached` keys, so they don't join the emitter's transaction. Emitting inside a transaction logs a warning.
+- Shutdown waits for running listeners, up to `drainTimeoutMs`, before any `onModuleDestroy`.
 
 ### `viga/websocket`
 

@@ -15,7 +15,7 @@ export {
 } from './http/rate-limit.ts';
 export { CLIENT_IP, type ClientIpResolver } from './http/client-ip.ts';
 export { ipKey } from './http/ip.ts';
-export { createContextKey, runInNewContext, type ContextKey } from './context.ts';
+export { createContextKey, runInNewContext, type ContextKey, type ContextKeyOptions } from './context.ts';
 export {
   DIAGNOSTICS,
   setDiagnostics,
@@ -34,6 +34,7 @@ export type {
   OnModuleDestroy,
   OnModuleInit,
   OnServerClose,
+  OnDrain,
   OnServerListen,
 } from './di/lifecycle.ts';
 export type { HttpContext, RequestSchemas } from './http/context.ts';

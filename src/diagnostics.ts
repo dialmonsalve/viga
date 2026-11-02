@@ -25,6 +25,7 @@ export const DIAGNOSTICS = {
     'The override for {token} does not match any provider; check that the token is the same one the module declares',
   'lifecycle.destroyFailed': 'One or more providers failed to shut down',
   'lifecycle.serverCloseFailed': 'One or more providers failed while the server was closing',
+  'lifecycle.drainFailed': 'One or more providers failed to finish their pending work',
   'app.noAuthGuard':
     'No auth guard is configured, so the {count} private routes will respond 401; add app.useAuthGuard() or mark public routes with @Public()',
   'app.publicRoutes': 'Public routes: {routes}',
@@ -71,6 +72,12 @@ export const DIAGNOSTICS = {
   'crypto.invalidKeyId': 'The encryption key id "{id}" can only contain letters, numbers, "_" and "-"',
   'crypto.unknownActiveKey': 'The active encryption key "{active}" is not among the keys',
   'crypto.decryptFailed': 'The value could not be decrypted',
+  'events.invalidListener': '@OnEvent can only be used on public instance methods, received {name}',
+  'events.invalidOptions': 'drainTimeoutMs must be a positive integer, received {drainTimeoutMs}',
+  'events.listenerFailed': 'The listener {listener} failed while handling {event}',
+  'events.emittedInTransaction':
+    'The event {event} was emitted inside a transaction, so its listeners run even if it rolls back; emit it after the commit',
+  'events.drainTimedOut': '{count} event listeners did not finish within {drainTimeoutMs} ms',
   'ws.noAuthenticate':
     'No authenticate function is configured, so the {count} private gateways will reject every handshake with 401; set authenticate in WebSocketModule.forRoot() or mark public gateways with @Public()',
   'ws.publicGateways': 'Public gateways: {paths}',
@@ -109,6 +116,7 @@ const PREFIXES: Record<string, string> = {
   pagination: 'Pagination',
   health: 'Health',
   crypto: 'Crypto',
+  events: 'Events',
   ws: 'WebSocket',
   testing: 'Testing',
 };

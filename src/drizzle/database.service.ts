@@ -66,7 +66,9 @@ function tlsProblem(config: PoolConfig) {
 export class DatabaseService implements OnModuleDestroy {
   private readonly options = inject(DRIZZLE_OPTIONS);
   private readonly logger = inject(LOGGER);
-  private readonly currentTransaction = createContextKey<Transaction>('drizzle.transaction');
+  private readonly currentTransaction = createContextKey<Transaction>('drizzle.transaction', {
+    detached: true,
+  });
   readonly pool = new pg.Pool(poolConfig(this.options.connection));
   readonly root = drizzle({
     client: this.pool,

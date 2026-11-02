@@ -5,6 +5,7 @@ import { diagnostic } from './diagnostics.ts';
 type Scope = Map<symbol, unknown>;
 
 const storage = new AsyncLocalStorage<Scope>();
+const detachedKeys = new Set<symbol>();
 
 export interface ContextKey<T> {
   readonly description: string;
@@ -14,8 +15,16 @@ export interface ContextKey<T> {
   set(value: T): void;
 }
 
-export function createContextKey<T>(description: string): ContextKey<T> {
+export interface ContextKeyOptions {
+  detached?: boolean;
+}
+
+export function createContextKey<T>(
+  description: string,
+  { detached = false }: ContextKeyOptions = {}
+): ContextKey<T> {
   const id = Symbol(description);
+  if (detached) detachedKeys.add(id);
 
   return {
     description,
@@ -50,6 +59,21 @@ export function createContextKey<T>(description: string): ContextKey<T> {
 
 export function runInNewContext<R>(fn: () => R): R {
   return storage.run(new Map(), fn);
+}
+
+export function runDetached<R>(fn: () => R): R {
+  const scope = new Map(storage.getStore());
+  for (const id of detachedKeys) scope.delete(id);
+  return storage.run(scope, fn);
+}
+
+export function hasDetachedValue() {
+  const scope = storage.getStore();
+  if (!scope) return false;
+  for (const id of detachedKeys) {
+    if (scope.has(id)) return true;
+  }
+  return false;
 }
 
 export const contextMiddleware: RequestHandler = (_req, _res, next) => {

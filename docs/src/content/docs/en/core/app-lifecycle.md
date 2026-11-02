@@ -58,6 +58,7 @@ A provider can implement these interfaces to run code at each stage:
 | `OnModuleInit` | `onModuleInit()` | At startup, after every provider has been created. |
 | `OnServerListen` | `onServerListen(server)` | Right before the server starts listening. |
 | `OnServerClose` | `onServerClose()` | When the server starts closing. |
+| `OnDrain` | `onDrain()` | At shutdown, once in-flight requests have finished and before the `onModuleDestroy` hooks. |
 | `OnModuleDestroy` | `onModuleDestroy()` | At shutdown, after the server has closed. |
 
 The methods can be `async`: viga waits for them to finish before moving on.
@@ -99,7 +100,8 @@ The `onModuleDestroy` hooks run in reverse order: first `CacheService` and then 
 1. The server stops accepting new connections and closes the idle ones.
 2. The `onServerClose` hooks run.
 3. viga waits for the in-flight requests to finish.
-4. The `onModuleDestroy` hooks run, in reverse order.
+4. The `onDrain` hooks run, to finish pending work. If one fails, viga logs it and carries on.
+5. The `onModuleDestroy` hooks run, in reverse order.
 
 If an `onModuleDestroy` fails, viga keeps closing the rest and, at the end, `close()` throws an `AggregateError` with every error. That way, a failure closing the cache doesn't leave the database connection open.
 

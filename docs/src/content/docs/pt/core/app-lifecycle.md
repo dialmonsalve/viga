@@ -58,6 +58,7 @@ Um provider pode implementar estas interfaces para executar código em cada etap
 | `OnModuleInit` | `onModuleInit()` | Ao iniciar, depois de criar todos os providers. |
 | `OnServerListen` | `onServerListen(server)` | Logo antes de o servidor começar a escutar. |
 | `OnServerClose` | `onServerClose()` | Quando o servidor começa a fechar. |
+| `OnDrain` | `onDrain()` | Ao parar, quando as requisições em andamento terminaram e antes dos `onModuleDestroy`. |
 | `OnModuleDestroy` | `onModuleDestroy()` | Ao parar, depois de fechar o servidor. |
 
 Os métodos podem ser `async`: o viga espera que terminem antes de continuar.
@@ -99,7 +100,8 @@ Os `onModuleDestroy` são executados na ordem inversa: primeiro `CacheService` e
 1. O servidor deixa de aceitar conexões novas e fecha as que estão inativas.
 2. Os hooks `onServerClose` são executados.
 3. O viga espera as requisições em andamento terminarem.
-4. Os hooks `onModuleDestroy` são executados, em ordem inversa.
+4. Os hooks `onDrain` são executados, para terminar o trabalho pendente. Se um falhar, o viga registra e continua.
+5. Os hooks `onModuleDestroy` são executados, em ordem inversa.
 
 Se um `onModuleDestroy` falhar, o viga continua fechando os demais e, no final, `close()` lança um `AggregateError` com todos os erros. Assim, uma falha ao fechar o cache não deixa aberta a conexão com o banco de dados.
 

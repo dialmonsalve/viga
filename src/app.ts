@@ -9,6 +9,7 @@ import type { Injector, Provider, Token } from './di/injector.ts';
 import {
   PROVIDER_INSTANCES,
   runDestroyHooks,
+  runDrainHooks,
   runInitHooks,
   runServerCloseHooks,
   runServerListenHooks,
@@ -320,6 +321,9 @@ export class App {
 
     if (this.initializing) {
       await this.initializing.catch(() => undefined);
+      await runDrainHooks(this.initialized).catch((error: unknown) =>
+        this.logger.error(diagnostic('lifecycle.drainFailed'), error)
+      );
       await runDestroyHooks(this.initialized);
     }
   }
