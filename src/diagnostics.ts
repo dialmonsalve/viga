@@ -78,6 +78,19 @@ export const DIAGNOSTICS = {
   'events.emittedInTransaction':
     'The event {event} was emitted inside a transaction, so its listeners run even if it rolls back; emit it after the commit',
   'events.drainTimedOut': '{count} event listeners did not finish within {drainTimeoutMs} ms',
+  'workers.invalidKey':
+    'A worker key can only contain letters, numbers, ".", "_", ":" and "-", must start with a letter or number and have up to 128 characters, received {key}',
+  'workers.missingKey': 'startWorker needs the worker key as the first argument, as in: node worker.js emails',
+  'workers.invalidOptions':
+    'maxWorkers and stopTimeoutMs must be positive integers, received maxWorkers={maxWorkers} stopTimeoutMs={stopTimeoutMs}',
+  'workers.entryNotFound': 'The worker entry {entry} does not exist',
+  'workers.limitReached':
+    'Starting {key} would exceed maxWorkers ({maxWorkers}); each worker is a process that uses memory, so raise the limit only if the machine can hold them',
+  'workers.closing': 'The worker {key} cannot start because the app is shutting down',
+  'workers.crashed': 'The worker {key} exited with {reason}; restarting it in {delayMs} ms',
+  'workers.spawnFailed': 'The worker {key} failed',
+  'workers.finished': 'The worker {key} finished with code 0, so it will not be restarted',
+  'workers.killed': 'The worker {key} did not stop within {stopTimeoutMs} ms, so it was killed',
   'ws.noAuthenticate':
     'No authenticate function is configured, so the {count} private gateways will reject every handshake with 401; set authenticate in WebSocketModule.forRoot() or mark public gateways with @Public()',
   'ws.publicGateways': 'Public gateways: {paths}',
@@ -117,6 +130,7 @@ const PREFIXES: Record<string, string> = {
   health: 'Health',
   crypto: 'Crypto',
   events: 'Events',
+  workers: 'Workers',
   ws: 'WebSocket',
   testing: 'Testing',
 };

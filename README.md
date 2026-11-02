@@ -19,6 +19,7 @@ The core only covers what every server needs. Everything else lives in optional 
 | `viga/health` | `/health` and `/ready` routes with your own checks, without revealing details | Nothing |
 | `viga/crypto` | Password hashing with Argon2id, random tokens, signed URLs and AES-256-GCM encryption | Nothing |
 | `viga/events` | In-memory event bus with typed events, isolated errors and listeners that finish before shutdown | Nothing |
+| `viga/workers` | The same worker in the API, in child processes or on another server, with a supervisor that restarts them | Nothing |
 
 ## Acknowledgements
 
@@ -181,6 +182,10 @@ See [viga/crypto](https://vigajs.dev/en/optional/crypto/) in the documentation.
 ## viga/events
 
 See [viga/events](https://vigajs.dev/en/optional/events/) in the documentation.
+
+## viga/workers
+
+See [viga/workers](https://vigajs.dev/en/optional/workers/) in the documentation.
 
 ## Development
 

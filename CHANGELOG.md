@@ -49,6 +49,11 @@ First public release.
 - Listeners inherit a copy of the context without `detached` keys, so they don't join the emitter's transaction. Emitting inside a transaction logs a warning.
 - Shutdown waits for running listeners, up to `drainTimeoutMs`, before any `onModuleDestroy`.
 
+### `viga/workers`
+
+- `WORKER_KEY`, `WorkerModule.forKey()` and `startWorker()` so the same worker module runs inside the API, as a child process or on another server, without a queue library of its own. A worker closes in an orderly way on a signal and when its parent dies.
+- `WorkersModule.forRoot()` and `WorkerSupervisor` fork one process per key, with `start`, `stop` and `list`, restart with backoff, a graceful stop that ends in `SIGKILL` after `stopTimeoutMs`, and a `maxWorkers` limit (8 by default).
+
 ### `viga/websocket`
 
 - `WebSocketModule.forRoot()` (an object or a function that runs in the container and can use `inject()`, also in `DrizzleModule.forRoot()`), `@Gateway`, `@OnMessage` with Standard Schema validation, `WsContext` and `WsServer`.

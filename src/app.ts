@@ -61,6 +61,7 @@ export interface AppOptions {
 const DEFAULT_PORT = 3000;
 
 export const TESTING_OVERRIDES = Symbol('viga.testingOverrides');
+export const PLATFORM_PROVIDERS = Symbol('viga.platformProviders');
 
 const DEFAULT_TIMEOUTS: Required<ServerTimeouts> = {
   headers: 10_000,
@@ -76,6 +77,7 @@ export class App {
   readonly express: Application = express();
   readonly logger: Logger;
   [TESTING_OVERRIDES]: Provider[] = [];
+  [PLATFORM_PROVIDERS]: Provider[] = [];
   private readonly rootModule: AnyConstructor;
   private readonly bodyParser: boolean;
   private readonly bodyLimit: number | string;
@@ -251,6 +253,7 @@ export class App {
         { provide: PROVIDER_INSTANCES, useValue: () => this.initialized },
         { provide: CONCEAL_ROUTES, useValue: concealRoutes },
         { provide: CLIENT_IP, useValue: clientIpResolver(this.express) },
+        ...this[PLATFORM_PROVIDERS],
       ],
     });
 

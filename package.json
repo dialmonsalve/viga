@@ -77,6 +77,10 @@
       "types": "./dist/events/index.d.ts",
       "default": "./dist/events/index.js"
     },
+    "./workers": {
+      "types": "./dist/workers/index.d.ts",
+      "default": "./dist/workers/index.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

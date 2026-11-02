@@ -78,6 +78,19 @@ export const diagnosticsEs = {
   'events.emittedInTransaction':
     'El evento {event} se emitió dentro de una transacción, así que sus listeners se ejecutan aunque se revierta; emítelo después del commit',
   'events.drainTimedOut': '{count} listeners de eventos no terminaron en {drainTimeoutMs} ms',
+  'workers.invalidKey':
+    'Una clave de worker solo puede contener letras, números, ".", "_", ":" y "-", debe empezar por letra o número y tener hasta 128 caracteres, se recibió {key}',
+  'workers.missingKey': 'startWorker necesita la clave del worker como primer argumento, como en: node worker.js emails',
+  'workers.invalidOptions':
+    'maxWorkers y stopTimeoutMs deben ser enteros positivos, se recibió maxWorkers={maxWorkers} stopTimeoutMs={stopTimeoutMs}',
+  'workers.entryNotFound': 'El archivo del worker {entry} no existe',
+  'workers.limitReached':
+    'Iniciar {key} superaría maxWorkers ({maxWorkers}); cada worker es un proceso que consume memoria, así que sube el límite solo si la máquina los soporta',
+  'workers.closing': 'El worker {key} no puede iniciarse porque la app se está deteniendo',
+  'workers.crashed': 'El worker {key} terminó con {reason}; se reiniciará en {delayMs} ms',
+  'workers.spawnFailed': 'El worker {key} falló',
+  'workers.finished': 'El worker {key} terminó con código 0, así que no se reiniciará',
+  'workers.killed': 'El worker {key} no se detuvo en {stopTimeoutMs} ms, así que se forzó su cierre',
   'ws.noAuthenticate':
     'No hay una función authenticate configurada, así que los {count} gateways privados rechazarán cada handshake con 401; define authenticate en WebSocketModule.forRoot() o marca los gateways públicos con @Public()',
   'ws.publicGateways': 'Gateways públicos: {paths}',
