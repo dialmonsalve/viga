@@ -21,6 +21,37 @@ Na [primeira aplicação](../../start/first-app/) você já escreveu dois: `Book
 
 Todas são opcionais. Um módulo sem opções, `@Module({})`, é válido, embora não acrescente nada.
 
+### Declare as listas em outro arquivo
+
+Se uma lista crescer muito, você pode movê-la para um arquivo próprio. Não é preciso anotar o tipo, porque o TypeScript o infere:
+
+```ts title="src/app.imports.ts"
+export const imports = [
+  ConfigModule.forRoot({ schema: Env }),
+  HealthModule.forRoot(),
+];
+```
+
+```ts title="src/app.module.ts"
+import { Module } from 'viga';
+import { imports } from './app.imports.ts';
+
+@Module({ imports })
+export class AppModule {}
+```
+
+Se preferir anotá-lo, para que um erro apareça nesse arquivo e não em `@Module`, o `viga` exporta o tipo de cada lista:
+
+```ts
+import type { AnyConstructor, Provider, Token } from 'viga';
+
+export const imports: AnyConstructor[] = [ConfigModule.forRoot({ schema: Env })];
+export const providers: Provider[] = [BooksService];
+export const shared: Token[] = [BooksService];
+```
+
+`controllers` usa o mesmo tipo que `imports`. Também existe `ModuleOptions['imports']`, mas ele admite `undefined` porque a opção é opcional, então você não poderia combinar a lista com outra usando `...imports`.
+
 ## Cada módulo é privado por padrão
 
 Cada módulo tem seu próprio contêiner. Um provider declarado em `providers` só pode ser injetado pelas classes desse mesmo módulo, a menos que você o exporte.
