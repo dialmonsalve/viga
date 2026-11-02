@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 First public release.
 
+### Generator
+
+- `viga generate` (`viga g`) creates a `resource`, `module`, `controller` or `service`. It has no dependencies, never changes existing files and prints what to register by hand.
+
 ### `create-viga`
 
 - `pnpm create viga my-app`, also with npm, yarn and bun, creates a project with its scripts, TypeScript configuration and a first module. It has no dependencies and runs no installs.

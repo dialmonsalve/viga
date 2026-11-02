@@ -32,6 +32,9 @@
     "health-check",
     "nestjs-alternative"
   ],
+  "bin": {
+    "viga": "./dist/cli/index.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
