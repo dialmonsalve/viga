@@ -1,0 +1,390 @@
+---
+title: Queues and workers
+description: Process background jobs with BullMQ or pg-boss and viga/workers, with retries, orderly shutdown and one queue per company.
+sidebar:
+  order: 2
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Some tasks shouldn't keep whoever asks for them waiting: importing a large file or sending a thousand emails. A queue solves this in two parts: the API stores the job and responds right away, and a [worker](../../optional/workers/) processes it separately. If the worker fails, the job stays stored and can be retried.
+
+viga has no queues of its own. This guide builds an import with [BullMQ](https://docs.bullmq.io), and at the end shows the same with [pg-boss](https://github.com/timgit/pg-boss).
+
+| Library | Stores jobs in | Choose it if |
+| --- | --- | --- |
+| BullMQ | Redis | You already have Redis or expect a lot of volume. |
+| pg-boss | PostgreSQL | You already use PostgreSQL and prefer not to add another service. |
+
+## Installation
+
+BullMQ needs `ioredis`, which is installed separately:
+
+<Tabs syncKey="pkg">
+  <TabItem label="pnpm">
+    ```sh
+    pnpm add bullmq ioredis
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```sh
+    npm install bullmq ioredis
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```sh
+    yarn add bullmq ioredis
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```sh
+    bun add bullmq ioredis
+    ```
+  </TabItem>
+</Tabs>
+
+Set Redis to `maxmemory-policy noeviction`. With another policy, Redis can delete jobs when it runs out of memory.
+
+## Add jobs from the API
+
+A provider creates the queue and closes it when the app stops:
+
+```ts title="src/imports/imports.queue.ts"
+import { Injectable, inject, type OnModuleDestroy } from 'viga';
+import { CONFIG } from 'viga/config';
+import { Queue } from 'bullmq';
+
+export interface ImportJob {
+  fileId: number;
+}
+
+@Injectable()
+export class ImportsQueue implements OnModuleDestroy {
+  private readonly queue = new Queue<ImportJob>('imports', {
+    connection: { url: inject(CONFIG).REDIS_URL },
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 1_000 },
+      removeOnComplete: { count: 1_000 },
+      removeOnFail: { count: 5_000 },
+    },
+  });
+
+  add(data: ImportJob) {
+    return this.queue.add('import', data);
+  }
+
+  onModuleDestroy() {
+    return this.queue.close();
+  }
+}
+```
+
+- **`attempts` and `backoff`:** a job that fails is tried up to 3 times in total, waiting longer each time.
+- **`removeOnComplete` and `removeOnFail`:** by default, BullMQ keeps finished jobs forever, and Redis would end up filling up.
+
+The route adds the job and responds 202, which means "received, it will be processed later":
+
+```ts title="src/imports/imports.controller.ts"
+import { Controller, HttpCode, Post, inject, type HttpContext } from 'viga';
+import { Validate } from 'viga/validation';
+import { z } from 'zod';
+import { ImportsQueue } from './imports.queue.ts';
+
+const CreateImport = z.object({ fileId: z.number().int().positive() });
+
+@Controller('/imports')
+export class ImportsController {
+  private readonly queue = inject(ImportsQueue);
+
+  @Post()
+  @HttpCode(202)
+  @Validate({ body: CreateImport })
+  async create({ body }: HttpContext<{ body: typeof CreateImport }>) {
+    const job = await this.queue.add(body);
+    return { jobId: job.id };
+  }
+}
+```
+
+## Process the jobs
+
+The worker is a provider that consumes the queue. `close()` waits for running jobs to finish:
+
+```ts title="src/imports/imports.worker.ts"
+import { Injectable, LOGGER, inject, runInNewContext, type OnModuleDestroy, type OnModuleInit } from 'viga';
+import { CONFIG } from 'viga/config';
+import { Worker, type Job } from 'bullmq';
+import { ImportsService } from './imports.service.ts';
+import type { ImportJob } from './imports.queue.ts';
+
+@Injectable()
+export class ImportsWorker implements OnModuleInit, OnModuleDestroy {
+  private readonly config = inject(CONFIG);
+  private readonly logger = inject(LOGGER);
+  private readonly imports = inject(ImportsService);
+  private worker?: Worker<ImportJob>;
+
+  onModuleInit() {
+    this.worker = new Worker<ImportJob>('imports', (job) => this.process(job), {
+      connection: { url: this.config.REDIS_URL, maxRetriesPerRequest: null },
+      concurrency: 2,
+    });
+
+    this.worker.on('failed', (job, error) => {
+      this.logger.error(`Import ${job?.id} failed on attempt ${job?.attemptsMade}`, error);
+    });
+    this.worker.on('error', (error) => this.logger.error('Imports worker error', error));
+  }
+
+  async onModuleDestroy() {
+    await this.worker?.close();
+  }
+
+  private async process(job: Job<ImportJob>) {
+    return runInNewContext(() => this.imports.run(job.data.fileId));
+  }
+}
+```
+
+- **`maxRetriesPerRequest: null`:** BullMQ requires it on a worker's connection.
+- **`concurrency`:** how many jobs this process handles at once. For CPU work, leave it at 1: Node.js runs your code on a single thread.
+- **`on('error')`:** without this listener, a connection error shows up as an unhandled error.
+
+Group it in its module and create the entry file. The module is the root of the worker's process, so it imports `ConfigModule`:
+
+```ts title="src/imports/imports-worker.module.ts"
+import { Module } from 'viga';
+import { ConfigModule } from 'viga/config';
+import { Env } from '../config.ts';
+import { ImportsService } from './imports.service.ts';
+import { ImportsWorker } from './imports.worker.ts';
+
+@Module({
+  imports: [ConfigModule.forRoot({ schema: Env })],
+  providers: [ImportsService, ImportsWorker],
+})
+export class ImportsWorkerModule {}
+```
+
+```ts title="src/worker.ts"
+import { startWorker } from 'viga/workers';
+import { ImportsWorkerModule } from './imports/imports-worker.module.ts';
+
+await startWorker(ImportsWorkerModule);
+```
+
+Finally, choose [where it runs](../../optional/workers/#choose-where-it-runs). For a child process of the API, add the supervisor:
+
+```ts title="src/app.module.ts"
+WorkersModule.forRoot({
+  entry: new URL('./worker.ts', import.meta.url),
+  keys: ['imports'],
+}),
+```
+
+To run it on another server, use `node dist/worker.js imports`. The API keeps adding jobs the same way: both only need to use the same Redis.
+
+## When something fails
+
+| What happens | What happens to the job |
+| --- | --- |
+| The code throws an error | It's retried according to `attempts`. If they run out, it stays as failed. |
+| The app stops | `close()` waits for running jobs. Keep [`stopTimeoutMs`](../../optional/workers/#on-shutdown) above what the longest one takes. |
+| The process dies suddenly | The supervisor restarts it, and BullMQ delivers the job again when its lock expires, about 30 seconds by default. |
+
+In the last case, the job repeats without using up an attempt. But if the same job stalls the process more than once (`maxStalledCount`, 1 by default), BullMQ marks it as failed, so a job that kills the process doesn't do so forever.
+
+:::caution
+A job can run more than once, even after doing part of its task. Write it so repeating it doesn't duplicate anything: for example, with a `UNIQUE` constraint when inserting rows, or by storing which part finished.
+:::
+
+### Avoid duplicate jobs
+
+If two requests ask for the same thing, use your own `jobId`. While that job remains in Redis, a second `add` with the same id doesn't create another:
+
+```ts
+this.queue.add('import', data, { jobId: `file-${data.fileId}` });
+```
+
+Keep in mind that BullMQ doesn't allow `:` in queue names or in this id.
+
+### Scheduled jobs
+
+To repeat a job, for example a report every night, register a scheduler on the queue:
+
+```ts
+await this.queue.upsertJobScheduler('nightly-report', { pattern: '0 3 * * *' }, { name: 'report' });
+```
+
+With several instances, the job is created only once, because BullMQ coordinates it in Redis.
+
+## One worker per company
+
+If one company shouldn't delay the others, give each one its own queue and process. The worker's key picks the queue:
+
+```ts
+private readonly key = inject(WORKER_KEY);
+
+onModuleInit() {
+  this.worker = new Worker<ImportJob>(`imports-${this.key}`, (job) => this.process(job), {
+    connection: { url: this.config.REDIS_URL, maxRetriesPerRequest: null },
+  });
+}
+```
+
+The API creates one queue per company and reuses it, because each `Queue` keeps a connection open:
+
+```ts title="src/imports/imports.queue.ts"
+@Injectable()
+export class ImportsQueues implements OnModuleDestroy {
+  private readonly url = inject(CONFIG).REDIS_URL;
+  private readonly queues = new Map<string, Queue<ImportJob>>();
+
+  add(tenant: string, data: ImportJob) {
+    let queue = this.queues.get(tenant);
+    if (!queue) {
+      queue = new Queue<ImportJob>(`imports-${tenant}`, { connection: { url: this.url } });
+      this.queues.set(tenant, queue);
+    }
+    return queue.add('import', data, { attempts: 3 });
+  }
+
+  async onModuleDestroy() {
+    await Promise.all([...this.queues.values()].map((queue) => queue.close()));
+  }
+}
+```
+
+To start each company's workers, use [`keys` and `WorkerSupervisor`](../../optional/workers/#one-worker-per-company). Each process [uses memory](../../optional/workers/#how-much-memory-it-uses), even if its queue is empty.
+
+If you have many companies, a single queue uses far less. Include the company in each job and store it in the context, as in a [request](../multi-tenant/#identify-the-company):
+
+```ts
+private async process(job: Job<ImportJob & { tenantId: number }>) {
+  return runInNewContext(async () => {
+    CURRENT_TENANT.set(await this.tenants.findById(job.data.tenantId));
+    return this.imports.run(job.data.fileId);
+  });
+}
+```
+
+Check in the API that the user belongs to that company before adding the job, because the worker trusts what's in the queue.
+
+## With pg-boss
+
+pg-boss stores jobs in your PostgreSQL and creates its tables on startup, in its own schema.
+
+<Tabs syncKey="pkg">
+  <TabItem label="pnpm">
+    ```sh
+    pnpm add pg-boss
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```sh
+    npm install pg-boss
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```sh
+    yarn add pg-boss
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```sh
+    bun add pg-boss
+    ```
+  </TabItem>
+</Tabs>
+
+A single provider works for adding and consuming jobs:
+
+```ts title="src/jobs/jobs.service.ts"
+import { Injectable, LOGGER, inject, type OnModuleDestroy, type OnModuleInit } from 'viga';
+import { CONFIG } from 'viga/config';
+import { PgBoss } from 'pg-boss';
+
+@Injectable()
+export class JobsService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = inject(LOGGER);
+  readonly boss = new PgBoss(inject(CONFIG).DATABASE_URL);
+
+  async onModuleInit() {
+    this.boss.on('error', (error) => this.logger.error('pg-boss error', error));
+    await this.boss.start();
+    await this.boss.createQueue('imports');
+  }
+
+  async onModuleDestroy() {
+    await this.boss.stop({ graceful: true, timeout: 25_000 });
+  }
+}
+```
+
+In the API, add the job with its retries. `retryLimit` counts retries, not including the first attempt:
+
+```ts
+await this.jobs.boss.send('imports', { fileId }, { retryLimit: 2, retryDelay: 1, retryBackoff: true });
+```
+
+In the worker, `work` receives a list of jobs, with a single one by default:
+
+```ts title="src/imports/imports.worker.ts"
+import { Injectable, inject, runInNewContext, type OnModuleInit } from 'viga';
+import { JobsService } from '../jobs/jobs.service.ts';
+import { ImportsService } from './imports.service.ts';
+
+interface ImportJob {
+  fileId: number;
+}
+
+@Injectable()
+export class ImportsWorker implements OnModuleInit {
+  private readonly jobs = inject(JobsService);
+  private readonly imports = inject(ImportsService);
+
+  async onModuleInit() {
+    await this.jobs.boss.work<ImportJob>('imports', async (jobs) => {
+      for (const job of jobs) {
+        await runInNewContext(() => this.imports.run(job.data.fileId));
+      }
+    });
+  }
+}
+```
+
+`stop` with `graceful: true` waits for running jobs. Keep its `timeout` below `stopTimeoutMs`, so pg-boss finishes before the supervisor forces the shutdown.
+
+Each process opens its own connection pool to PostgreSQL. With many workers, check that you don't exceed `max_connections`.
+
+## In tests
+
+To test the route, replace the queue and you won't need Redis:
+
+```ts title="test/imports.test.ts"
+const added: unknown[] = [];
+
+const app = await createTestingApp(AppModule, {
+  overrides: [
+    {
+      provide: ImportsQueue,
+      useValue: {
+        add: async (data: unknown) => {
+          added.push(data);
+          return { id: '1' };
+        },
+      },
+    },
+  ],
+});
+
+const response = await app.request('/imports', { method: 'POST', json: { fileId: 7 } });
+
+assert.equal(response.status, 202);
+assert.deepEqual(added, [{ fileId: 7 }]);
+
+await app.close();
+```
+
+Test the job's logic by calling `ImportsService.run` directly, with no queues or processes.

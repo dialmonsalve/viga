@@ -1,9 +1,390 @@
 ---
 title: Colas y workers
-description: Trabajos en segundo plano con BullMQ o pg-boss.
-pending: true
-banner:
-  content: Esta página está en construcción.
+description: Procesa trabajos en segundo plano con BullMQ o pg-boss y viga/workers, con reintentos, cierre ordenado y una cola por empresa.
 sidebar:
   order: 2
 ---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Algunas tareas no deberían hacer esperar a quien las pide: importar un archivo grande o enviar mil emails. Una cola resuelve esto en dos partes: la API guarda el trabajo y responde enseguida, y un [worker](../../optional/workers/) lo procesa aparte. Si el worker falla, el trabajo sigue guardado y se puede reintentar.
+
+viga no trae colas propias. Esta guía construye una importación con [BullMQ](https://docs.bullmq.io), y al final muestra lo mismo con [pg-boss](https://github.com/timgit/pg-boss).
+
+| Librería | Guarda los trabajos en | Elígela si |
+| --- | --- | --- |
+| BullMQ | Redis | Ya tienes Redis o esperas mucho volumen. |
+| pg-boss | PostgreSQL | Ya usas PostgreSQL y prefieres no añadir otro servicio. |
+
+## Instalación
+
+BullMQ necesita `ioredis`, que se instala aparte:
+
+<Tabs syncKey="pkg">
+  <TabItem label="pnpm">
+    ```sh
+    pnpm add bullmq ioredis
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```sh
+    npm install bullmq ioredis
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```sh
+    yarn add bullmq ioredis
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```sh
+    bun add bullmq ioredis
+    ```
+  </TabItem>
+</Tabs>
+
+Configura Redis con `maxmemory-policy noeviction`. Con otra política, Redis puede borrar trabajos cuando se queda sin memoria.
+
+## Añade trabajos desde la API
+
+Un provider crea la cola y la cierra al detenerse la app:
+
+```ts title="src/imports/imports.queue.ts"
+import { Injectable, inject, type OnModuleDestroy } from 'viga';
+import { CONFIG } from 'viga/config';
+import { Queue } from 'bullmq';
+
+export interface ImportJob {
+  fileId: number;
+}
+
+@Injectable()
+export class ImportsQueue implements OnModuleDestroy {
+  private readonly queue = new Queue<ImportJob>('imports', {
+    connection: { url: inject(CONFIG).REDIS_URL },
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 1_000 },
+      removeOnComplete: { count: 1_000 },
+      removeOnFail: { count: 5_000 },
+    },
+  });
+
+  add(data: ImportJob) {
+    return this.queue.add('import', data);
+  }
+
+  onModuleDestroy() {
+    return this.queue.close();
+  }
+}
+```
+
+- **`attempts` y `backoff`:** un trabajo que falla se reintenta hasta 3 veces en total, esperando cada vez más.
+- **`removeOnComplete` y `removeOnFail`:** por defecto, BullMQ conserva los trabajos terminados para siempre, y Redis acabaría llenándose.
+
+La ruta añade el trabajo y responde 202, que significa "recibido, se procesará después":
+
+```ts title="src/imports/imports.controller.ts"
+import { Controller, HttpCode, Post, inject, type HttpContext } from 'viga';
+import { Validate } from 'viga/validation';
+import { z } from 'zod';
+import { ImportsQueue } from './imports.queue.ts';
+
+const CreateImport = z.object({ fileId: z.number().int().positive() });
+
+@Controller('/imports')
+export class ImportsController {
+  private readonly queue = inject(ImportsQueue);
+
+  @Post()
+  @HttpCode(202)
+  @Validate({ body: CreateImport })
+  async create({ body }: HttpContext<{ body: typeof CreateImport }>) {
+    const job = await this.queue.add(body);
+    return { jobId: job.id };
+  }
+}
+```
+
+## Procesa los trabajos
+
+El worker es un provider que consume la cola. `close()` espera a que terminen los trabajos en curso:
+
+```ts title="src/imports/imports.worker.ts"
+import { Injectable, LOGGER, inject, runInNewContext, type OnModuleDestroy, type OnModuleInit } from 'viga';
+import { CONFIG } from 'viga/config';
+import { Worker, type Job } from 'bullmq';
+import { ImportsService } from './imports.service.ts';
+import type { ImportJob } from './imports.queue.ts';
+
+@Injectable()
+export class ImportsWorker implements OnModuleInit, OnModuleDestroy {
+  private readonly config = inject(CONFIG);
+  private readonly logger = inject(LOGGER);
+  private readonly imports = inject(ImportsService);
+  private worker?: Worker<ImportJob>;
+
+  onModuleInit() {
+    this.worker = new Worker<ImportJob>('imports', (job) => this.process(job), {
+      connection: { url: this.config.REDIS_URL, maxRetriesPerRequest: null },
+      concurrency: 2,
+    });
+
+    this.worker.on('failed', (job, error) => {
+      this.logger.error(`Import ${job?.id} failed on attempt ${job?.attemptsMade}`, error);
+    });
+    this.worker.on('error', (error) => this.logger.error('Imports worker error', error));
+  }
+
+  async onModuleDestroy() {
+    await this.worker?.close();
+  }
+
+  private async process(job: Job<ImportJob>) {
+    return runInNewContext(() => this.imports.run(job.data.fileId));
+  }
+}
+```
+
+- **`maxRetriesPerRequest: null`:** BullMQ lo exige en la conexión de un worker.
+- **`concurrency`:** cuántos trabajos procesa a la vez este proceso. Para trabajo de CPU, déjalo en 1: Node.js ejecuta tu código en un solo hilo.
+- **`on('error')`:** sin este listener, un error de conexión se muestra como un error sin controlar.
+
+Agrúpalo en su módulo y crea el archivo de entrada. El módulo es la raíz del proceso del worker, así que importa `ConfigModule`:
+
+```ts title="src/imports/imports-worker.module.ts"
+import { Module } from 'viga';
+import { ConfigModule } from 'viga/config';
+import { Env } from '../config.ts';
+import { ImportsService } from './imports.service.ts';
+import { ImportsWorker } from './imports.worker.ts';
+
+@Module({
+  imports: [ConfigModule.forRoot({ schema: Env })],
+  providers: [ImportsService, ImportsWorker],
+})
+export class ImportsWorkerModule {}
+```
+
+```ts title="src/worker.ts"
+import { startWorker } from 'viga/workers';
+import { ImportsWorkerModule } from './imports/imports-worker.module.ts';
+
+await startWorker(ImportsWorkerModule);
+```
+
+Por último, elige [dónde se ejecuta](../../optional/workers/#elige-dónde-se-ejecuta). Para un proceso hijo de la API, añade el supervisor:
+
+```ts title="src/app.module.ts"
+WorkersModule.forRoot({
+  entry: new URL('./worker.ts', import.meta.url),
+  keys: ['imports'],
+}),
+```
+
+Para ejecutarlo en otro servidor, usa `node dist/worker.js imports`. La API sigue añadiendo trabajos igual: solo hace falta que los dos usen el mismo Redis.
+
+## Cuando algo falla
+
+| Qué pasa | Qué ocurre con el trabajo |
+| --- | --- |
+| El código lanza un error | Se reintenta según `attempts`. Si se agotan, queda como fallido. |
+| La app se detiene | `close()` espera a los trabajos en curso. Mantén [`stopTimeoutMs`](../../optional/workers/#al-detenerse) por encima de lo que tarda el más largo. |
+| El proceso muere de golpe | El supervisor lo reinicia, y BullMQ vuelve a entregar el trabajo cuando caduca su bloqueo, unos 30 segundos por defecto. |
+
+En el último caso, el trabajo se repite sin consumir un intento. Pero si un mismo trabajo deja colgado el proceso más de una vez (`maxStalledCount`, 1 por defecto), BullMQ lo marca como fallido, para que un trabajo que mata al proceso no lo haga para siempre.
+
+:::caution
+Un trabajo se puede ejecutar más de una vez, incluso después de hacer parte de su tarea. Escríbelo para que repetirlo no duplique nada: por ejemplo, con una restricción `UNIQUE` al insertar filas, o guardando qué parte terminó.
+:::
+
+### Evita trabajos duplicados
+
+Si dos peticiones piden lo mismo, usa un `jobId` propio. Mientras ese trabajo siga en Redis, un segundo `add` con el mismo id no crea otro:
+
+```ts
+this.queue.add('import', data, { jobId: `file-${data.fileId}` });
+```
+
+Ten en cuenta que BullMQ no admite `:` en los nombres de cola ni en este id.
+
+### Trabajos programados
+
+Para repetir un trabajo, por ejemplo un informe cada noche, registra un programador en la cola:
+
+```ts
+await this.queue.upsertJobScheduler('nightly-report', { pattern: '0 3 * * *' }, { name: 'report' });
+```
+
+Con varias instancias, el trabajo se crea una sola vez, porque BullMQ lo coordina en Redis.
+
+## Un worker por empresa
+
+Si una empresa no debe retrasar a las demás, dale a cada una su cola y su proceso. La clave del worker elige la cola:
+
+```ts
+private readonly key = inject(WORKER_KEY);
+
+onModuleInit() {
+  this.worker = new Worker<ImportJob>(`imports-${this.key}`, (job) => this.process(job), {
+    connection: { url: this.config.REDIS_URL, maxRetriesPerRequest: null },
+  });
+}
+```
+
+La API crea una cola por empresa y la reutiliza, porque cada `Queue` mantiene una conexión abierta:
+
+```ts title="src/imports/imports.queue.ts"
+@Injectable()
+export class ImportsQueues implements OnModuleDestroy {
+  private readonly url = inject(CONFIG).REDIS_URL;
+  private readonly queues = new Map<string, Queue<ImportJob>>();
+
+  add(tenant: string, data: ImportJob) {
+    let queue = this.queues.get(tenant);
+    if (!queue) {
+      queue = new Queue<ImportJob>(`imports-${tenant}`, { connection: { url: this.url } });
+      this.queues.set(tenant, queue);
+    }
+    return queue.add('import', data, { attempts: 3 });
+  }
+
+  async onModuleDestroy() {
+    await Promise.all([...this.queues.values()].map((queue) => queue.close()));
+  }
+}
+```
+
+Para arrancar los workers de cada empresa, usa [`keys` y `WorkerSupervisor`](../../optional/workers/#un-worker-por-empresa). Cada proceso [consume memoria](../../optional/workers/#cuánta-memoria-consume), aunque su cola esté vacía.
+
+Si tienes muchas empresas, una sola cola gasta mucho menos. Incluye la empresa en cada trabajo y guárdala en el contexto, como en una [petición](../multi-tenant/#identifica-la-empresa):
+
+```ts
+private async process(job: Job<ImportJob & { tenantId: number }>) {
+  return runInNewContext(async () => {
+    CURRENT_TENANT.set(await this.tenants.findById(job.data.tenantId));
+    return this.imports.run(job.data.fileId);
+  });
+}
+```
+
+Comprueba en la API que el usuario pertenece a esa empresa antes de añadir el trabajo, porque el worker confía en lo que hay en la cola.
+
+## Con pg-boss
+
+pg-boss guarda los trabajos en tu PostgreSQL y crea sus tablas al arrancar, en su propio esquema.
+
+<Tabs syncKey="pkg">
+  <TabItem label="pnpm">
+    ```sh
+    pnpm add pg-boss
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```sh
+    npm install pg-boss
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```sh
+    yarn add pg-boss
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```sh
+    bun add pg-boss
+    ```
+  </TabItem>
+</Tabs>
+
+Un solo provider sirve para añadir trabajos y consumirlos:
+
+```ts title="src/jobs/jobs.service.ts"
+import { Injectable, LOGGER, inject, type OnModuleDestroy, type OnModuleInit } from 'viga';
+import { CONFIG } from 'viga/config';
+import { PgBoss } from 'pg-boss';
+
+@Injectable()
+export class JobsService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = inject(LOGGER);
+  readonly boss = new PgBoss(inject(CONFIG).DATABASE_URL);
+
+  async onModuleInit() {
+    this.boss.on('error', (error) => this.logger.error('pg-boss error', error));
+    await this.boss.start();
+    await this.boss.createQueue('imports');
+  }
+
+  async onModuleDestroy() {
+    await this.boss.stop({ graceful: true, timeout: 25_000 });
+  }
+}
+```
+
+En la API, añade el trabajo con sus reintentos. `retryLimit` cuenta los reintentos, sin el primer intento:
+
+```ts
+await this.jobs.boss.send('imports', { fileId }, { retryLimit: 2, retryDelay: 1, retryBackoff: true });
+```
+
+En el worker, `work` recibe una lista de trabajos, por defecto con uno solo:
+
+```ts title="src/imports/imports.worker.ts"
+import { Injectable, inject, runInNewContext, type OnModuleInit } from 'viga';
+import { JobsService } from '../jobs/jobs.service.ts';
+import { ImportsService } from './imports.service.ts';
+
+interface ImportJob {
+  fileId: number;
+}
+
+@Injectable()
+export class ImportsWorker implements OnModuleInit {
+  private readonly jobs = inject(JobsService);
+  private readonly imports = inject(ImportsService);
+
+  async onModuleInit() {
+    await this.jobs.boss.work<ImportJob>('imports', async (jobs) => {
+      for (const job of jobs) {
+        await runInNewContext(() => this.imports.run(job.data.fileId));
+      }
+    });
+  }
+}
+```
+
+`stop` con `graceful: true` espera a los trabajos en curso. Mantén su `timeout` por debajo de `stopTimeoutMs`, para que pg-boss termine antes de que el supervisor fuerce el cierre.
+
+Cada proceso abre su propio pool de conexiones a PostgreSQL. Con muchos workers, comprueba que no superas `max_connections`.
+
+## En los tests
+
+Para probar la ruta, reemplaza la cola y no necesitarás Redis:
+
+```ts title="test/imports.test.ts"
+const added: unknown[] = [];
+
+const app = await createTestingApp(AppModule, {
+  overrides: [
+    {
+      provide: ImportsQueue,
+      useValue: {
+        add: async (data: unknown) => {
+          added.push(data);
+          return { id: '1' };
+        },
+      },
+    },
+  ],
+});
+
+const response = await app.request('/imports', { method: 'POST', json: { fileId: 7 } });
+
+assert.equal(response.status, 202);
+assert.deepEqual(added, [{ fileId: 7 }]);
+
+await app.close();
+```
+
+Prueba la lógica del trabajo llamando directamente a `ImportsService.run`, sin colas ni procesos.
