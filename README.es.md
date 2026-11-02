@@ -34,14 +34,29 @@ También se apoya en el trabajo de [Express](https://expressjs.com), [Standard S
 
 - Node.js 24.13 o superior
 - Express 5
-- TypeScript con decoradores estándar (sin `experimentalDecorators`) y `"lib": ["ES2024", "ESNext.Decorators"]`
+- TypeScript con decoradores estándar (sin `experimentalDecorators`). Heredar `viga/tsconfig.json` lo configura por ti
 - Un compilador que transforme los decoradores, como `tsc` o `tsx`. Node ejecuta TypeScript quitando los tipos, pero todavía no soporta decoradores: `node main.ts` falla en el primer `@`.
 
 ## Instalación
 
+La forma más rápida es crear un proyecto:
+
+```bash
+pnpm create viga mi-app
+```
+
+Para añadir viga a un proyecto existente:
+
 ```bash
 pnpm add viga express
-pnpm add -D @types/express
+pnpm add -D typescript tsx @types/express @types/node
+```
+
+```json
+{
+  "extends": "viga/tsconfig.json",
+  "include": ["src"]
+}
 ```
 
 Solo si usas `viga/drizzle`:
@@ -62,8 +77,6 @@ Solo si usas `viga/upload`:
 ```bash
 pnpm add multer file-type
 ```
-
-O crea un proyecto con `pnpm create viga mi-app`.
 
 ## Ejemplo mínimo
 
@@ -199,6 +212,10 @@ Consulta [viga/workers](https://vigajs.dev/es/optional/workers/) en la documenta
 ## viga/upload
 
 Consulta [viga/upload](https://vigajs.dev/es/optional/upload/) en la documentación.
+
+## Generar código
+
+`pnpm exec viga g resource books` crea un módulo, un controlador CRUD, un servicio y sus esquemas, y nunca modifica tus archivos existentes. Consulta [Generar código](https://vigajs.dev/es/start/generate/) en la documentación.
 
 ## Desarrollo
 
