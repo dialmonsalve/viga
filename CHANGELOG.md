@@ -36,6 +36,12 @@ First public release.
 - `HealthModule.forRoot()` adds public `/health` and `/ready` routes (configurable, under `globalPrefix`). `/health` never runs the checks; `/ready` answers 503 if a check throws, returns `false` or exceeds `timeoutMs`. Responses carry no details, failures go to the logger, concurrent requests share one run and the result is cached for `cacheMs`.
 - `DatabaseService.ping()` in `viga/drizzle`.
 
+### `viga/crypto`
+
+- `hashPassword`, `verifyPassword` and `needsRehash` with Argon2id from `node:crypto` (no dependencies), in the standard PHC format, with NFKC normalization.
+- `randomToken`, `hashToken` and `safeEqual`.
+- `CryptoModule.forRoot()` with `UrlSigner` and `@Signed()` for signed URLs with expiry, bound to the path, query and method, and `Encryptor` for AES-256-GCM with a context that binds a value to its owner. Both support key rotation and refuse keys under 32 bytes at startup.
+
 ### `viga/websocket`
 
 - `WebSocketModule.forRoot()` (an object or a function that runs in the container and can use `inject()`, also in `DrizzleModule.forRoot()`), `@Gateway`, `@OnMessage` with Standard Schema validation, `WsContext` and `WsServer`.

@@ -257,6 +257,10 @@ export class AuthController {
 
 The first three are `@Public()`, because they're used without a valid access token.
 
+:::tip
+[`viga/crypto`](../../optional/crypto/#passwords) includes `hashPassword` and `verifyPassword` to implement `verifyCredentials`, and `randomToken` and `hashToken` to generate refresh tokens and store their hash.
+:::
+
 ## On the client
 
 A common flow on the frontend:

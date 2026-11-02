@@ -1,0 +1,286 @@
+---
+title: viga/crypto
+description: Guarde senhas com Argon2id, gere tokens aleatórios, assine URLs com validade e criptografe dados com AES-256-GCM, sem instalar dependências.
+sidebar:
+  order: 9
+---
+
+O `viga/crypto` reúne as operações criptográficas de que quase toda API precisa, para que você não tenha que escolher algoritmos e parâmetros por conta própria. Ele usa apenas `node:crypto`, então não há nada para instalar.
+
+| Para | Use | Precisa de chaves |
+| --- | --- | --- |
+| [Guardar senhas](#senhas) | `hashPassword`, `verifyPassword`, `needsRehash` | Não |
+| [Tokens para links e API keys](#tokens-aleatórios) | `randomToken`, `hashToken`, `safeEqual` | Não |
+| [Links temporários](#urls-assinadas) | `UrlSigner`, `@Signed()` | Sim |
+| [Criptografar dados que você precisa recuperar](#criptografia) | `Encryptor` | Sim |
+
+## Senhas
+
+Uma senha nunca é guardada nem criptografada: guarda-se o hash dela, do qual não é possível recuperá-la. `hashPassword` usa Argon2id com a configuração mínima [recomendada pela OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html): 19 MiB de memória, 2 iterações e 1 thread.
+
+```ts title="src/users/users.service.ts"
+import { Injectable, inject } from 'viga';
+import { hashPassword, needsRehash, randomToken, verifyPassword } from 'viga/crypto';
+import { UsersRepository } from './users.repository.ts';
+
+@Injectable()
+export class UsersService {
+  private readonly users = inject(UsersRepository);
+  private readonly dummyHash = hashPassword(randomToken());
+
+  async register(email: string, password: string) {
+    return this.users.create({ email, passwordHash: await hashPassword(password) });
+  }
+
+  async verifyCredentials(email: string, password: string) {
+    const user = await this.users.findByEmail(email);
+    const valid = await verifyPassword(password, user?.passwordHash ?? (await this.dummyHash));
+    if (!user || !valid) return undefined;
+
+    if (needsRehash(user.passwordHash)) {
+      await this.users.updatePasswordHash(user.id, await hashPassword(password));
+    }
+    return user;
+  }
+}
+```
+
+O resultado de `hashPassword` tem um formato padrão, que inclui o salt e os parâmetros, então basta uma coluna de texto:
+
+```txt
+$argon2id$v=19$m=19456,t=2,p=1$JXd7mQ0pW1i9wR0dNwQbyw$SjGh1rmvb4Br3Pq0C...
+```
+
+Repare em três detalhes do exemplo:
+
+- **`dummyHash`:** se o email não existir e você responder imediatamente, o tempo de resposta revelaria quais emails estão cadastrados. Por isso um hash também é calculado nesse caso.
+- **`needsRehash`:** devolve `true` se o hash foi criado com outros parâmetros. Como nesse momento você tem a senha em texto puro, pode atualizá-lo. Assim, os hashes melhoram sozinhos quando o viga aumenta seus parâmetros.
+- **`verifyPassword`:** devolve `false` se a senha não coincidir ou o hash estiver mal formado, sem lançar um erro.
+
+As senhas são normalizadas com NFKC antes do hash. Um `ç` pode ser codificado de duas formas dependendo do dispositivo, e sem isso a mesma senha não coincidiria.
+
+### Proteja o login
+
+Cada hash ocupa 19 MiB e uma thread do pool do Node.js, que tem 4 por padrão. Enquanto estão ocupadas, outras operações que as usam também esperam, como ler arquivos. Por isso o login precisa de um [limite de requisições](../../security/rate-limiting/#por-rota):
+
+```ts
+@Public()
+@Post('/login')
+@RateLimit({ max: 5, windowMs: 15 * 60_000 })
+@Validate({ body: Login })
+```
+
+Valide também a senha com um comprimento máximo no seu schema, como `z.string().min(12).max(128)`.
+
+### Migrar do bcrypt
+
+Não é preciso pedir aos usuários que mudem a senha. Mantenha sua biblioteca de bcrypt durante a migração e atualize cada hash quando o usuário fizer login:
+
+```ts
+import bcrypt from 'bcrypt';
+
+function checkPassword(password: string, stored: string) {
+  return stored.startsWith('$2') ? bcrypt.compare(password, stored) : verifyPassword(password, stored);
+}
+```
+
+Use `checkPassword` em vez de `verifyPassword`. `needsRehash` devolve `true` com um hash de bcrypt, então o código anterior o substitui automaticamente. Os usuários que não voltarem a entrar manterão o hash de bcrypt: decida por quanto tempo você mantém a biblioteca e o que fará com eles depois.
+
+## Tokens aleatórios
+
+`randomToken` gera um valor imprevisível para links de recuperação, convites ou API keys. Guarde apenas o hash, para que um vazamento do banco de dados não permita usá-los:
+
+```ts
+import { hashToken, randomToken } from 'viga/crypto';
+
+const token = randomToken();
+await this.resets.create({ tokenHash: hashToken(token), userId, expiresAt });
+await this.mail.sendResetLink(user.email, token);
+```
+
+Ao recebê-lo, procure pelo hash, verifique se não expirou e apague-o para que só sirva uma vez:
+
+```ts
+const reset = await this.resets.findByHash(hashToken(token));
+if (!reset || reset.expiresAt <= new Date()) throw new BadRequestException('auth.invalidToken');
+await this.resets.delete(reset.id);
+```
+
+`randomToken` gera 32 bytes por padrão e não aceita menos de 16. `hashToken` usa SHA-256, que aqui é suficiente porque o token já é aleatório. **Não o use para senhas**, que precisam de um hash lento como `hashPassword`.
+
+### Comparar segredos
+
+`===` termina assim que encontra uma diferença, e esse tempo pode ajudar a adivinhar um segredo. `safeEqual` leva o mesmo tempo, seja qual for o conteúdo ou o comprimento:
+
+```ts
+if (!safeEqual(req.headers['x-webhook-secret']?.toString() ?? '', this.config.WEBHOOK_SECRET)) {
+  throw new UnauthorizedException();
+}
+```
+
+## As chaves
+
+As URLs assinadas e a criptografia precisam de chaves. Declare-as no schema de [`viga/config`](../config/), com um mínimo de 32 caracteres:
+
+```ts title="src/config.ts"
+export const Env = z.object({
+  SIGNING_KEY: z.string().min(32),
+  ENCRYPTION_KEY: z.string().min(32),
+});
+```
+
+Gere cada uma com:
+
+```sh
+node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"
+```
+
+E importe `CryptoModule` no módulo raiz. É um módulo global, e você só precisa das opções daquilo que usar:
+
+```ts title="src/app.module.ts"
+import { inject } from 'viga';
+import { CONFIG } from 'viga/config';
+import { CryptoModule } from 'viga/crypto';
+
+CryptoModule.forRoot(() => {
+  const config = inject(CONFIG);
+
+  return {
+    signingKeys: [config.SIGNING_KEY],
+    encryption: { active: 'k1', keys: { k1: config.ENCRYPTION_KEY } },
+  };
+}),
+```
+
+O viga não inicia se uma chave tiver menos de 32 bytes, e o erro nomeia a chave sem mostrar o valor. Esse controle só mede o comprimento: uma frase como `minha-chave-secreta-da-empresa-em-2026` passa por ele, então gere sempre valores aleatórios.
+
+## URLs assinadas
+
+Uma URL assinada dá acesso temporário a uma rota sem fazer login, por exemplo para baixar uma fatura a partir de um email:
+
+```ts title="src/invoices/invoices.controller.ts"
+import { Controller, Get, Public, inject, type HttpContext } from 'viga';
+import { Signed, UrlSigner } from 'viga/crypto';
+
+@Controller('/invoices')
+export class InvoicesController {
+  private readonly signer = inject(UrlSigner);
+
+  @Get('/:id/link')
+  link({ params }: HttpContext) {
+    return { url: this.signer.sign(`/invoices/${params.id}/pdf`, { expiresInSeconds: 3600 }) };
+  }
+
+  @Public()
+  @Signed()
+  @Get('/:id/pdf')
+  download({ params }: HttpContext) {
+    return this.invoices.pdf(Number(params.id));
+  }
+}
+```
+
+`sign` devolve a rota com mais dois parâmetros:
+
+```txt
+/invoices/42/pdf?expires=1793577600&signature=Kq3vX0m...
+```
+
+`@Signed()` responde 403 se a assinatura não for válida ou a URL tiver expirado. A assinatura cobre a rota, os parâmetros, a validade e o método, então não é possível trocar `42` por `43` nem adicionar parâmetros. Por padrão, uma URL assinada só vale para `GET` e `HEAD`. Para outro método, use `sign(path, { expiresInSeconds, method: 'DELETE' })`.
+
+Para verificar uma assinatura sem `@Signed()`, use `signer.verify(url, { method })`, que devolve `true` ou `false`.
+
+:::caution
+O link funciona para qualquer pessoa que o tenha até expirar, e pode ficar no histórico do navegador ou nos logs. Use validades curtas e não o use para ações que precisem verificar quem as faz. Não é possível anular um link específico: para isso, use um [token guardado no seu banco de dados](#tokens-aleatórios).
+:::
+
+Tenha em conta também:
+
+- **Assine a rota que o servidor recebe.** Com `globalPrefix: '/api'`, assine `/api/invoices/42/pdf`, e se um proxy mudar a rota antes de chegar à aplicação, a assinatura não vai coincidir.
+- **Só se assinam rotas**, sem domínio. Adicione o domínio ao construir o link: `` `https://meu-app.com${url}` ``.
+- **`@Public()` é necessário** se o link for aberto sem sessão. Sem ele, a rota exige autenticação além da assinatura.
+
+## Criptografia
+
+Criptografe os dados que você precisa recuperar, como as API keys de um provedor que cada empresa configura na sua aplicação. Se você só precisa verificar um valor, use um hash.
+
+```ts title="src/providers/provider-keys.service.ts"
+import { Injectable, inject } from 'viga';
+import { Encryptor } from 'viga/crypto';
+
+@Injectable()
+export class ProviderKeysService {
+  private readonly encryptor = inject(Encryptor);
+  private readonly keys = inject(ProviderKeysRepository);
+
+  save(tenantId: number, apiKey: string) {
+    const encrypted = this.encryptor.encrypt(apiKey, { context: `tenant:${tenantId}` });
+    return this.keys.upsert(tenantId, encrypted);
+  }
+
+  async read(tenantId: number) {
+    const encrypted = await this.keys.find(tenantId);
+    return this.encryptor.decrypt(encrypted, { context: `tenant:${tenantId}` });
+  }
+}
+```
+
+`encrypt` usa AES-256-GCM e devolve um texto que guarda qual chave foi usada. Criptografar duas vezes o mesmo valor dá resultados diferentes:
+
+```txt
+v1.k1.Yp3Xb0mR2kQfVt8u.Hn2cJ9w4.9aX0qLm3Rt7KvB1sZc2YwQ
+```
+
+`decrypt` lança um erro se o valor tiver sido alterado, se não puder ser descriptografado com nenhuma chave ou se o contexto não coincidir. A mensagem é sempre a mesma e não dá mais detalhes.
+
+**O contexto liga o valor ao seu dono.** Ele não é guardado no resultado, mas precisa coincidir ao descriptografar. Sem ele, alguém com acesso de escrita à tabela poderia copiar a chave criptografada de outra empresa para a sua, e a sua aplicação a descriptografaria.
+
+Criptografar não substitui controlar quem acessa os dados: a sua aplicação descriptografa o que lhe pedirem, então continue verificando as permissões. Também não é possível buscar nem ordenar por uma coluna criptografada.
+
+:::danger
+Se você perder uma chave de criptografia, perde tudo o que foi criptografado com ela. Guarde-a com o mesmo cuidado que uma cópia de segurança, e fora do banco de dados que ela protege.
+:::
+
+## Rotacionar chaves
+
+Você pode mudar uma chave sem invalidar o que já existe.
+
+**Para assinar**, coloque a nova primeiro. Assina-se com a primeira e verifica-se com todas:
+
+```ts
+signingKeys: [config.SIGNING_KEY_NEW, config.SIGNING_KEY],
+```
+
+Remova a antiga quando os links dela tiverem expirado. Se uma chave vazou, remova-a imediatamente: os links dela deixarão de funcionar, mas ninguém poderá criar outros.
+
+**Para criptografar**, adicione a nova com outro nome e ative-a. Criptografa-se com `active` e descriptografa-se com qualquer uma:
+
+```ts
+encryption: {
+  active: 'k2',
+  keys: { k1: config.ENCRYPTION_KEY, k2: config.ENCRYPTION_KEY_NEW },
+},
+```
+
+Mantenha `k1` até ter descriptografado e criptografado de novo todos os valores que a usam. Para encontrá-los, procure os que começam com `v1.k1.`.
+
+Cada valor usa um número aleatório de 12 bytes, então não criptografe mais de cerca de 4 bilhões de valores com a mesma chave: a partir daí, uma repetição começa a ser um risco real. Rotacione a chave muito antes de chegar lá.
+
+## Nos testes
+
+Passe chaves de teste substituindo `CRYPTO_OPTIONS`:
+
+```ts title="test/invoices.test.ts"
+import { CRYPTO_OPTIONS, UrlSigner } from 'viga/crypto';
+import { createTestingApp } from 'viga/testing';
+
+const app = await createTestingApp(AppModule, {
+  overrides: [{ provide: CRYPTO_OPTIONS, useValue: { signingKeys: ['k'.repeat(32)] } }],
+});
+
+const url = app.get(UrlSigner).sign('/invoices/42/pdf', { expiresInSeconds: 60 });
+assert.equal((await app.request(url)).status, 200);
+assert.equal((await app.request('/invoices/42/pdf')).status, 403);
+
+await app.close();
+```

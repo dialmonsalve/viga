@@ -17,6 +17,7 @@ El core solo resuelve lo que todo servidor necesita. Lo demás son subrutas opci
 | `viga/websocket` | Gateways, salas y una interfaz de adaptador pública, con valores restrictivos por defecto | `ws` |
 | `viga/testing` | `createTestingApp` para probar la app con peticiones HTTP reales y providers reemplazados | Nada |
 | `viga/health` | Rutas `/health` y `/ready` con tus propias comprobaciones, sin revelar detalles | Nada |
+| `viga/crypto` | Hash de contraseñas con Argon2id, tokens aleatorios, URLs firmadas y cifrado AES-256-GCM | Nada |
 
 ## Agradecimientos
 
@@ -171,6 +172,10 @@ Consulta [viga/testing](https://vigajs.dev/es/optional/testing/) en la documenta
 ## viga/health
 
 Consulta [viga/health](https://vigajs.dev/es/optional/health/) en la documentación.
+
+## viga/crypto
+
+Consulta [viga/crypto](https://vigajs.dev/es/optional/crypto/) en la documentación.
 
 ## Desarrollo
 
