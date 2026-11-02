@@ -20,6 +20,7 @@ The core only covers what every server needs. Everything else lives in optional 
 | `viga/crypto` | Password hashing with Argon2id, random tokens, signed URLs and AES-256-GCM encryption | Nothing |
 | `viga/events` | In-memory event bus with typed events, isolated errors and listeners that finish before shutdown | Nothing |
 | `viga/workers` | The same worker in the API, in child processes or on another server, with a supervisor that restarts them | Nothing |
+| `viga/upload` | `@Upload` with limits, file types detected from the content and automatic cleanup | `multer`, `file-type` |
 
 ## Acknowledgements
 
@@ -54,6 +55,12 @@ Only if you use `viga/websocket` with the default adapter:
 
 ```bash
 pnpm add ws
+```
+
+Only if you use `viga/upload`:
+
+```bash
+pnpm add multer file-type
 ```
 
 ## Minimal example
@@ -186,6 +193,10 @@ See [viga/events](https://vigajs.dev/en/optional/events/) in the documentation.
 ## viga/workers
 
 See [viga/workers](https://vigajs.dev/en/optional/workers/) in the documentation.
+
+## viga/upload
+
+See [viga/upload](https://vigajs.dev/en/optional/upload/) in the documentation.
 
 ## Development
 

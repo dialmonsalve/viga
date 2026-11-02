@@ -44,7 +44,7 @@ describe('mensajes para desarrolladores', () => {
 
   it('cada clave tiene un prefijo de área conocido', () => {
     for (const key of KEYS) {
-      assert.match(diagnostic(key), /^\[(DI|Module|Router|Interceptor|RateLimit|Lifecycle|App|HTTP|Context|I18n|Drizzle|Config|Pagination|Health|Crypto|Events|Workers|WebSocket|Testing)\] /, key);
+      assert.match(diagnostic(key), /^\[(DI|Module|Router|Interceptor|RateLimit|Lifecycle|App|HTTP|Context|I18n|Drizzle|Config|Pagination|Health|Crypto|Events|Workers|Upload|WebSocket|Testing)\] /, key);
     }
   });
 

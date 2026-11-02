@@ -54,6 +54,10 @@ First public release.
 - `WORKER_KEY`, `WorkerModule.forKey()` and `startWorker()` so the same worker module runs inside the API, as a child process or on another server, without a queue library of its own. A worker closes in an orderly way on a signal and when its parent dies, with `orphanTimeoutMs` as a limit in the second case.
 - `WorkersModule.forRoot()` and `WorkerSupervisor` fork one process per key, with `start`, `stop` and `list`, restart with backoff, a graceful stop that ends in `SIGKILL` after `stopTimeoutMs`, and a `maxWorkers` limit (8 by default).
 
+### `viga/upload`
+
+- `@Upload()` over Multer and `file-type`, both optional peer dependencies. It reads files after authentication and guards, requires `types` or `check`, detects the type from the content, stores files under generated names in a temporary folder and removes what isn't moved with `moveTo` when the response ends, also when a request fails or is cut off. Text fields are rejected unless the route uses `@Validate({ body })`. `optional: true` with `OptionalUploadContext` covers forms where the file may be absent.
+
 ### `viga/websocket`
 
 - `WebSocketModule.forRoot()` (an object or a function that runs in the container and can use `inject()`, also in `DrizzleModule.forRoot()`), `@Gateway`, `@OnMessage` with Standard Schema validation, `WsContext` and `WsServer`.

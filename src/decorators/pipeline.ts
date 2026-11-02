@@ -11,6 +11,7 @@ export type PipeStep = (self: object, ctx: object) => Promise<object>;
 interface Pipeline {
   target: (this: object, ctx: object) => unknown;
   guards: GuardStep[];
+  readers: GuardStep[];
   interceptors: InterceptorStep[];
   pipes: PipeStep[];
   validated: Set<string>;
@@ -33,6 +34,7 @@ export function validatedParts(method: unknown): ReadonlySet<string> {
 
 async function runGuardSteps(pipeline: Pipeline, self: object, ctx: object) {
   for (const guard of pipeline.guards) await guard(self, ctx);
+  for (const reader of pipeline.readers) await reader(self, ctx);
 }
 
 function invokeSteps(pipeline: Pipeline, self: object, ctx: object) {
@@ -68,12 +70,14 @@ export function addToPipeline<M>(method: M, steps: Steps): M {
   const pipeline: Pipeline = existing ?? {
     target: handler,
     guards: [],
+    readers: [],
     interceptors: [],
     pipes: [],
     validated: new Set(),
   };
 
   pipeline.guards.unshift(...(steps.guards ?? []));
+  pipeline.readers.unshift(...(steps.readers ?? []));
   pipeline.interceptors.unshift(...(steps.interceptors ?? []));
   pipeline.pipes.unshift(...(steps.pipes ?? []));
   for (const part of steps.validates ?? []) pipeline.validated.add(part);

@@ -91,6 +91,14 @@ export const DIAGNOSTICS = {
   'workers.spawnFailed': 'The worker {key} failed',
   'workers.finished': 'The worker {key} finished with code 0, so it will not be restarted',
   'workers.killed': 'The worker {key} did not stop within {stopTimeoutMs} ms, so it was killed',
+  'upload.noCheck':
+    '@Upload needs types or check, so a route cannot accept every file by mistake',
+  'upload.invalidOptions':
+    'maxFileSize, maxFiles, maxFields and maxFieldSize must be positive integers, and field cannot be empty',
+  'upload.undetectableType':
+    '{type} has no signature in its content, so types cannot detect it; use the check option instead',
+  'upload.httpOnly': '@Upload only works on HTTP routes',
+  'upload.cleanupFailed': 'Could not remove the temporary upload {path}',
   'ws.noAuthenticate':
     'No authenticate function is configured, so the {count} private gateways will reject every handshake with 401; set authenticate in WebSocketModule.forRoot() or mark public gateways with @Public()',
   'ws.publicGateways': 'Public gateways: {paths}',
@@ -131,6 +139,7 @@ const PREFIXES: Record<string, string> = {
   crypto: 'Crypto',
   events: 'Events',
   workers: 'Workers',
+  upload: 'Upload',
   ws: 'WebSocket',
   testing: 'Testing',
 };

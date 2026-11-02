@@ -91,6 +91,14 @@ export const diagnosticsEs = {
   'workers.spawnFailed': 'El worker {key} falló',
   'workers.finished': 'El worker {key} terminó con código 0, así que no se reiniciará',
   'workers.killed': 'El worker {key} no se detuvo en {stopTimeoutMs} ms, así que se forzó su cierre',
+  'upload.noCheck':
+    '@Upload necesita types o check, para que una ruta no acepte cualquier archivo por descuido',
+  'upload.invalidOptions':
+    'maxFileSize, maxFiles, maxFields y maxFieldSize deben ser enteros positivos, y field no puede estar vacío',
+  'upload.undetectableType':
+    '{type} no tiene una firma en su contenido, así que types no puede detectarlo; usa la opción check',
+  'upload.httpOnly': '@Upload solo funciona en rutas HTTP',
+  'upload.cleanupFailed': 'No se pudo borrar la subida temporal {path}',
   'ws.noAuthenticate':
     'No hay una función authenticate configurada, así que los {count} gateways privados rechazarán cada handshake con 401; define authenticate en WebSocketModule.forRoot() o marca los gateways públicos con @Public()',
   'ws.publicGateways': 'Gateways públicos: {paths}',

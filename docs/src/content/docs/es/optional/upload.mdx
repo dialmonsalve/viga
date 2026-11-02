@@ -1,0 +1,255 @@
+---
+title: viga/upload
+description: Recibe archivos en una ruta con límites, tipos detectados por su contenido, nombres generados y limpieza automática de los temporales.
+sidebar:
+  order: 12
+  badge:
+    text: multer · file-type
+    variant: note
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Recibir archivos de los usuarios es una de las funciones más delicadas de una API: un archivo puede ser enorme, no ser lo que dice ser o tener un nombre pensado para escribir fuera de tu carpeta. `viga/upload` añade el decorador `@Upload()`, que usa [Multer](https://github.com/expressjs/multer) para recibir el archivo y [file-type](https://github.com/sindresorhus/file-type) para comprobar su contenido.
+
+## Instalación
+
+<Tabs syncKey="pkg">
+  <TabItem label="pnpm">
+    ```sh
+    pnpm add multer file-type
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```sh
+    npm install multer file-type
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```sh
+    yarn add multer file-type
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```sh
+    bun add multer file-type
+    ```
+  </TabItem>
+</Tabs>
+
+## Recibe un archivo
+
+Añade `@Upload()` a la ruta, con el nombre del campo del formulario y los tipos permitidos:
+
+```ts title="src/users/avatars.controller.ts"
+import { Controller, Post } from 'viga';
+import { randomToken } from 'viga/crypto';
+import { Upload, type UploadContext } from 'viga/upload';
+
+@Controller('/avatars')
+export class AvatarsController {
+  @Post()
+  @Upload({ field: 'avatar', types: ['image/png', 'image/jpeg'] })
+  async create({ file }: UploadContext) {
+    const name = `${randomToken()}.${file.extension}`;
+    await file.moveTo(`/var/app/avatars/${name}`);
+    return { name, size: file.size };
+  }
+}
+```
+
+Desde el navegador, envíalo con `FormData`:
+
+```ts
+const form = new FormData();
+form.append('avatar', input.files[0]);
+await fetch('/avatars', { method: 'POST', body: form });
+```
+
+`file` tiene estos datos:
+
+| Propiedad | Qué contiene |
+| --- | --- |
+| `path` | Dónde está ahora, en una carpeta temporal. |
+| `size` | El tamaño en bytes. |
+| `type` | El tipo detectado por su contenido, como `image/png`. |
+| `extension` | La extensión que corresponde a ese tipo, como `png`. |
+| `originalName` | El nombre que envió el cliente, sin directorios. |
+| `field` | El campo del formulario. |
+
+:::caution
+`originalName` lo escribe el cliente. Guárdalo para mostrarlo si quieres, pero no lo uses para construir una ruta en tu disco. Genera tú el nombre, como en el ejemplo.
+:::
+
+## Guarda el archivo
+
+El archivo está en una carpeta temporal, y **viga lo borra cuando termina la respuesta**. También lo hace si la petición falla o el cliente corta la conexión. Solo pueden quedar restos si el proceso muere de golpe a mitad de una subida. Por eso conviene que la carpeta temporal del sistema se limpie sola, como ocurre al reiniciar un contenedor o con `systemd-tmpfiles`.
+
+Para conservarlo, muévelo antes de responder con `file.moveTo(destino)`, que funciona también entre discos distintos y lanza un error si ya existe un archivo en ese destino.
+
+Si lo procesas en segundo plano, por ejemplo en una [cola](../../guides/queues-workers/), muévelo primero y pasa la ruta nueva: cuando el worker lo busque, la carpeta temporal ya no existirá.
+
+Para subirlo a un almacenamiento externo, léelo desde `file.path`:
+
+```ts
+import { createReadStream } from 'node:fs';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+
+await this.s3.send(
+  new PutObjectCommand({
+    Bucket: this.bucket,
+    Key: `${randomToken()}.${file.extension}`,
+    Body: createReadStream(file.path),
+    ContentLength: file.size,
+    ContentType: file.type,
+  }),
+);
+```
+
+## El tipo de archivo
+
+`types` se comprueba con los primeros bytes del archivo, no con su extensión ni con el `Content-Type`, que los escribe el cliente. Un HTML renombrado a `foto.png` responde 415.
+
+`types` o `check` son obligatorios: si no indicas ninguno, viga da un error al cargar el decorador, para que una ruta no acepte cualquier archivo por descuido.
+
+### Formatos de texto
+
+CSV, JSON, SVG y otros formatos de texto no tienen una firma en su contenido, así que viga rechaza declararlos en `types`. Usa `check`, una función que recibe el archivo y devuelve si lo acepta:
+
+```ts title="src/imports/imports.controller.ts"
+import { open } from 'node:fs/promises';
+
+async function looksLikeCsv({ path }: UploadedFile) {
+  const handle = await open(path);
+  try {
+    const { buffer, bytesRead } = await handle.read(Buffer.alloc(1024), 0, 1024, 0);
+    const start = buffer.subarray(0, bytesRead).toString('utf8');
+    return start.includes(',') && !start.includes('\0');
+  } finally {
+    await handle.close();
+  }
+}
+
+@Post()
+@Upload({ field: 'data', check: looksLikeCsv, maxFileSize: 50 * 1024 * 1024 })
+create({ file }: UploadContext) {
+  return this.imports.start(file);
+}
+```
+
+Con `check`, `type` y `extension` son `undefined`, salvo que también indiques `types`, y entonces tienen que pasar los dos. Si `check` lanza un error, la respuesta es 500.
+
+### Lo que esto no comprueba
+
+Que un archivo sea un PNG válido no significa que sea inofensivo. viga no busca virus, no vuelve a codificar imágenes y no abre archivos ZIP. Si los usuarios se comparten archivos entre ellos, considera un antivirus y volver a generar las imágenes.
+
+**No sirvas los archivos subidos desde el dominio de tu app.** Un SVG o un HTML puede ejecutar scripts con la sesión de quien lo abre. Sírvelos desde otro dominio, o con estas cabeceras:
+
+```ts
+res.setHeader('Content-Type', 'application/octet-stream');
+res.setHeader('Content-Disposition', 'attachment');
+```
+
+## Límites
+
+| Opción | Por defecto | Qué limita | Si se supera |
+| --- | --- | --- | --- |
+| `maxFileSize` | 5 MiB | El tamaño de cada archivo, en bytes. | 413 |
+| `maxFiles` | 1 | Los archivos de la petición. | 400 |
+| `maxFields` | 20 | Los campos de texto. | 400 |
+| `maxFieldSize` | 64 KiB | El tamaño de cada campo de texto. | 400 |
+
+El límite de tamaño del cuerpo de `createApp` no se aplica a estas rutas, que usan los suyos.
+
+Los archivos se escriben en disco a medida que llegan. Estos límites son por petición, así que varias peticiones simultáneas pueden llenar el disco. Combínalos con un [`@RateLimit()`](../../security/rate-limiting/#por-ruta) y, si hace falta, con una cuota por usuario.
+
+## Varios archivos
+
+Con `maxFiles`, la ruta recibe `files`. Si un archivo no es válido, se rechaza toda la subida:
+
+```ts
+@Post()
+@Upload({ field: 'photos', types: ['image/jpeg'], maxFiles: 5 })
+async create({ files }: UploadContext) {
+  for (const file of files) {
+    await file.moveTo(`/var/app/photos/${randomToken()}.${file.extension}`);
+  }
+  return { count: files.length };
+}
+```
+
+## Campos del formulario
+
+Una ruta sin `@Validate` rechaza cualquier campo de texto con 400, igual que [`requireValidation`](../validation/) rechaza un cuerpo sin validar. Para aceptarlos, valídalos como siempre, sin importar en qué orden escribas los decoradores:
+
+```ts
+const Photo = z.strictObject({ title: z.string().min(1).max(100) });
+
+@Post()
+@Upload({ field: 'photo', types: ['image/jpeg'] })
+@Validate({ body: Photo })
+create({ body, file }: UploadContext<{ body: typeof Photo }>) {
+  return this.photos.create(body.title, file);
+}
+```
+
+Los campos de un formulario siempre llegan como texto. Para recibir un número, conviértelo en el schema, por ejemplo con `z.coerce.number()`.
+
+## Archivo opcional
+
+En un formulario donde el archivo se puede dejar vacío, como editar un perfil, añade `optional: true` y usa `OptionalUploadContext`. `file` puede ser `undefined`, y TypeScript te obliga a comprobarlo:
+
+```ts
+const Profile = z.strictObject({ name: z.string().min(1) });
+
+@Post()
+@Upload({ field: 'avatar', types: ['image/png', 'image/jpeg'], optional: true })
+@Validate({ body: Profile })
+async update({ body, file }: OptionalUploadContext<{ body: typeof Profile }>) {
+  if (file) await file.moveTo(`/var/app/avatars/${randomToken()}.${file.extension}`);
+  return this.profiles.update(body);
+}
+```
+
+Si llega un archivo, se comprueba igual que siempre.
+
+## Formularios sin archivos
+
+Si un formulario nunca lleva archivos, no uses `@Upload`. Valídalo solo con `@Validate`, y envíalo como JSON o como `URLSearchParams` en lugar de `FormData`:
+
+```ts
+await fetch('/contact', { method: 'POST', body: new URLSearchParams(new FormData(form)) });
+```
+
+viga solo interpreta `multipart/form-data`, el formato de `FormData`, en las rutas con `@Upload`. En cualquier otra ruta, sus campos no se leen: con `@Validate` responde 400 con `errors.validation`, y sin él, 400 con `errors.unexpectedBody`.
+
+## En qué momento se lee
+
+El archivo se lee después de la autenticación y de todos los guards, incluidos `@UseGuards` y `@RateLimit`, y antes de los interceptores y la validación. Así, quien no tiene permiso no puede escribir nada en tu disco. El orden de los decoradores no afecta a esto.
+
+La [protección CSRF](../../security/defaults/#protección-csrf) rechaza los formularios enviados desde otro sitio antes de llegar aquí.
+
+## Errores
+
+| Situación | Estado | `code` |
+| --- | --- | --- |
+| Falta el archivo, o la petición no es multipart | 400 | `errors.fileRequired` |
+| Otro campo, demasiados archivos o campos, o multipart mal formado | 400 | `errors.invalidUpload` |
+| Archivo demasiado grande | 413 | `errors.fileTooLarge` |
+| El tipo no está permitido | 415 | `errors.unsupportedFileType` |
+
+## En los tests
+
+Envía un `FormData` real con `fetch` y la URL de tu app de pruebas:
+
+```ts title="test/avatars.test.ts"
+const app = await createTestingApp(AppModule);
+
+const form = new FormData();
+form.append('avatar', new Blob([readFileSync('test/fixtures/cat.png')]), 'cat.png');
+
+const response = await fetch(app.url('/avatars'), { method: 'POST', body: form });
+assert.equal(response.status, 201);
+
+await app.close();
+```

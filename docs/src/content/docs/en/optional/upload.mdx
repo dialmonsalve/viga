@@ -1,0 +1,255 @@
+---
+title: viga/upload
+description: Receive files on a route with limits, types detected from their content, generated names and automatic cleanup of temporary files.
+sidebar:
+  order: 12
+  badge:
+    text: multer · file-type
+    variant: note
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Receiving files from users is one of the most delicate features of an API: a file can be huge, not be what it claims or have a name designed to write outside your folder. `viga/upload` adds the `@Upload()` decorator, which uses [Multer](https://github.com/expressjs/multer) to receive the file and [file-type](https://github.com/sindresorhus/file-type) to check its content.
+
+## Installation
+
+<Tabs syncKey="pkg">
+  <TabItem label="pnpm">
+    ```sh
+    pnpm add multer file-type
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```sh
+    npm install multer file-type
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```sh
+    yarn add multer file-type
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```sh
+    bun add multer file-type
+    ```
+  </TabItem>
+</Tabs>
+
+## Receive a file
+
+Add `@Upload()` to the route, with the form field's name and the allowed types:
+
+```ts title="src/users/avatars.controller.ts"
+import { Controller, Post } from 'viga';
+import { randomToken } from 'viga/crypto';
+import { Upload, type UploadContext } from 'viga/upload';
+
+@Controller('/avatars')
+export class AvatarsController {
+  @Post()
+  @Upload({ field: 'avatar', types: ['image/png', 'image/jpeg'] })
+  async create({ file }: UploadContext) {
+    const name = `${randomToken()}.${file.extension}`;
+    await file.moveTo(`/var/app/avatars/${name}`);
+    return { name, size: file.size };
+  }
+}
+```
+
+From the browser, send it with `FormData`:
+
+```ts
+const form = new FormData();
+form.append('avatar', input.files[0]);
+await fetch('/avatars', { method: 'POST', body: form });
+```
+
+`file` has this data:
+
+| Property | What it contains |
+| --- | --- |
+| `path` | Where it is now, in a temporary folder. |
+| `size` | The size in bytes. |
+| `type` | The type detected from its content, like `image/png`. |
+| `extension` | The extension matching that type, like `png`. |
+| `originalName` | The name the client sent, with no directories. |
+| `field` | The form field. |
+
+:::caution
+The client writes `originalName`. Store it to display it if you want, but don't use it to build a path on your disk. Generate the name yourself, as in the example.
+:::
+
+## Store the file
+
+The file is in a temporary folder, and **viga deletes it when the response ends**. It also does so if the request fails or the client cuts the connection. Leftovers can only remain if the process dies suddenly in the middle of an upload. That's why the system's temporary folder should clean itself, as happens when restarting a container or with `systemd-tmpfiles`.
+
+To keep it, move it before responding with `file.moveTo(destination)`, which also works across different disks and throws an error if a file already exists at that destination.
+
+If you process it in the background, for example in a [queue](../../guides/queues-workers/), move it first and pass the new path: by the time the worker looks for it, the temporary folder will no longer exist.
+
+To upload it to external storage, read it from `file.path`:
+
+```ts
+import { createReadStream } from 'node:fs';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+
+await this.s3.send(
+  new PutObjectCommand({
+    Bucket: this.bucket,
+    Key: `${randomToken()}.${file.extension}`,
+    Body: createReadStream(file.path),
+    ContentLength: file.size,
+    ContentType: file.type,
+  }),
+);
+```
+
+## The file type
+
+`types` is checked against the file's first bytes, not its extension or `Content-Type`, which the client writes. An HTML file renamed to `photo.png` responds 415.
+
+`types` or `check` is required: if you set neither, viga throws an error when loading the decorator, so a route can't accept every file by mistake.
+
+### Text formats
+
+CSV, JSON, SVG and other text formats have no signature in their content, so viga refuses to declare them in `types`. Use `check`, a function that receives the file and returns whether it accepts it:
+
+```ts title="src/imports/imports.controller.ts"
+import { open } from 'node:fs/promises';
+
+async function looksLikeCsv({ path }: UploadedFile) {
+  const handle = await open(path);
+  try {
+    const { buffer, bytesRead } = await handle.read(Buffer.alloc(1024), 0, 1024, 0);
+    const start = buffer.subarray(0, bytesRead).toString('utf8');
+    return start.includes(',') && !start.includes('\0');
+  } finally {
+    await handle.close();
+  }
+}
+
+@Post()
+@Upload({ field: 'data', check: looksLikeCsv, maxFileSize: 50 * 1024 * 1024 })
+create({ file }: UploadContext) {
+  return this.imports.start(file);
+}
+```
+
+With `check`, `type` and `extension` are `undefined`, unless you also set `types`, and then both have to pass. If `check` throws an error, the response is 500.
+
+### What this doesn't check
+
+A valid PNG isn't necessarily harmless. viga doesn't look for viruses, re-encode images or open ZIP files. If users share files with each other, consider an antivirus and regenerating images.
+
+**Don't serve uploaded files from your app's domain.** An SVG or an HTML file can run scripts with the session of whoever opens it. Serve them from another domain, or with these headers:
+
+```ts
+res.setHeader('Content-Type', 'application/octet-stream');
+res.setHeader('Content-Disposition', 'attachment');
+```
+
+## Limits
+
+| Option | Default | What it limits | If exceeded |
+| --- | --- | --- | --- |
+| `maxFileSize` | 5 MiB | The size of each file, in bytes. | 413 |
+| `maxFiles` | 1 | The files in the request. | 400 |
+| `maxFields` | 20 | The text fields. | 400 |
+| `maxFieldSize` | 64 KiB | The size of each text field. | 400 |
+
+The `createApp` body size limit doesn't apply to these routes, which use their own.
+
+Files are written to disk as they arrive. These limits are per request, so several simultaneous requests can fill the disk. Combine them with a [`@RateLimit()`](../../security/rate-limiting/#per-route) and, if needed, a per-user quota.
+
+## Several files
+
+With `maxFiles`, the route receives `files`. If a file isn't valid, the whole upload is rejected:
+
+```ts
+@Post()
+@Upload({ field: 'photos', types: ['image/jpeg'], maxFiles: 5 })
+async create({ files }: UploadContext) {
+  for (const file of files) {
+    await file.moveTo(`/var/app/photos/${randomToken()}.${file.extension}`);
+  }
+  return { count: files.length };
+}
+```
+
+## Form fields
+
+A route without `@Validate` rejects any text field with a 400, just as [`requireValidation`](../validation/) rejects an unvalidated body. To accept them, validate them as usual, in whichever order you write the decorators:
+
+```ts
+const Photo = z.strictObject({ title: z.string().min(1).max(100) });
+
+@Post()
+@Upload({ field: 'photo', types: ['image/jpeg'] })
+@Validate({ body: Photo })
+create({ body, file }: UploadContext<{ body: typeof Photo }>) {
+  return this.photos.create(body.title, file);
+}
+```
+
+A form's fields always arrive as text. To receive a number, convert it in the schema, for example with `z.coerce.number()`.
+
+## Optional file
+
+In a form where the file can be left empty, like editing a profile, add `optional: true` and use `OptionalUploadContext`. `file` can be `undefined`, and TypeScript makes you check it:
+
+```ts
+const Profile = z.strictObject({ name: z.string().min(1) });
+
+@Post()
+@Upload({ field: 'avatar', types: ['image/png', 'image/jpeg'], optional: true })
+@Validate({ body: Profile })
+async update({ body, file }: OptionalUploadContext<{ body: typeof Profile }>) {
+  if (file) await file.moveTo(`/var/app/avatars/${randomToken()}.${file.extension}`);
+  return this.profiles.update(body);
+}
+```
+
+If a file arrives, it's checked as usual.
+
+## Forms without files
+
+If a form never carries files, don't use `@Upload`. Validate it with `@Validate` alone, and send it as JSON or `URLSearchParams` instead of `FormData`:
+
+```ts
+await fetch('/contact', { method: 'POST', body: new URLSearchParams(new FormData(form)) });
+```
+
+viga only interprets `multipart/form-data`, the `FormData` format, on routes with `@Upload`. On any other route, its fields aren't read: with `@Validate` it responds 400 with `errors.validation`, and without it, 400 with `errors.unexpectedBody`.
+
+## When it's read
+
+The file is read after authentication and all guards, including `@UseGuards` and `@RateLimit`, and before interceptors and validation. That way, someone without permission can't write anything to your disk. The order of the decorators doesn't affect this.
+
+[CSRF protection](../../security/defaults/#csrf-protection) rejects forms sent from another site before they get here.
+
+## Errors
+
+| Situation | Status | `code` |
+| --- | --- | --- |
+| The file is missing, or the request isn't multipart | 400 | `errors.fileRequired` |
+| Another field, too many files or fields, or malformed multipart | 400 | `errors.invalidUpload` |
+| File too large | 413 | `errors.fileTooLarge` |
+| The type isn't allowed | 415 | `errors.unsupportedFileType` |
+
+## In tests
+
+Send a real `FormData` with `fetch` and your test app's URL:
+
+```ts title="test/avatars.test.ts"
+const app = await createTestingApp(AppModule);
+
+const form = new FormData();
+form.append('avatar', new Blob([readFileSync('test/fixtures/cat.png')]), 'cat.png');
+
+const response = await fetch(app.url('/avatars'), { method: 'POST', body: form });
+assert.equal(response.status, 201);
+
+await app.close();
+```

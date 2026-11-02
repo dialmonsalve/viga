@@ -77,7 +77,8 @@ export function mountController(
       );
     }
 
-    const unvalidatedBody = pipeline.requireValidation && !validatedParts(handler).has('body');
+    const parts = validatedParts(handler);
+    const unvalidatedBody = pipeline.requireValidation && !parts.has('body') && !parts.has('upload');
     const steps = handlerSteps(handler);
     const isPublic = definition.isPublic || definition.publicRoutes[route.handlerName] === true;
     mounted.push({
