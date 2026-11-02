@@ -80,4 +80,19 @@ Para evitarlo, haz una de estas dos cosas:
 
 El límite de conexiones por cliente de WebSocket usa la misma IP y el mismo `trustProxy`. Si un handshake trae `X-Forwarded-For` pero `trustProxy` no confía en quien lo envía, viga muestra un aviso una vez: todos los clientes detrás de ese proxy compartirían un único contador, y ese límite los bloquearía a todos a la vez.
 
+Para usar la IP del cliente en `authenticate`, que recibe la petición de Node.js sin `req.ip`, pide `CLIENT_IP`. Devuelve la misma IP que `req.ip`, según tu `trustProxy`:
+
+```ts title="src/app.module.ts"
+WebSocketModule.forRoot(() => {
+  const clientIp = inject(CLIENT_IP);
+
+  return {
+    authenticate: (req) => {
+      const ip = clientIp(req);
+      return ip && isAllowed(ip) ? {} : false;
+    },
+  };
+}),
+```
+
 `trustProxy` acepta los mismos valores que la opción `trust proxy` de Express, porque viga se la pasa tal cual.

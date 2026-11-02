@@ -13,6 +13,7 @@ export {
   type RateLimitOptions,
   type RateLimitStore,
 } from './http/rate-limit.ts';
+export { CLIENT_IP, type ClientIpResolver } from './http/client-ip.ts';
 export { ipKey } from './http/ip.ts';
 export { createContextKey, runInNewContext, type ContextKey } from './context.ts';
 export {

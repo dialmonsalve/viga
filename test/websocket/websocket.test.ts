@@ -5,6 +5,7 @@ import { afterEach, describe, it } from 'node:test';
 import { WebSocket } from 'ws';
 import { z } from 'zod';
 import {
+  CLIENT_IP,
   Controller,
   ForbiddenException,
   Get,
@@ -1431,6 +1432,52 @@ describe('viga/websocket', () => {
       const socket = await connect(url, { cookie: 'sid=ok' });
       assert.deepEqual(await socket.request('ping'), { event: 'ping', data: 'pong' });
       socket.ws.close();
+    });
+
+    it('authenticate obtiene la IP real del cliente con CLIENT_IP', async () => {
+      @Gateway('/private')
+      class PrivateGateway {
+        @OnMessage('ping')
+        ping() {
+          return 'pong';
+        }
+      }
+
+      const startWith = async (trustProxy?: number) => {
+        const ips: (string | undefined)[] = [];
+
+        @Module({
+          imports: [
+            WebSocketModule.forRoot(() => {
+              const clientIp = inject(CLIENT_IP);
+              return {
+                authenticate: (req) => {
+                  ips.push(clientIp(req));
+                  return {};
+                },
+              };
+            }),
+          ],
+          providers: [PrivateGateway],
+        })
+        class RootModule {}
+
+        const app = createApp({ rootModule: RootModule, logger: silentLogger, trustProxy });
+        const server = await app.listen(0, '127.0.0.1');
+        running = app;
+        const { port } = server.address() as AddressInfo;
+        const socket = await connect(`ws://127.0.0.1:${port}/private`, {
+          'x-forwarded-for': '6.6.6.6, 203.0.113.7',
+        });
+        socket.ws.close();
+        await app.close();
+        running = undefined;
+        return ips;
+      };
+
+      assert.deepEqual(await startWith(1), ['203.0.113.7']);
+      assert.deepEqual(await startWith(2), ['6.6.6.6']);
+      assert.deepEqual(await startWith(), ['127.0.0.1']);
     });
 
     it('valida al arrancar las opciones que devuelve la función de forRoot', async () => {
