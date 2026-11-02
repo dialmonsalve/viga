@@ -25,14 +25,14 @@ export class ImportsWorker implements OnModuleInit, OnModuleDestroy {
   private queue?: Worker;
 
   onModuleInit() {
-    this.queue = new Worker(`imports:${this.key}`, (job) => this.process(job), { connection });
+    this.queue = new Worker(`imports-${this.key}`, (job) => this.process(job), { connection });
   }
 
   async onModuleDestroy() {
     await this.queue?.close();
   }
 
-  private process(job: Job) {
+  private async process(job: Job) {
     return runInNewContext(() => this.imports.run(job.data));
   }
 }
@@ -156,7 +156,7 @@ async createTenant(data: NewTenant) {
 La clave llega al worker como argumento y solo acepta letras, números, `.`, `_`, `:` y `-`, así que un slug válido sirve tal cual. Dentro del worker, usa `WORKER_KEY` para elegir la cola y guardar la empresa en el contexto de cada trabajo:
 
 ```ts
-private process(job: Job) {
+private async process(job: Job) {
   return runInNewContext(async () => {
     CURRENT_TENANT.set(await this.tenants.findBySlug(this.key));
     return this.imports.run(job.data);
@@ -190,7 +190,7 @@ Cuando la app se detiene, el supervisor envía `SIGTERM` a cada worker, que cier
 
 Si un worker no termina en 30 segundos, el supervisor lo cierra a la fuerza con `SIGKILL` y lo registra. Cámbialo con `stopTimeoutMs`, según lo que tarde tu trabajo más largo, y mantenlo por debajo del tiempo que tu plataforma da para terminar. Si no, la plataforma detendrá el proceso antes.
 
-Si el proceso padre muere de golpe, sin ocasión de avisar, sus workers lo detectan y se cierran solos, así que no quedan procesos huérfanos.
+Si el proceso padre muere de golpe, sin ocasión de avisar, sus workers lo detectan y se cierran solos, así que no quedan procesos huérfanos. Si ese cierre se cuelga, el worker termina a la fuerza tras 30 segundos, o lo que indiques en `startWorker(Module, { orphanTimeoutMs })`.
 
 ## Variables de entorno y argumentos
 

@@ -32,4 +32,4 @@ class FixtureWorker implements OnModuleInit, OnModuleDestroy {
 @Module({ imports: [ConfigModule.forRoot({ schema: { '~standard': { version: 1, vendor: 'test', validate: () => ({ value: {} }) } } })], providers: [FixtureWorker] })
 class FixtureModule {}
 
-await startWorker(FixtureModule, { logger: silentLogger });
+await startWorker(FixtureModule, { logger: silentLogger, orphanTimeoutMs: process.argv[2] === 'stuck' ? 200 : 30_000 });

@@ -25,14 +25,14 @@ export class ImportsWorker implements OnModuleInit, OnModuleDestroy {
   private queue?: Worker;
 
   onModuleInit() {
-    this.queue = new Worker(`imports:${this.key}`, (job) => this.process(job), { connection });
+    this.queue = new Worker(`imports-${this.key}`, (job) => this.process(job), { connection });
   }
 
   async onModuleDestroy() {
     await this.queue?.close();
   }
 
-  private process(job: Job) {
+  private async process(job: Job) {
     return runInNewContext(() => this.imports.run(job.data));
   }
 }
@@ -156,7 +156,7 @@ async createTenant(data: NewTenant) {
 The key reaches the worker as an argument and only accepts letters, numbers, `.`, `_`, `:` and `-`, so a valid slug works as is. Inside the worker, use `WORKER_KEY` to choose the queue and store the company in each job's context:
 
 ```ts
-private process(job: Job) {
+private async process(job: Job) {
   return runInNewContext(async () => {
     CURRENT_TENANT.set(await this.tenants.findBySlug(this.key));
     return this.imports.run(job.data);
@@ -190,7 +190,7 @@ When the app stops, the supervisor sends `SIGTERM` to each worker, which shuts d
 
 If a worker doesn't finish within 30 seconds, the supervisor forces it to close with `SIGKILL` and logs it. Change it with `stopTimeoutMs`, according to how long your longest job takes, and keep it below the time your platform gives to finish. Otherwise, the platform stops the process first.
 
-If the parent process dies suddenly, with no chance to warn, its workers detect it and close on their own, so no orphan processes remain.
+If the parent process dies suddenly, with no chance to warn, its workers detect it and close on their own, so no orphan processes remain. If that shutdown hangs, the worker exits by force after 30 seconds, or whatever you set in `startWorker(Module, { orphanTimeoutMs })`.
 
 ## Environment variables and arguments
 

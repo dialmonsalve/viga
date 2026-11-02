@@ -51,7 +51,7 @@ First public release.
 
 ### `viga/workers`
 
-- `WORKER_KEY`, `WorkerModule.forKey()` and `startWorker()` so the same worker module runs inside the API, as a child process or on another server, without a queue library of its own. A worker closes in an orderly way on a signal and when its parent dies.
+- `WORKER_KEY`, `WorkerModule.forKey()` and `startWorker()` so the same worker module runs inside the API, as a child process or on another server, without a queue library of its own. A worker closes in an orderly way on a signal and when its parent dies, with `orphanTimeoutMs` as a limit in the second case.
 - `WorkersModule.forRoot()` and `WorkerSupervisor` fork one process per key, with `start`, `stop` and `list`, restart with backoff, a graceful stop that ends in `SIGKILL` after `stopTimeoutMs`, and a `maxWorkers` limit (8 by default).
 
 ### `viga/websocket`

@@ -303,6 +303,28 @@ describe('viga/workers', () => {
     await waitFor(() => readLog().includes('destroyed orphan'));
   });
 
+  it('si el padre muere y el cierre se cuelga, el worker termina igual', async () => {
+    const parent = fork(new URL('./fixtures/parent.ts', import.meta.url).pathname, [], {
+      execArgv,
+      env: { ...process.env, NODE_TEST_CONTEXT: undefined, VIGA_TEST_LOG: logPath, VIGA_TEST_KEY: 'stuck' },
+    });
+    await new Promise((resolve) => parent.once('message', resolve));
+    await waitFor(() => readLog().some((line) => line.startsWith('up stuck')));
+    const pid = Number(readLog().find((line) => line.startsWith('up stuck'))?.split(' ')[2]);
+
+    parent.kill('SIGKILL');
+
+    const isRunning = () => {
+      try {
+        process.kill(pid, 0);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    await waitFor(() => !isRunning());
+  });
+
   it('si el padre muere mientras el worker arranca, el worker también termina', async () => {
     const parent = fork(new URL('./fixtures/parent.ts', import.meta.url).pathname, [], {
       execArgv,
