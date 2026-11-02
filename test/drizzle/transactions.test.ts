@@ -77,6 +77,10 @@ class InventoryService {
 class InventoryModule {}
 
 describe('transacciones de viga/drizzle con PostgreSQL', { skip: !connection && 'define VIGA_TEST_DATABASE_URL' }, () => {
+  it('ping responde cuando la base de datos está disponible', async () => {
+    await database.ping();
+  });
+
   let app: App;
   let database: DatabaseService;
   let inventory: InventoryService;

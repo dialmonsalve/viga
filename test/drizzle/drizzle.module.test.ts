@@ -24,6 +24,16 @@ class BooksModule {}
 const connection = 'postgresql://viga:viga@127.0.0.1:1/viga';
 
 describe('DrizzleModule', () => {
+  it('ping lanza un error si la base de datos no responde', async () => {
+    @Module({ imports: [DrizzleModule.forRoot({ connection })] })
+    class AppModule {}
+
+    const app = createApp({ rootModule: AppModule, logger: silentLogger });
+    await app.init();
+    await assert.rejects(app.get(DatabaseService).ping());
+    await app.close();
+  });
+
   it('es global: los módulos usan DatabaseService sin importarlo', async () => {
     @Module({ imports: [DrizzleModule.forRoot({ connection }), BooksModule] })
     class AppModule {}

@@ -16,6 +16,7 @@ The core only covers what every server needs. Everything else lives in optional 
 | `viga/pagination` | `@Paginate` with typed results, relative links and limits | Nothing |
 | `viga/websocket` | Gateways, rooms and a public adapter interface, with restrictive defaults | `ws` |
 | `viga/testing` | `createTestingApp` to test the app with real HTTP requests and replaced providers | Nothing |
+| `viga/health` | `/health` and `/ready` routes with your own checks, without revealing details | Nothing |
 
 ## Acknowledgements
 
@@ -166,6 +167,10 @@ See [viga/websocket](https://vigajs.dev/en/optional/websocket/) in the documenta
 ## viga/testing
 
 See [viga/testing](https://vigajs.dev/en/optional/testing/) in the documentation.
+
+## viga/health
+
+See [viga/health](https://vigajs.dev/en/optional/health/) in the documentation.
 
 ## Development
 

@@ -29,6 +29,7 @@
     "pagination",
     "i18n",
     "drizzle",
+    "health-check",
     "nestjs-alternative"
   ],
   "exports": {
@@ -63,6 +64,10 @@
     "./testing": {
       "types": "./dist/testing/index.d.ts",
       "default": "./dist/testing/index.js"
+    },
+    "./health": {
+      "types": "./dist/health/index.d.ts",
+      "default": "./dist/health/index.js"
     },
     "./package.json": "./package.json"
   },

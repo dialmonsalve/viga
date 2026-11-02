@@ -55,6 +55,12 @@ export const diagnosticsEs = {
   'config.asyncSchema': 'El schema de configuración tiene que validar de forma síncrona',
   'pagination.invalidOptions':
     'defaultLimit, maxLimit, maxPage y maxOffset deben ser enteros positivos y defaultLimit no puede superar a maxLimit, se recibió defaultLimit={defaultLimit} maxLimit={maxLimit} maxPage={maxPage} maxOffset={maxOffset}',
+  'health.invalidOptions':
+    'timeoutMs debe ser un entero positivo y cacheMs un entero no negativo, se recibió timeoutMs={timeoutMs} cacheMs={cacheMs}',
+  'health.samePath': 'Las rutas de liveness y readiness no pueden compartir la ruta {path}',
+  'health.checkFailed': 'La comprobación de salud "{name}" falló',
+  'health.checkTimedOut': 'No terminó en {timeoutMs} ms',
+  'health.checkReturnedFalse': 'Devolvió false',
   'ws.noAuthenticate':
     'No hay una función authenticate configurada, así que los {count} gateways privados rechazarán cada handshake con 401; define authenticate en WebSocketModule.forRoot() o marca los gateways públicos con @Public()',
   'ws.publicGateways': 'Gateways públicos: {paths}',

@@ -55,6 +55,12 @@ export const DIAGNOSTICS = {
   'config.asyncSchema': 'The configuration schema must validate synchronously',
   'pagination.invalidOptions':
     'defaultLimit, maxLimit, maxPage and maxOffset must be positive integers and defaultLimit cannot exceed maxLimit, received defaultLimit={defaultLimit} maxLimit={maxLimit} maxPage={maxPage} maxOffset={maxOffset}',
+  'health.invalidOptions':
+    'timeoutMs must be a positive integer and cacheMs a non-negative integer, received timeoutMs={timeoutMs} cacheMs={cacheMs}',
+  'health.samePath': 'The liveness and readiness routes cannot share the path {path}',
+  'health.checkFailed': 'The health check "{name}" failed',
+  'health.checkTimedOut': 'It did not finish within {timeoutMs} ms',
+  'health.checkReturnedFalse': 'It returned false',
   'ws.noAuthenticate':
     'No authenticate function is configured, so the {count} private gateways will reject every handshake with 401; set authenticate in WebSocketModule.forRoot() or mark public gateways with @Public()',
   'ws.publicGateways': 'Public gateways: {paths}',
@@ -91,6 +97,7 @@ const PREFIXES: Record<string, string> = {
   drizzle: 'Drizzle',
   config: 'Config',
   pagination: 'Pagination',
+  health: 'Health',
   ws: 'WebSocket',
   testing: 'Testing',
 };

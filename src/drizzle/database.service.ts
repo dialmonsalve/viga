@@ -101,6 +101,10 @@ export class DatabaseService implements OnModuleDestroy {
     return current.transaction(run);
   }
 
+  async ping(): Promise<void> {
+    await this.pool.query('SELECT 1');
+  }
+
   async onModuleDestroy() {
     await this.pool.end();
   }

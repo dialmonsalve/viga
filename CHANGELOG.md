@@ -31,6 +31,11 @@ First public release.
 - `I18n` with nested catalogs, `Accept-Language` negotiation, `resolveLocale` (header name or function), and framework messages in English and Spanish.
 - `diagnosticsEs`, the Spanish dictionary for developer messages.
 
+### `viga/health`
+
+- `HealthModule.forRoot()` adds public `/health` and `/ready` routes (configurable, under `globalPrefix`). `/health` never runs the checks; `/ready` answers 503 if a check throws, returns `false` or exceeds `timeoutMs`. Responses carry no details, failures go to the logger, concurrent requests share one run and the result is cached for `cacheMs`.
+- `DatabaseService.ping()` in `viga/drizzle`.
+
 ### `viga/websocket`
 
 - `WebSocketModule.forRoot()` (an object or a function that runs in the container and can use `inject()`, also in `DrizzleModule.forRoot()`), `@Gateway`, `@OnMessage` with Standard Schema validation, `WsContext` and `WsServer`.
