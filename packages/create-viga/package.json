@@ -1,0 +1,25 @@
+{
+  "name": "create-viga",
+  "version": "0.1.0",
+  "description": "Create a new viga project",
+  "type": "module",
+  "license": "MIT",
+  "author": "Diego Monsalve",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dialmonsalve/viga.git",
+    "directory": "packages/create-viga"
+  },
+  "homepage": "https://vigajs.dev",
+  "keywords": ["viga", "create", "scaffold", "starter"],
+  "bin": {
+    "create-viga": "./index.js"
+  },
+  "files": ["index.js", "README.md"],
+  "engines": {
+    "node": ">=24.13.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

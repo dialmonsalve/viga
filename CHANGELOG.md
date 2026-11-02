@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 First public release.
 
+### `create-viga`
+
+- `pnpm create viga my-app`, also with npm, yarn and bun, creates a project with its scripts, TypeScript configuration and a first module. It has no dependencies and runs no installs.
+
 ### Core (`viga`)
 
 - Modules with `imports`, `exports`, re-exports and global modules (which must be imported by the root module).
@@ -19,6 +23,7 @@ First public release.
 - Rate limiting with `rateLimit()` and `@RateLimit()`, with a pluggable store. The default key groups IPv6 clients by /56 network and IPv4-mapped addresses by their IPv4, through the exported `ipKey()`. The exported `CLIENT_IP` token resolves the client IP with the app's `trustProxy` from a raw Node.js request, such as a WebSocket handshake. The in-memory store is bounded (`maxKeys`), hashes long keys, and when full evicts only keys seen once, so a flood of new keys can't reset a counter under attack; with no room left it fails closed.
 - HTTP exceptions with stable codes, `resolveMessage` and developer diagnostics that can be translated with `setDiagnostics`. `HttpException` covers any other status; when its message is free text, the response `code` is `errors.badRequest` for 4xx and `errors.internal` for 5xx. A failure after the response started is logged once and closes the connection.
 - `listen()` defaults to port 3000.
+- `viga/tsconfig.json`, a base TypeScript configuration to extend, so a project only needs `extends` and `include`.
 - `OnServerListen`, `OnServerClose` and `OnDrain` lifecycle hooks. `OnDrain` runs once in-flight requests have finished and before any `onModuleDestroy`.
 - `createContextKey(name, { detached: true })` for values that must not reach `viga/events` listeners, such as a transaction.
 - Guards and interceptors accept a context type, so they can be used outside HTTP.

@@ -63,6 +63,8 @@ Solo si usas `viga/upload`:
 pnpm add multer file-type
 ```
 
+O crea un proyecto con `pnpm create viga mi-app`.
+
 ## Ejemplo mínimo
 
 ```ts

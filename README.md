@@ -63,6 +63,8 @@ Only if you use `viga/upload`:
 pnpm add multer file-type
 ```
 
+Or create a project with `pnpm create viga my-app`.
+
 ## Minimal example
 
 ```ts

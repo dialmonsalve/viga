@@ -85,11 +85,13 @@
       "types": "./dist/workers/index.d.ts",
       "default": "./dist/workers/index.js"
     },
+    "./tsconfig.json": "./tsconfig.base.json",
     "./package.json": "./package.json"
   },
   "files": [
     "dist",
     "src",
+    "tsconfig.base.json",
     "README.md",
     "README.es.md",
     "CHANGELOG.md"

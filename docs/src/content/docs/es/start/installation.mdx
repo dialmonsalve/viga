@@ -1,6 +1,6 @@
 ---
 title: Instalación
-description: Requisitos de Node.js y TypeScript, y cómo instalar viga con pnpm, npm o yarn.
+description: Requisitos de Node.js y TypeScript, y cómo crear un proyecto de viga con un comando o instalarlo a mano.
 sidebar:
   order: 2
 ---
@@ -12,6 +12,39 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 - Node.js 24.13 o superior.
 - TypeScript, con los decoradores estándar de JavaScript.
 - Express 5, que instalas junto a viga.
+
+## Crea un proyecto
+
+La forma más rápida es crear el proyecto con un comando:
+
+<Tabs syncKey="pkg">
+  <TabItem label="pnpm">
+    ```sh
+    pnpm create viga mi-app
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```sh
+    npm create viga@latest mi-app
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```sh
+    yarn create viga mi-app
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```sh
+    bun create viga mi-app
+    ```
+  </TabItem>
+</Tabs>
+
+Crea la carpeta con `package.json`, `tsconfig.json`, los scripts y un primer módulo. No instala nada ni ejecuta código de terceros: al terminar, te indica los comandos para instalar y arrancar.
+
+Usa Zod para validar. Para cambiarlo, añade `--schema valibot` o `--schema none`.
+
+Si prefieres hacerlo a mano o añadir viga a un proyecto existente, sigue el resto de esta página.
 
 ## Instala viga
 
@@ -44,6 +77,15 @@ viga usa Express por debajo, así que lo instalas tú junto al framework. Como d
   </TabItem>
 </Tabs>
 
+:::note[pnpm]
+`tsx` depende de esbuild, que ejecuta un script al instalarse, y pnpm no lo permite sin tu aprobación. Si la instalación se detiene por eso, autorízalo en `pnpm-workspace.yaml`:
+
+```yaml title="pnpm-workspace.yaml"
+allowBuilds:
+  esbuild: true
+```
+:::
+
 :::note[Yarn 2 o superior]
 Por defecto, Yarn 2 y las versiones siguientes instalan los paquetes en modo Plug'n'Play, sin carpeta `node_modules`, y TypeScript 7 no los encuentra así. Crea un archivo `.yarnrc.yml` en la raíz del proyecto con esta línea antes de instalar:
 
@@ -54,27 +96,19 @@ nodeLinker: node-modules
 
 ## Configura TypeScript
 
-Crea un `tsconfig.json` en la raíz del proyecto:
+Crea un `tsconfig.json` en la raíz del proyecto, que hereda la configuración de viga:
 
 ```json title="tsconfig.json"
 {
-  "compilerOptions": {
-    "target": "ES2024",
-    "lib": ["ES2024", "ESNext.Decorators"],
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "rewriteRelativeImportExtensions": true,
-    "strict": true,
-    "skipLibCheck": true,
-    "outDir": "dist",
-    "rootDir": "src"
-  },
+  "extends": "viga/tsconfig.json",
   "include": ["src"]
 }
 ```
 
-- `ESNext.Decorators` añade los tipos de los decoradores estándar.
-- Con `rewriteRelativeImportExtensions`, los imports entre tus propios archivos llevan su extensión real, como `import { BooksService } from './books.service.ts'`, y `tsc` la cambia a `.js` al compilar. Los paquetes se importan por su nombre, sin extensión: `import { createApp } from 'viga'`.
+Esa configuración usa módulos ES y los decoradores estándar, compila `src` a `dist` y activa el modo estricto. Puedes añadir o cambiar lo que quieras en tu propio `compilerOptions`.
+
+- Los imports entre tus propios archivos llevan su extensión real, como `import { BooksService } from './books.service.ts'`, y `tsc` la cambia a `.js` al compilar.
+- Necesita `@types/node`, que ya instalaste.
 
 :::caution
 No actives `experimentalDecorators`. Con esa opción, TypeScript usa los decoradores antiguos, que funcionan de otra manera, y los de viga dejan de funcionar.
