@@ -10,6 +10,7 @@ First public release.
 
 - Modules with `imports`, `exports`, re-exports and global modules (which must be imported by the root module).
 - Dependency injection with `inject()` in class fields: class, `useClass`, `useValue` and `useFactory` providers, `InjectionToken`, and detection of circular dependencies and imports.
+- Inside a controller, routes are sorted by specificity, so `/export` wins over `/:id` whatever the declaration order. Startup fails on routes that match the same requests, and warns when a route in another controller shadows a later one.
 - Controllers with standard TC39 decorators, `@HttpCode`, guards, interceptors and `@Public`. Every guard, including method guards and `@RateLimit`, runs before any interceptor, in HTTP and WebSocket, so a caching interceptor can't skip them. `@Public` isn't inherited: subclasses and overridden methods are private until they declare it again.
 - Private routes by default through `app.useAuthGuard()`. Startup warns when private routes have no auth guard and lists the public routes at debug level (also for WebSocket gateways).
 - Lifecycle hooks `OnModuleInit` and `OnModuleDestroy`, `close()` that only closes providers that finished starting, and `enableShutdownHooks()`, which exits with the signal's standard code (also as PID 1 in a container).
@@ -24,7 +25,7 @@ First public release.
 
 ### `viga/validation`
 
-- `@Validate` for `body`, `query` and `params` with any Standard Schema library, typed against the handler's context (which may extend `HttpContext`).
+- `@Validate` for `body`, `query` and `params` with any Standard Schema library, typed against the handler's context (which may extend `HttpContext`). Each error's `code` comes from the library's `code` or `type` field, so it works with Zod, Valibot and ArkType.
 - `ValidationModule.forRoot({ formatIssue })` to customize or translate validation messages.
 
 ### `viga/i18n`

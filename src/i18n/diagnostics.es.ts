@@ -14,6 +14,10 @@ export const diagnosticsEs = {
     '{name} es global y se importa desde {importer}, pero no desde el módulo raíz; muévelo a los imports de {root}',
   'router.notController': '{name} debe estar decorada con @Controller()',
   'router.notMethod': '{controller}.{method} no es un método',
+  'router.duplicateRoute':
+    'Las rutas {first} y {second} coinciden con las mismas peticiones; cambia o elimina una de ellas',
+  'router.shadowedRoute':
+    'La ruta {later} no recibe las peticiones con las que también coincide {earlier}, porque su controlador se registra después; muévela al mismo controlador, donde viga ordena las rutas por especificidad',
   'interceptor.nextCalledTwice': 'next() solo puede llamarse una vez',
   'rateLimit.invalidOptions':
     'max y windowMs deben ser enteros positivos, se recibió max={max} windowMs={windowMs}',

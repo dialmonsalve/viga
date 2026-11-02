@@ -40,9 +40,13 @@ export class BooksController {
 - If the app has `globalPrefix: '/api'`, every route starts with `/api`: `GET /api/books/:id`.
 - `@Public()` on the class opens all its routes. It is explained at the end of the page.
 
-:::caution[Route order matters]
-viga registers routes in the order they appear in the class, and a request goes to the first one that matches. If `@Get('/:id')` comes before `@Get('/export')`, the request `GET /books/export` reaches `findOne` with `params.id` set to `'export'`. Declare fixed routes before the ones with parameters.
-:::
+### Route order
+
+viga sorts each controller's routes from most to least specific, however you declare them: `@Get('/export')` wins over `@Get('/:id')` even if it's written after it. Fixed segments go first, then parameters and finally wildcards.
+
+Two routes that match the same requests, like `/:id` and `/:slug`, stop the app from starting, because viga can't know which one you mean.
+
+The order only applies inside a controller. If another controller registered later has a route covered by an earlier one, viga shows a warning at startup. Move those routes to the same controller.
 
 The controller is registered in the `controllers` of its module. viga creates it only once at startup, and it can ask for providers with `inject()` like any other class. Unlike a provider, a controller is neither exported nor injected into other classes.
 

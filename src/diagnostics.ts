@@ -14,6 +14,10 @@ export const DIAGNOSTICS = {
     '{name} is global and is imported from {importer}, but not from the root module; move it to the imports of {root}',
   'router.notController': '{name} must be decorated with @Controller()',
   'router.notMethod': '{controller}.{method} is not a method',
+  'router.duplicateRoute':
+    'The routes {first} and {second} match the same requests; rename or remove one of them',
+  'router.shadowedRoute':
+    'The route {later} never receives requests that {earlier} also matches, because its controller is registered later; move it to the same controller, where viga sorts routes by specificity',
   'interceptor.nextCalledTwice': 'next() can only be called once',
   'rateLimit.invalidOptions':
     'max and windowMs must be positive integers, received max={max} windowMs={windowMs}',

@@ -180,7 +180,7 @@ viga validates every part you declared and responds 400 with all the errors toge
 Each error has:
 
 - `path`: the field that failed. In nested objects, separated by dots, like `author.name`.
-- `code`: the library's code, if it provides one. Useful for the frontend to show its own message.
+- `code`: the library's code, if it provides one, like `too_small` in Zod or `min_length` in Valibot. Useful for the frontend to show its own message.
 - `message`: the library's message.
 
 The rest of the body follows the format of every [exception](../../core/exceptions/).

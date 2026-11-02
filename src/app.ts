@@ -25,6 +25,7 @@ import { csrfProtection, type CsrfOptions } from './http/csrf.ts';
 import type { MessageResolver } from './http/messages.ts';
 import {
   CONCEAL_ROUTES,
+  checkRoutes,
   mountController,
   normalizePath,
   type MountedRoute,
@@ -275,6 +276,7 @@ export class App {
     const routes = controllers.flatMap(({ controller, injector }) =>
       mountController(apiRouter, controller, injector, pipeline)
     );
+    checkRoutes(routes, this.logger);
     this.reportRoutes(routes);
 
     this.express.use(contextMiddleware);

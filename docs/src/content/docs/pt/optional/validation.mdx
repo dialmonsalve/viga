@@ -180,7 +180,7 @@ O viga valida todas as partes que você declarou e responde 400 com todos os err
 Cada erro tem:
 
 - `path`: o campo que falhou. Em objetos aninhados, separado por pontos, como `author.name`.
-- `code`: o código da biblioteca, se ela fornecer. Útil para o frontend mostrar sua própria mensagem.
+- `code`: o código da biblioteca, se ela fornecer, como `too_small` no Zod ou `min_length` no Valibot. Útil para o frontend mostrar sua própria mensagem.
 - `message`: a mensagem da biblioteca.
 
 O resto do corpo segue o formato de todas as [exceções](../../core/exceptions/).

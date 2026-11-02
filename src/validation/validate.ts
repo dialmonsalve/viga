@@ -22,8 +22,8 @@ function pathOf(issue: StandardSchemaV1.Issue) {
 }
 
 function codeOf(issue: StandardSchemaV1.Issue) {
-  const { code } = issue as { code?: unknown };
-  return typeof code === 'string' ? code : undefined;
+  if ('code' in issue && typeof issue.code === 'string') return issue.code;
+  return 'type' in issue && typeof issue.type === 'string' ? issue.type : undefined;
 }
 
 export function toValidationIssue(

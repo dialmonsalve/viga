@@ -180,7 +180,7 @@ viga valida todas las partes que declaraste y responde 400 con todos los errores
 Cada error tiene:
 
 - `path`: el campo que falló. En objetos anidados, separado por puntos, como `author.name`.
-- `code`: el código de la librería, si lo da. Útil para que el frontend muestre su propio mensaje.
+- `code`: el código de la librería, si lo da, como `too_small` en Zod o `min_length` en Valibot. Útil para que el frontend muestre su propio mensaje.
 - `message`: el mensaje de la librería.
 
 El resto del cuerpo sigue el formato de todas las [excepciones](../../core/exceptions/).

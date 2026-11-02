@@ -40,9 +40,13 @@ export class BooksController {
 - Si la app tiene `globalPrefix: '/api'`, todas las rutas empiezan por `/api`: `GET /api/books/:id`.
 - `@Public()` sobre la clase abre todas sus rutas. Lo explicamos al final de la página.
 
-:::caution[El orden de las rutas importa]
-viga registra las rutas en el orden en que aparecen en la clase, y una petición va a la primera que coincide. Si `@Get('/:id')` está antes que `@Get('/export')`, la petición `GET /books/export` llega a `findOne` con `params.id` igual a `'export'`. Declara las rutas fijas antes que las que tienen parámetros.
-:::
+### El orden de las rutas
+
+viga ordena las rutas de cada controlador de más a menos específica, sin importar cómo las declares: `@Get('/export')` gana a `@Get('/:id')` aunque esté escrita después. Primero van los segmentos fijos, luego los parámetros y al final los comodines.
+
+Dos rutas que coinciden con las mismas peticiones, como `/:id` y `/:slug`, impiden arrancar la app, porque viga no puede saber a cuál te refieres.
+
+El orden solo se aplica dentro de un controlador. Si otro controlador registrado después tiene una ruta tapada por una anterior, viga muestra un aviso al arrancar. Mueve esas rutas al mismo controlador.
 
 El controlador se registra en `controllers` de su módulo. viga lo crea una sola vez al arrancar, y puede pedir providers con `inject()` igual que cualquier otra clase. A diferencia de un provider, un controlador no se exporta ni se inyecta en otras clases.
 
