@@ -112,6 +112,49 @@ update({ params, body }: UpdateBookContext) {
 }
 ```
 
+## Where to put the schemas
+
+The examples in this documentation define the schema next to the route so they can be read at a glance. In a real project, it's better to put them in their own file:
+
+```ts title="src/books/books.schemas.ts"
+import { z } from 'zod';
+
+export const CreateBook = z.object({
+  title: z.string().min(1),
+  year: z.number().int(),
+});
+
+export type CreateBook = z.infer<typeof CreateBook>;
+
+export const UpdateBook = CreateBook.partial();
+```
+
+```ts title="src/books/books.controller.ts"
+import { CreateBook } from './books.schemas.ts';
+
+@Post()
+@Validate({ body: CreateBook })
+create({ body }: HttpContext<{ body: typeof CreateBook }>) {
+  return this.books.create(body);
+}
+```
+
+```ts title="src/books/books.service.ts"
+import type { CreateBook } from './books.schemas.ts';
+
+create(data: CreateBook) { ... }
+```
+
+Schemas play the role of DTOs: they describe the incoming data and validate it at the same time, with no need for a separate class. Keeping them in their own file brings three advantages:
+
+- **The service can use the type** without importing anything from the controller.
+- **The controller stays clean:** just routes, no validation rules.
+- **They can be reused**, for example with `.partial()` for a `PATCH`, or shared with the frontend.
+
+The constant and the type can have the same name, because TypeScript treats them separately: `CreateBook` is a value in `@Validate` and a type in the service.
+
+viga doesn't impose any structure: a schema is a regular value and can live wherever you prefer.
+
 ## When the data isn't valid
 
 viga validates every part you declared and responds 400 with all the errors together, grouped by part:

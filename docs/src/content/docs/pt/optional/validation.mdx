@@ -112,6 +112,49 @@ update({ params, body }: UpdateBookContext) {
 }
 ```
 
+## Onde colocar os schemas
+
+Os exemplos desta documentação definem o schema junto à rota para que sejam lidos de relance. Em um projeto real, convém colocá-los em um arquivo próprio:
+
+```ts title="src/books/books.schemas.ts"
+import { z } from 'zod';
+
+export const CreateBook = z.object({
+  title: z.string().min(1),
+  year: z.number().int(),
+});
+
+export type CreateBook = z.infer<typeof CreateBook>;
+
+export const UpdateBook = CreateBook.partial();
+```
+
+```ts title="src/books/books.controller.ts"
+import { CreateBook } from './books.schemas.ts';
+
+@Post()
+@Validate({ body: CreateBook })
+create({ body }: HttpContext<{ body: typeof CreateBook }>) {
+  return this.books.create(body);
+}
+```
+
+```ts title="src/books/books.service.ts"
+import type { CreateBook } from './books.schemas.ts';
+
+create(data: CreateBook) { ... }
+```
+
+Os schemas cumprem o papel dos DTOs: descrevem os dados que entram e validam ao mesmo tempo, sem precisar de uma classe à parte. Tê-los em um arquivo próprio traz três vantagens:
+
+- **O serviço pode usar o tipo** sem importar nada do controller.
+- **O controller fica limpo:** só rotas, sem regras de validação.
+- **Podem ser reutilizados**, por exemplo com `.partial()` para um `PATCH`, ou compartilhados com o frontend.
+
+A constante e o tipo podem ter o mesmo nome, porque o TypeScript os trata separadamente: `CreateBook` é um valor em `@Validate` e um tipo no serviço.
+
+O viga não impõe nenhuma estrutura: um schema é um valor normal e pode ficar onde você preferir.
+
 ## Quando os dados não são válidos
 
 O viga valida todas as partes que você declarou e responde 400 com todos os erros juntos, agrupados por parte:

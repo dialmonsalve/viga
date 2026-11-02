@@ -112,6 +112,49 @@ update({ params, body }: UpdateBookContext) {
 }
 ```
 
+## Dónde poner los esquemas
+
+Los ejemplos de esta documentación definen el esquema junto a la ruta para que se lean de un vistazo. En un proyecto real, conviene ponerlos en su propio archivo:
+
+```ts title="src/books/books.schemas.ts"
+import { z } from 'zod';
+
+export const CreateBook = z.object({
+  title: z.string().min(1),
+  year: z.number().int(),
+});
+
+export type CreateBook = z.infer<typeof CreateBook>;
+
+export const UpdateBook = CreateBook.partial();
+```
+
+```ts title="src/books/books.controller.ts"
+import { CreateBook } from './books.schemas.ts';
+
+@Post()
+@Validate({ body: CreateBook })
+create({ body }: HttpContext<{ body: typeof CreateBook }>) {
+  return this.books.create(body);
+}
+```
+
+```ts title="src/books/books.service.ts"
+import type { CreateBook } from './books.schemas.ts';
+
+create(data: CreateBook) { ... }
+```
+
+Los esquemas cumplen el papel de los DTO: describen los datos que entran y validan al mismo tiempo, sin necesidad de una clase aparte. Tenerlos en su propio archivo trae tres ventajas:
+
+- **El servicio puede usar el tipo** sin importar nada del controlador.
+- **El controlador queda limpio:** solo rutas, sin reglas de validación.
+- **Se pueden reutilizar**, por ejemplo con `.partial()` para un `PATCH`, o compartirlos con el frontend.
+
+La constante y el tipo pueden llamarse igual, porque TypeScript los trata por separado: `CreateBook` es un valor en `@Validate` y un tipo en el servicio.
+
+viga no impone ninguna estructura: un esquema es un valor normal y puede vivir donde prefieras.
+
 ## Cuando los datos no son válidos
 
 viga valida todas las partes que declaraste y responde 400 con todos los errores juntos, agrupados por parte:
