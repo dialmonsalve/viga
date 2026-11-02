@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { Controller, Get, Injectable, Module, createApp, inject, silentLogger } from '../../src/index.ts';
+import { Controller, Get, InjectionToken, Injectable, Module, createApp, inject, silentLogger } from '../../src/index.ts';
 import { DRIZZLE_OPTIONS, DatabaseService, DrizzleModule } from '../../src/drizzle/index.ts';
 
 @Injectable()
@@ -35,6 +35,29 @@ describe('DrizzleModule', () => {
     assert.ok(database.db);
     assert.equal(database.pool.options.connectionString, connection);
     assert.equal(app.get(DRIZZLE_OPTIONS).connection, connection);
+
+    await app.close();
+  });
+
+  it('acepta una función que se ejecuta en el contenedor y puede usar inject()', async () => {
+    const SETTINGS = new InjectionToken<{ url: string }>('SETTINGS');
+
+    @Module({
+      global: true,
+      providers: [{ provide: SETTINGS, useValue: { url: connection } }],
+      exports: [SETTINGS],
+    })
+    class SettingsModule {}
+
+    @Module({
+      imports: [DrizzleModule.forRoot(() => ({ connection: inject(SETTINGS).url })), SettingsModule],
+    })
+    class AppModule {}
+
+    const app = createApp({ rootModule: AppModule, logger: silentLogger });
+    await app.init();
+
+    assert.equal(app.get(DatabaseService).pool.options.connectionString, connection);
 
     await app.close();
   });

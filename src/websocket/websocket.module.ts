@@ -3,10 +3,15 @@ import { WEBSOCKET_OPTIONS, resolveOptions, type WebSocketOptions } from './opti
 import { WsServer } from './server.ts';
 
 export class WebSocketModule {
-  static forRoot(options: WebSocketOptions = {}) {
+  static forRoot(options: WebSocketOptions | (() => WebSocketOptions) = {}) {
+    const provider =
+      typeof options === 'function'
+        ? { provide: WEBSOCKET_OPTIONS, useFactory: () => resolveOptions(options()) }
+        : { provide: WEBSOCKET_OPTIONS, useValue: resolveOptions(options) };
+
     @Module({
       global: true,
-      providers: [{ provide: WEBSOCKET_OPTIONS, useValue: resolveOptions(options) }, WsServer],
+      providers: [provider, WsServer],
       exports: [WsServer],
     })
     class WebSocketRootModule {}

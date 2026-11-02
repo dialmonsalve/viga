@@ -72,8 +72,8 @@ El bloque `declare module` hace que `database.db` conozca tus tablas, igual que 
 `DrizzleModule.forRoot` es un módulo global y va en el módulo raíz:
 
 ```ts title="src/app.module.ts"
-import { Module } from 'viga';
-import { ConfigModule } from 'viga/config';
+import { Module, inject } from 'viga';
+import { CONFIG, ConfigModule } from 'viga/config';
 import { DrizzleModule } from 'viga/drizzle';
 import { BooksModule } from './books/books.module.ts';
 import { Env } from './config.ts';
@@ -82,14 +82,16 @@ import * as schema from './database/schema.ts';
 @Module({
   imports: [
     ConfigModule.forRoot({ schema: Env }),
-    DrizzleModule.forRoot({ connection: { connectionString: process.env.DATABASE_URL }, schema }),
+    DrizzleModule.forRoot(() => ({ connection: inject(CONFIG).DATABASE_URL, schema })),
     BooksModule,
   ],
 })
 export class AppModule {}
 ```
 
-Las opciones de `forRoot` se leen cuando se define el módulo, antes de que la app arranque, así que la URL se toma directamente de `process.env`. Si validas `DATABASE_URL` con `viga/config` y pones `ConfigModule` antes en los `imports`, una URL que falta o no es válida impide arrancar la app antes de que se use la base de datos.
+`forRoot` recibe una función que se ejecuta dentro del contenedor al arrancar la app, así que puede pedir `CONFIG` con `inject()`: la URL sale de la configuración ya validada con [`viga/config`](../config/), y una URL que falta o no es válida impide arrancar la app. La función solo ve los providers de los módulos globales, como `CONFIG`.
+
+Si no usas `viga/config`, `forRoot` también acepta un objeto con las opciones directamente.
 
 `connection` acepta una URL o la configuración completa del `Pool` de `pg`, con `host`, `user`, `max` y el resto de opciones.
 
@@ -215,10 +217,10 @@ El pool trae límites por defecto, para que una consulta lenta o una transacció
 Cualquiera de ellas se cambia en `connection`:
 
 ```ts
-DrizzleModule.forRoot({
-  connection: { connectionString: process.env.DATABASE_URL, statement_timeout: 120_000 },
+DrizzleModule.forRoot(() => ({
+  connection: { connectionString: inject(CONFIG).DATABASE_URL, statement_timeout: 120_000 },
   schema,
-});
+}));
 ```
 
 ### TLS

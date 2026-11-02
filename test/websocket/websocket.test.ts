@@ -8,6 +8,7 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  InjectionToken,
   Module,
   Public,
   RateLimit as HttpRateLimit,
@@ -1388,6 +1389,57 @@ describe('viga/websocket', () => {
 
       assert.deepEqual(await socket.request('echo', { extra: true }), { event: 'echo', data: { extra: true } });
       socket.ws.close();
+    });
+
+    it('forRoot acepta una función que se ejecuta en el contenedor y puede usar inject()', async () => {
+      const SESSION_COOKIE = new InjectionToken<string>('SESSION_COOKIE');
+
+      @Module({
+        global: true,
+        providers: [{ provide: SESSION_COOKIE, useValue: 'sid=ok' }],
+        exports: [SESSION_COOKIE],
+      })
+      class SettingsModule {}
+
+      @Gateway('/private')
+      class PrivateGateway {
+        @OnMessage('ping')
+        ping() {
+          return 'pong';
+        }
+      }
+
+      @Module({
+        imports: [
+          WebSocketModule.forRoot(() => {
+            const cookie = inject(SESSION_COOKIE);
+            return { authenticate: (req) => (req.headers.cookie === cookie ? {} : false) };
+          }),
+          SettingsModule,
+        ],
+        providers: [PrivateGateway],
+      })
+      class RootModule {}
+
+      const app = createApp({ rootModule: RootModule, logger: silentLogger });
+      const server = await app.listen(0, '127.0.0.1');
+      running = app;
+      const { port } = server.address() as AddressInfo;
+      const url = `ws://127.0.0.1:${port}/private`;
+
+      assert.equal(await handshakeStatus(url), 401);
+      const socket = await connect(url, { cookie: 'sid=ok' });
+      assert.deepEqual(await socket.request('ping'), { event: 'ping', data: 'pong' });
+      socket.ws.close();
+    });
+
+    it('valida al arrancar las opciones que devuelve la función de forRoot', async () => {
+      @Module({ imports: [WebSocketModule.forRoot(() => ({ maxConnections: 0 }))] })
+      class RootModule {}
+
+      const app = createApp({ rootModule: RootModule, logger: silentLogger });
+      await assert.rejects(app.init(), /maxConnections must be a positive integer/);
+      await app.close();
     });
 
     it('no arranca si dos gateways usan la misma ruta', async () => {

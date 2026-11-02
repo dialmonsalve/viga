@@ -212,6 +212,19 @@ Like HTTP routes, gateways are private by default: without `authenticate`, only 
 The browser's `WebSocket` can't send custom headers, so `Authorization` doesn't work. The handshake only carries the URL, cookies, `Origin` and `Accept-Language`. Authenticate with the session cookie or, if you can't, with a short-lived token in the URL, keeping in mind that URLs often end up in logs.
 :::
 
+### Use the configuration in `forRoot`
+
+`WebSocketModule.forRoot` also accepts a function, which runs inside the container when the app starts. That way it can ask for values with `inject()`, like a secret from [`viga/config`](../config/):
+
+```ts title="src/app.module.ts"
+WebSocketModule.forRoot(() => {
+  const key = new TextEncoder().encode(inject(CONFIG).JWT_SECRET);
+  return { authenticate: (req) => verifySession(req, key) };
+}),
+```
+
+The function only sees the providers of global modules, like `CONFIG`.
+
 ### Sessions that expire
 
 Since authentication only happens when connecting, an open connection would keep working even after the session has expired. To prevent it, return `expiresAt` from `authenticate`, as a date or in milliseconds:

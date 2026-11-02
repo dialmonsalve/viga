@@ -33,7 +33,7 @@ First public release.
 
 ### `viga/websocket`
 
-- `WebSocketModule.forRoot()`, `@Gateway`, `@OnMessage` with Standard Schema validation, `WsContext` and `WsServer`.
+- `WebSocketModule.forRoot()` (an object or a function that runs in the container and can use `inject()`, also in `DrizzleModule.forRoot()`), `@Gateway`, `@OnMessage` with Standard Schema validation, `WsContext` and `WsServer`.
 - Rooms with `join`, `leave`, `to(room).send()` and `broadcast()`, limited per connection by `maxRoomsPerClient`.
 - Per-connection language with `i18n` and `resolveLocale`, applied to every message and to error messages.
 - `RateLimit` per event or per gateway, keyed per connection by default or by any value of the context, sharing the bounded in-memory store with HTTP.
