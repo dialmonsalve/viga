@@ -39,7 +39,7 @@ class BooksService {
 
 ### Um núcleo pequeno e módulos opcionais
 
-O núcleo traz só o que toda API precisa: módulos, injeção de dependências, controllers, guards, interceptors, exceções HTTP e ciclo de vida. O resto fica em subcaminhos opcionais, como `viga/validation`, `viga/config`, `viga/i18n`, `viga/pagination`, `viga/drizzle`, `viga/websocket` e `viga/testing`. Se você não os importa, nada extra é instalado.
+O núcleo traz só o que toda API precisa: módulos, injeção de dependências, controllers, guards, interceptors, exceções HTTP e ciclo de vida. O resto fica em subcaminhos opcionais, como `viga/validation`, `viga/config`, `viga/i18n`, `viga/pagination`, `viga/drizzle`, `viga/websocket`, `viga/testing`, `viga/health`, `viga/crypto`, `viga/events`, `viga/workers` e `viga/upload`. Se você não os importa, nada extra é instalado.
 
 ### Fechado por padrão
 
