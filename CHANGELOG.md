@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/). While the version is `0.x`, minor releases may include breaking changes.
 
+## [0.1.2] - 2026-11-02
+
+### Changed
+
+- Back to a single package: every module is included and needs no extra install. The docs, `viga generate` and `@vigajs/create` now use the alias `viga@npm:@vigajs/core`, so code imports from `viga` and `viga/validation`. The separate `@vigajs/<module>` packages from 0.1.1 are deprecated.
+
 ## [0.1.1] - 2026-11-02
 
 ### Added

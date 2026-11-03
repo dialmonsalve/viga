@@ -1,5 +1,5 @@
 ---
-title: '@vigajs/validation'
+title: viga/validation
 description: Validate each route's body, parameters and query with Zod, Valibot or ArkType, and get the data already typed.
 sidebar:
   order: 2
@@ -7,33 +7,33 @@ sidebar:
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Install `@vigajs/validation` and the schema library you prefer. If it doesn't, it responds 400 and the method doesn't run. If it does, the method receives the data already converted and with its TypeScript type.
+`viga/validation` checks that each request's data has the shape you expect before it reaches the controller method. If it doesn't, it responds 400 and the method doesn't run. If it does, the method receives the data already converted and with its TypeScript type.
 
 It ships no validation library of its own. It works with any library that implements [Standard Schema](https://standardschema.dev), like Zod, Valibot or ArkType. You pick which one to install.
 
 ## Installation
 
-`@vigajs/validation` comes with viga; just install the schema library you prefer. The examples on this page use Zod:
+`viga/validation` comes with viga; just install the schema library you prefer. The examples on this page use Zod:
 
 <Tabs syncKey="pkg">
   <TabItem label="pnpm">
     ```sh
-    pnpm add @vigajs/validation zod
+    pnpm add zod
     ```
   </TabItem>
   <TabItem label="npm">
     ```sh
-    npm install @vigajs/validation zod
+    npm install zod
     ```
   </TabItem>
   <TabItem label="yarn">
     ```sh
-    yarn add @vigajs/validation zod
+    yarn add zod
     ```
   </TabItem>
   <TabItem label="bun">
     ```sh
-    bun add @vigajs/validation zod
+    bun add zod
     ```
   </TabItem>
 </Tabs>
@@ -43,8 +43,8 @@ It ships no validation library of its own. It works with any library that implem
 Define a schema and pass it to `@Validate`, saying which part of the request it validates:
 
 ```ts title="src/books/books.controller.ts"
-import { Controller, Post, type HttpContext } from '@vigajs/core';
-import { Validate } from '@vigajs/validation';
+import { Controller, Post, type HttpContext } from 'viga';
+import { Validate } from 'viga/validation';
 import { z } from 'zod';
 
 const CreateBook = z.object({
@@ -212,8 +212,8 @@ This behavior is called `requireValidation` and is on by default. You can turn i
 `ValidationModule.forRoot` accepts `formatIssue`, a function that receives each original error from the library and returns the message. If it returns `undefined`, the library's message is used:
 
 ```ts title="src/app.module.ts"
-import { Module } from '@vigajs/core';
-import { ValidationModule } from '@vigajs/validation';
+import { Module } from 'viga';
+import { ValidationModule } from 'viga/validation';
 
 @Module({
   imports: [
@@ -226,7 +226,7 @@ import { ValidationModule } from '@vigajs/validation';
 export class AppModule {}
 ```
 
-`formatIssue` receives the library's full error, so it can read any of its fields, like minimums or maximums, to build the message. The Standard Schema type only guarantees `message` and `path`. To read a library's own field, like Zod's `code`, first check that it exists with `in`: TypeScript gives it the type `unknown` and makes you check its value before using it. It's the place to translate validation messages, together with `@vigajs/i18n`.
+`formatIssue` receives the library's full error, so it can read any of its fields, like minimums or maximums, to build the message. The Standard Schema type only guarantees `message` and `path`. To read a library's own field, like Zod's `code`, first check that it exists with `in`: TypeScript gives it the type `unknown` and makes you check its value before using it. It's the place to translate validation messages, together with `viga/i18n`.
 
 `ValidationModule` is a global module, so it goes in the root module's `imports`. It's not required: without it, `@Validate` works with the library's messages.
 

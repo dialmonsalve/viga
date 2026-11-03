@@ -28,7 +28,7 @@ Each feature lives in its own folder with its module. `app.module.ts` brings the
 A service holds the app's logic. Here it returns a fixed list of books. In a real app it would query the database.
 
 ```ts title="src/books/books.service.ts"
-import { Injectable } from '@vigajs/core';
+import { Injectable } from 'viga';
 
 export interface Book {
   id: number;
@@ -55,7 +55,7 @@ export class BooksService {
 A controller receives HTTP requests and responds. It holds no logic: it asks the service for it.
 
 ```ts title="src/books/books.controller.ts"
-import { Controller, Get, Public, inject } from '@vigajs/core';
+import { Controller, Get, Public, inject } from 'viga';
 import { BooksService } from './books.service.ts';
 
 @Controller('/books')
@@ -80,7 +80,7 @@ export class BooksController {
 A module groups the controllers and services of a feature.
 
 ```ts title="src/books/books.module.ts"
-import { Module } from '@vigajs/core';
+import { Module } from 'viga';
 import { BooksController } from './books.controller.ts';
 import { BooksService } from './books.service.ts';
 
@@ -98,7 +98,7 @@ Services go in `providers`. Only this module's controllers and services can ask 
 The root module brings the app's modules together:
 
 ```ts title="src/app.module.ts"
-import { Module } from '@vigajs/core';
+import { Module } from 'viga';
 import { BooksModule } from './books/books.module.ts';
 
 @Module({ imports: [BooksModule] })
@@ -108,7 +108,7 @@ export class AppModule {}
 ## Start the app
 
 ```ts title="src/main.ts"
-import { createApp } from '@vigajs/core';
+import { createApp } from 'viga';
 import { AppModule } from './app.module.ts';
 
 const app = createApp({ rootModule: AppModule, globalPrefix: '/api' }).enableShutdownHooks();
@@ -118,7 +118,7 @@ await app.listen();
 
 - `globalPrefix` puts `/api` in front of every route.
 - `enableShutdownHooks()` shuts the app down in order when the process stops, for example with `Ctrl+C`.
-- `listen()` starts listening on port 3000. The port is optional: `listen(8080)` uses a different one. viga doesn't read the `PORT` environment variable on its own; if you use it, pass it yourself: `app.listen(Number(process.env.PORT ?? 3000))`, or validate it along with the rest of the configuration with [`@vigajs/config`](../../optional/config/#in-maints).
+- `listen()` starts listening on port 3000. The port is optional: `listen(8080)` uses a different one. viga doesn't read the `PORT` environment variable on its own; if you use it, pass it yourself: `app.listen(Number(process.env.PORT ?? 3000))`, or validate it along with the rest of the configuration with [`viga/config`](../../optional/config/#in-maints).
 
 Start it in development mode:
 

@@ -49,7 +49,7 @@ createApp({
 });
 ```
 
-A string replaces the value, `false` removes the header and `securityHeaders: false` turns them all off. `DEFAULT_SECURITY_HEADERS`, imported from `@vigajs/core`, holds the default values.
+A string replaces the value, `false` removes the header and `securityHeaders: false` turns them all off. `DEFAULT_SECURITY_HEADERS`, imported from `viga`, holds the default values.
 
 To change a header on some routes only, do it in an [interceptor](../../core/interceptors/) or with `res.setHeader()` in the controller: they run afterwards and replace the default value.
 
@@ -117,7 +117,7 @@ These limits make slow-connection attacks harder, in which a client opens many c
 
 ## Mandatory body validation
 
-`requireValidation` is on: a route without `@Validate({ body })` doesn't accept a body, and a request that sends one responds 400. That way no unvalidated data reaches your methods. It's explained in [`@vigajs/validation`](../../optional/validation/#every-route-with-a-body-needs-validate).
+`requireValidation` is on: a route without `@Validate({ body })` doesn't accept a body, and a request that sends one responds 400. That way no unvalidated data reaches your methods. It's explained in [`viga/validation`](../../optional/validation/#every-route-with-a-body-needs-validate).
 
 ## Private and concealed routes
 

@@ -1,5 +1,5 @@
 ---
-title: '@vigajs/websocket'
+title: viga/websocket
 description: Real-time communication with WebSocket on the same port as your API, with rooms, message validation, handshake authentication and default limits.
 sidebar:
   order: 7
@@ -10,33 +10,33 @@ sidebar:
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`@vigajs/websocket` adds real-time communication to your app: the server and the browser keep a connection open and send messages both ways. It's for chats, notifications, dashboards that update themselves or games.
+`viga/websocket` adds real-time communication to your app: the server and the browser keep a connection open and send messages both ways. It's for chats, notifications, dashboards that update themselves or games.
 
 It works on the same port as your HTTP API and with the same pieces: gateways are providers with `inject()`, messages are validated with schemas and errors use the same codes as HTTP.
 
 ## Installation
 
-`@vigajs/websocket` uses the `ws` library, which you install along with it:
+`viga/websocket` uses the `ws` library, which you install yourself:
 
 <Tabs syncKey="pkg">
   <TabItem label="pnpm">
     ```sh
-    pnpm add @vigajs/websocket ws
+    pnpm add ws
     ```
   </TabItem>
   <TabItem label="npm">
     ```sh
-    npm install @vigajs/websocket ws
+    npm install ws
     ```
   </TabItem>
   <TabItem label="yarn">
     ```sh
-    yarn add @vigajs/websocket ws
+    yarn add ws
     ```
   </TabItem>
   <TabItem label="bun">
     ```sh
-    bun add @vigajs/websocket ws
+    bun add ws
     ```
   </TabItem>
 </Tabs>
@@ -48,8 +48,8 @@ viga only loads `ws` if your app has a gateway.
 A gateway is to WebSocket what a controller is to HTTP: it receives the messages of a path and responds. Each method handles one event:
 
 ```ts title="src/chat/chat.gateway.ts"
-import { inject } from '@vigajs/core';
-import { Gateway, OnMessage, WsServer, type WsContext } from '@vigajs/websocket';
+import { inject } from 'viga';
+import { Gateway, OnMessage, WsServer, type WsContext } from 'viga/websocket';
 import { z } from 'zod';
 
 const Join = z.object({ room: z.string().min(1) });
@@ -79,7 +79,7 @@ export class ChatGateway {
 Gateways are providers: they're declared in a module's `providers`, not in `controllers`:
 
 ```ts title="src/chat/chat.module.ts"
-import { Module } from '@vigajs/core';
+import { Module } from 'viga';
 import { ChatGateway } from './chat.gateway.ts';
 
 @Module({ providers: [ChatGateway] })
@@ -89,8 +89,8 @@ export class ChatModule {}
 And `WebSocketModule.forRoot` goes in the root module, with authentication and the allowed origins:
 
 ```ts title="src/app.module.ts"
-import { Module } from '@vigajs/core';
-import { WebSocketModule } from '@vigajs/websocket';
+import { Module } from 'viga';
+import { WebSocketModule } from 'viga/websocket';
 import { ChatModule } from './chat/chat.module.ts';
 
 @Module({
@@ -214,7 +214,7 @@ The browser's `WebSocket` can't send custom headers, so `Authorization` doesn't 
 
 ### Use the configuration in `forRoot`
 
-`WebSocketModule.forRoot` also accepts a function, which runs inside the container when the app starts. That way it can ask for values with `inject()`, like a secret from [`@vigajs/config`](../config/):
+`WebSocketModule.forRoot` also accepts a function, which runs inside the container when the app starts. That way it can ask for values with `inject()`, like a secret from [`viga/config`](../config/):
 
 ```ts title="src/app.module.ts"
 WebSocketModule.forRoot(() => {
@@ -251,16 +251,16 @@ Connections without `Origin`, which come from clients that aren't browsers, like
 The same HTTP tools work on each message:
 
 - [`@UseGuards()`](../../core/guards/#per-route-guards) and [`@UseInterceptors()`](../../core/interceptors/) go on a method or on the whole gateway.
-- `RateLimit`, imported from `@vigajs/websocket`, limits one event or every event of a gateway. By default it counts per connection; with `key: ({ client }) => String(client.state.userId)` it counts per user, adding up all their tabs. Above the limit it responds `errors.tooManyRequests` with `details.retryAfter` in seconds.
+- `RateLimit`, imported from `viga/websocket`, limits one event or every event of a gateway. By default it counts per connection; with `key: ({ client }) => String(client.state.userId)` it counts per user, adding up all their tabs. Above the limit it responds `errors.tooManyRequests` with `details.retryAfter` in seconds.
 
-The `@RateLimit` imported from `@vigajs/core` is for HTTP routes only.
+The `@RateLimit` imported from `viga` is for HTTP routes only.
 
 ### Connections and disconnections
 
 A gateway can run code when a client connects or disconnects, by implementing `OnWsConnection` and `OnWsDisconnect`:
 
 ```ts
-import { Gateway, type OnWsConnection, type OnWsDisconnect, type WsClient } from '@vigajs/websocket';
+import { Gateway, type OnWsConnection, type OnWsDisconnect, type WsClient } from 'viga/websocket';
 
 @Gateway('/chat')
 export class ChatGateway implements OnWsConnection, OnWsDisconnect {
@@ -276,7 +276,7 @@ export class ChatGateway implements OnWsConnection, OnWsDisconnect {
 
 ## Language
 
-If you pass a [`@vigajs/i18n`](../i18n/) instance in the `i18n` option, the language is picked once, when connecting, and used in every message of that connection: `i18n.t()` works inside gateways, errors come out translated and `client.locale` holds the language.
+If you pass a [`viga/i18n`](../i18n/) instance in the `i18n` option, the language is picked once, when connecting, and used in every message of that connection: `i18n.t()` works inside gateways, errors come out translated and `client.locale` holds the language.
 
 The browser doesn't allow custom headers, so to let the user pick the language, read it from the URL with `resolveLocale`:
 
@@ -289,7 +289,7 @@ WebSocketModule.forRoot({
 
 ## Default limits
 
-`@vigajs/websocket` comes with limits so a client can't exhaust the server's memory or connections. All of them are changed in `WebSocketModule.forRoot`:
+`viga/websocket` comes with limits so a client can't exhaust the server's memory or connections. All of them are changed in `WebSocketModule.forRoot`:
 
 | Option | Default | What it limits |
 | --- | --- | --- |
@@ -307,4 +307,4 @@ WebSocketModule.forRoot({
 
 ## Other adapters
 
-By default, `@vigajs/websocket` uses `ws`, and the browser connects with its regular `WebSocket`. The `adapter` option accepts any implementation of the `WsAdapter` interface, which is public, to use another library without changing your gateways. Switching adapters does change the client: with socket.io, for example, the browser needs `socket.io-client`.
+By default, `viga/websocket` uses `ws`, and the browser connects with its regular `WebSocket`. The `adapter` option accepts any implementation of the `WsAdapter` interface, which is public, to use another library without changing your gateways. Switching adapters does change the client: with socket.io, for example, the browser needs `socket.io-client`.

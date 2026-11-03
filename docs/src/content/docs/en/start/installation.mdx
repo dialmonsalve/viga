@@ -44,7 +44,7 @@ It creates the folder with `package.json`, `tsconfig.json`, the scripts and a fi
 
 It uses Zod for validation. To change that, add `--schema valibot` or `--schema none`.
 
-If you prefer to do it by hand or add @vigajs/core to an existing project, follow the rest of this page.
+If you prefer to do it by hand or add viga@npm:@vigajs/core to an existing project, follow the rest of this page.
 
 ## Install viga
 
@@ -53,29 +53,33 @@ viga runs on top of Express, so you install it yourself alongside the framework.
 <Tabs syncKey="pkg">
   <TabItem label="pnpm">
     ```sh
-    pnpm add @vigajs/core express
+    pnpm add viga@npm:@vigajs/core express
     pnpm add -D typescript tsx @types/express @types/node
     ```
   </TabItem>
   <TabItem label="npm">
     ```sh
-    npm install @vigajs/core express
+    npm install viga@npm:@vigajs/core express
     npm install -D typescript tsx @types/express @types/node
     ```
   </TabItem>
   <TabItem label="yarn">
     ```sh
-    yarn add @vigajs/core express
+    yarn add viga@npm:@vigajs/core express
     yarn add -D typescript tsx @types/express @types/node
     ```
   </TabItem>
   <TabItem label="bun">
     ```sh
-    bun add @vigajs/core express
+    bun add viga@npm:@vigajs/core express
     bun add -d typescript tsx @types/express @types/node
     ```
   </TabItem>
 </Tabs>
+
+:::note[The name `viga`]
+On npm, the package is called `@vigajs/core`, because npm doesn't allow `viga`. The command installs it under the alias `viga`, which is why the code imports from `viga` and `viga/validation`. All the modules are included: there's nothing else to install to use them.
+:::
 
 :::note[pnpm]
 `tsx` depends on esbuild, which runs a script when it installs, and pnpm doesn't allow that without your approval. If the installation stops because of it, authorize it in `pnpm-workspace.yaml`:
@@ -100,7 +104,7 @@ Create a `tsconfig.json` at the project root, which inherits viga's configuratio
 
 ```json title="tsconfig.json"
 {
-  "extends": "@vigajs/core/tsconfig.json",
+  "extends": "viga/tsconfig.json",
   "include": ["src"]
 }
 ```
@@ -166,7 +170,7 @@ And the `build` script in your `package.json`:
 **With CommonJS, the format NestJS uses.** Remove `"type": "module"` from your `package.json`, and `tsc` will generate `require(...)`, which doesn't need an extension. This works because Node.js 24 can load ES module packages like viga with `require`. CommonJS doesn't allow `await` outside a function, so the startup goes inside one:
 
 ```ts title="src/main.ts"
-import { createApp } from '@vigajs/core';
+import { createApp } from 'viga';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -181,13 +185,13 @@ Keep in mind that CommonJS is the older Node.js format and that some new package
 
 ## Packages for the optional modules
 
-Each optional module is a separate package: install only the ones you use, like `pnpm add @vigajs/config`. Some also need other packages:
+The core and most optional modules don't need anything else. Some depend on packages you install only if you use them:
 
 | Module | Packages it needs |
 |---|---|
-| `@vigajs/validation` | A Standard Schema compatible library, like `zod`, `valibot` or `arktype` |
-| `@vigajs/drizzle` | `drizzle-orm@0.45` and `pg`, and `@types/pg` as a development dependency |
-| `@vigajs/websocket` | `ws`, if you use the default adapter |
-| `@vigajs/upload` | `multer` and `file-type` |
+| `viga/validation` | A Standard Schema compatible library, like `zod`, `valibot` or `arktype` |
+| `viga/drizzle` | `drizzle-orm@0.45` and `pg`, and `@types/pg` as a development dependency |
+| `viga/websocket` | `ws`, if you use the default adapter |
+| `viga/upload` | `multer` and `file-type` |
 
 You install them the same way as viga, with your package manager.

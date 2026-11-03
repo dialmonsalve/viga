@@ -24,7 +24,7 @@ export const diagnosticsEs = {
   'rateLimit.invalidMaxKeys': 'maxKeys debe ser un entero positivo, se recibió {maxKeys}',
   'rateLimit.invalidIpv6Subnet': 'ipv6Subnet debe ser un entero entre 1 y 128, se recibió {ipv6Subnet}',
   'rateLimit.httpOnly':
-    '@RateLimit de "@vigajs/core" solo funciona en rutas HTTP; en un gateway usa RateLimit de "@vigajs/websocket"',
+    '@RateLimit de "viga" solo funciona en rutas HTTP; en un gateway usa RateLimit de "viga/websocket"',
   'testing.unknownOverride':
     'El override de {token} no coincide con ningún provider; revisa que el token sea el mismo que declara el módulo',
   'lifecycle.destroyFailed': 'Falló el cierre de uno o más providers',

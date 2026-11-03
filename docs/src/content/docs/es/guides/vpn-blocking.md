@@ -47,7 +47,7 @@ Ese repositorio no declara ninguna licencia. Revisa sus condiciones antes de usa
 
 ```ts title="src/vpn/vpn-list.service.ts"
 import { BlockList, isIP } from 'node:net';
-import { Injectable, LOGGER, inject, type OnModuleDestroy, type OnModuleInit } from '@vigajs/core';
+import { Injectable, LOGGER, inject, type OnModuleDestroy, type OnModuleInit } from 'viga';
 
 const SOURCE = 'https://raw.githubusercontent.com/X4BNet/lists_vpn/main/output/vpn';
 const ONE_DAY = 24 * 60 * 60_000;
@@ -108,7 +108,7 @@ Si la primera descarga falla, `onModuleInit` lanza el error y la app no arranca.
 ## El guard
 
 ```ts title="src/vpn/no-vpn.guard.ts"
-import { ForbiddenException, Injectable, inject, type CanActivate, type HttpContext } from '@vigajs/core';
+import { ForbiddenException, Injectable, inject, type CanActivate, type HttpContext } from 'viga';
 import { VpnListService } from './vpn-list.service.ts';
 
 @Injectable()
@@ -127,7 +127,7 @@ Usa una excepción con un mensaje en lugar de devolver `false`: quien use una VP
 Crea un módulo global para el servicio. Hace falta que sea global para usarlo también en [WebSocket](#websocket):
 
 ```ts title="src/vpn/vpn.module.ts"
-import { Module } from '@vigajs/core';
+import { Module } from 'viga';
 import { VpnListService } from './vpn-list.service.ts';
 
 @Module({
@@ -189,7 +189,7 @@ Decide también qué hará un usuario legítimo al que bloquees, como contactar 
 Para usar una API, cambia solo el servicio. Como la comprobación es asíncrona, `canActivate` también pasa a serlo, con `await this.vpn.isVpn(req.ip)`:
 
 ```ts title="src/vpn/vpn-api.service.ts"
-import { Injectable, LOGGER, inject } from '@vigajs/core';
+import { Injectable, LOGGER, inject } from 'viga';
 import { z } from 'zod';
 
 const VpnResponse = z.object({ vpn: z.boolean() });

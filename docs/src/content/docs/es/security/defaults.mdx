@@ -49,7 +49,7 @@ createApp({
 });
 ```
 
-Un texto reemplaza el valor, `false` quita la cabecera y `securityHeaders: false` las desactiva todas. `DEFAULT_SECURITY_HEADERS`, que se importa de `@vigajs/core`, contiene los valores por defecto.
+Un texto reemplaza el valor, `false` quita la cabecera y `securityHeaders: false` las desactiva todas. `DEFAULT_SECURITY_HEADERS`, que se importa de `viga`, contiene los valores por defecto.
 
 Para cambiar una cabecera solo en algunas rutas, hazlo en un [interceptor](../../core/interceptors/) o con `res.setHeader()` en el controlador: se ejecutan después y reemplazan el valor por defecto.
 
@@ -117,7 +117,7 @@ Estos límites dificultan los ataques de conexión lenta, en los que un cliente 
 
 ## Validación obligatoria del cuerpo
 
-`requireValidation` está activado: una ruta sin `@Validate({ body })` no acepta cuerpo, y una petición que lo envía responde 400. Así ningún dato sin validar llega a tus métodos. Se explica en [`@vigajs/validation`](../../optional/validation/#toda-ruta-con-cuerpo-necesita-validate).
+`requireValidation` está activado: una ruta sin `@Validate({ body })` no acepta cuerpo, y una petición que lo envía responde 400. Así ningún dato sin validar llega a tus métodos. Se explica en [`viga/validation`](../../optional/validation/#toda-ruta-con-cuerpo-necesita-validate).
 
 ## Rutas privadas y rutas ocultas
 

@@ -36,8 +36,9 @@ describe('@vigajs/create', () => {
     assert.equal(pkg.type, 'module');
     assert.equal(pkg.private, true);
     assert.deepEqual(Object.keys(pkg.scripts), ['dev', 'build', 'start']);
-    assert.deepEqual(Object.keys(pkg.dependencies), ['@vigajs/core', '@vigajs/validation', 'express', 'zod']);
-    assert.deepEqual(JSON.parse(read('my-app', 'tsconfig.json')), { extends: '@vigajs/core/tsconfig.json', include: ['src'] });
+    assert.deepEqual(Object.keys(pkg.dependencies), ['express', 'viga', 'zod']);
+    assert.match(pkg.dependencies.viga, /^npm:@vigajs\/core@/);
+    assert.deepEqual(JSON.parse(read('my-app', 'tsconfig.json')), { extends: 'viga/tsconfig.json', include: ['src'] });
     for (const file of ['.gitignore', 'src/main.ts', 'src/app.module.ts', 'src/hello/hello.controller.ts']) {
       assert.ok(existsSync(join(directory, 'my-app', file)), file);
     }
@@ -47,10 +48,10 @@ describe('@vigajs/create', () => {
 
   it('elige la librería de validación', () => {
     assert.equal(run(['with-valibot', '--schema', 'valibot']).status, 0);
-    assert.deepEqual(Object.keys(JSON.parse(read('with-valibot', 'package.json')).dependencies), ['@vigajs/core', '@vigajs/validation', 'express', 'valibot']);
+    assert.deepEqual(Object.keys(JSON.parse(read('with-valibot', 'package.json')).dependencies), ['express', 'valibot', 'viga']);
 
     assert.equal(run(['without-schema', '--schema', 'none']).status, 0);
-    assert.deepEqual(Object.keys(JSON.parse(read('without-schema', 'package.json')).dependencies), ['@vigajs/core', 'express']);
+    assert.deepEqual(Object.keys(JSON.parse(read('without-schema', 'package.json')).dependencies), ['express', 'viga']);
   });
 
   it('adapta los siguientes pasos a cada gestor de paquetes', () => {

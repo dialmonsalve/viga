@@ -51,8 +51,6 @@ Use [jose](https://github.com/panva/jose) on the server and in the app:
   </TabItem>
 </Tabs>
 
-This guide also uses the `@vigajs/config`, `@vigajs/crypto`, `@vigajs/drizzle`, `@vigajs/validation` packages, which are installed the same way.
-
 ## The keys
 
 Generate the pair only once:
@@ -67,7 +65,7 @@ console.log(publicKey.export({ type: 'spki', format: 'pem' }));
 "
 ```
 
-Store `LICENSE_PRIVATE_KEY` as a secret on your server and declare it in [`@vigajs/config`](../../optional/config/). Copy the public key into the app's code.
+Store `LICENSE_PRIVATE_KEY` as a secret on your server and declare it in [`viga/config`](../../optional/config/). Copy the public key into the app's code.
 
 If the private key leaks, anyone can create licenses, and you'll have to publish a version of the app with another public key. Keep it only where the license server runs.
 
@@ -114,8 +112,8 @@ await this.database.db.insert(licenses).values({
 
 ```ts title="src/licenses/license-tokens.service.ts"
 import { createPrivateKey } from 'node:crypto';
-import { Injectable, inject } from '@vigajs/core';
-import { CONFIG } from '@vigajs/config';
+import { Injectable, inject } from 'viga';
+import { CONFIG } from 'viga/config';
 import { SignJWT } from 'jose';
 
 const THIRTY_DAYS_IN_SECONDS = 30 * 24 * 60 * 60;
@@ -146,9 +144,9 @@ export class LicenseTokens {
 The service locks the license's row inside a transaction. Without that lock, two simultaneous activations could both see a free device and both take it, and the license would exceed its limit:
 
 ```ts title="src/licenses/licenses.service.ts"
-import { ConflictException, ForbiddenException, Injectable, inject } from '@vigajs/core';
-import { hashToken } from '@vigajs/crypto';
-import { DatabaseService } from '@vigajs/drizzle';
+import { ConflictException, ForbiddenException, Injectable, inject } from 'viga';
+import { hashToken } from 'viga/crypto';
+import { DatabaseService } from 'viga/drizzle';
 import { and, count, eq } from 'drizzle-orm';
 import { LicenseTokens } from './license-tokens.service.ts';
 import { activations, licenses } from './licenses.schema.ts';
@@ -231,8 +229,8 @@ A key that doesn't exist, is revoked or has expired gets the same response, so i
 The routes are public, because whoever calls them has no session, so they need a [rate limit](../../security/rate-limiting/#per-route) to slow down anyone trying keys:
 
 ```ts title="src/licenses/licenses.controller.ts"
-import { Controller, HttpCode, Post, Public, RateLimit, inject, type HttpContext } from '@vigajs/core';
-import { Validate } from '@vigajs/validation';
+import { Controller, HttpCode, Post, Public, RateLimit, inject, type HttpContext } from 'viga';
+import { Validate } from 'viga/validation';
 import { z } from 'zod';
 import { LicensesService } from './licenses.service.ts';
 

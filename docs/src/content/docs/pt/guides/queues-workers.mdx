@@ -1,6 +1,6 @@
 ---
 title: Filas e workers
-description: Processe trabalhos em segundo plano com BullMQ ou pg-boss e @vigajs/workers, com repetições, encerramento ordenado e uma fila por empresa.
+description: Processe trabalhos em segundo plano com BullMQ ou pg-boss e viga/workers, com repetições, encerramento ordenado e uma fila por empresa.
 sidebar:
   order: 2
 ---
@@ -43,8 +43,6 @@ O BullMQ precisa de `ioredis`, que é instalado à parte:
   </TabItem>
 </Tabs>
 
-Este guia também usa os pacotes `@vigajs/config`, `@vigajs/validation`, `@vigajs/workers`, que são instalados da mesma forma.
-
 Configure o Redis com `maxmemory-policy noeviction`. Com outra política, o Redis pode apagar trabalhos quando fica sem memória.
 
 ## Adicione trabalhos pela API
@@ -52,8 +50,8 @@ Configure o Redis com `maxmemory-policy noeviction`. Com outra política, o Redi
 Um provider cria a fila e a fecha quando a aplicação para:
 
 ```ts title="src/imports/imports.queue.ts"
-import { Injectable, inject, type OnModuleDestroy } from '@vigajs/core';
-import { CONFIG } from '@vigajs/config';
+import { Injectable, inject, type OnModuleDestroy } from 'viga';
+import { CONFIG } from 'viga/config';
 import { Queue } from 'bullmq';
 
 export interface ImportJob {
@@ -88,8 +86,8 @@ export class ImportsQueue implements OnModuleDestroy {
 A rota adiciona o trabalho e responde 202, que significa "recebido, será processado depois":
 
 ```ts title="src/imports/imports.controller.ts"
-import { Controller, HttpCode, Post, inject, type HttpContext } from '@vigajs/core';
-import { Validate } from '@vigajs/validation';
+import { Controller, HttpCode, Post, inject, type HttpContext } from 'viga';
+import { Validate } from 'viga/validation';
 import { z } from 'zod';
 import { ImportsQueue } from './imports.queue.ts';
 
@@ -114,8 +112,8 @@ export class ImportsController {
 O worker é um provider que consome a fila. `close()` espera os trabalhos em andamento terminarem:
 
 ```ts title="src/imports/imports.worker.ts"
-import { Injectable, LOGGER, inject, runInNewContext, type OnModuleDestroy, type OnModuleInit } from '@vigajs/core';
-import { CONFIG } from '@vigajs/config';
+import { Injectable, LOGGER, inject, runInNewContext, type OnModuleDestroy, type OnModuleInit } from 'viga';
+import { CONFIG } from 'viga/config';
 import { Worker, type Job } from 'bullmq';
 import { ImportsService } from './imports.service.ts';
 import type { ImportJob } from './imports.queue.ts';
@@ -156,8 +154,8 @@ export class ImportsWorker implements OnModuleInit, OnModuleDestroy {
 Agrupe-o no módulo dele e crie o arquivo de entrada. O módulo é a raiz do processo do worker, então importa `ConfigModule`:
 
 ```ts title="src/imports/imports-worker.module.ts"
-import { Module } from '@vigajs/core';
-import { ConfigModule } from '@vigajs/config';
+import { Module } from 'viga';
+import { ConfigModule } from 'viga/config';
 import { Env } from '../config.ts';
 import { ImportsService } from './imports.service.ts';
 import { ImportsWorker } from './imports.worker.ts';
@@ -170,7 +168,7 @@ export class ImportsWorkerModule {}
 ```
 
 ```ts title="src/worker.ts"
-import { startWorker } from '@vigajs/workers';
+import { startWorker } from 'viga/workers';
 import { ImportsWorkerModule } from './imports/imports-worker.module.ts';
 
 await startWorker(ImportsWorkerModule);
@@ -303,8 +301,8 @@ O pg-boss guarda os trabalhos no seu PostgreSQL e cria as tabelas ao iniciar, em
 Um único provider serve para adicionar e consumir trabalhos:
 
 ```ts title="src/jobs/jobs.service.ts"
-import { Injectable, LOGGER, inject, type OnModuleDestroy, type OnModuleInit } from '@vigajs/core';
-import { CONFIG } from '@vigajs/config';
+import { Injectable, LOGGER, inject, type OnModuleDestroy, type OnModuleInit } from 'viga';
+import { CONFIG } from 'viga/config';
 import { PgBoss } from 'pg-boss';
 
 @Injectable()
@@ -333,7 +331,7 @@ await this.jobs.boss.send('imports', { fileId }, { retryLimit: 2, retryDelay: 1,
 No worker, `work` recebe uma lista de trabalhos, por padrão com um só:
 
 ```ts title="src/imports/imports.worker.ts"
-import { Injectable, inject, runInNewContext, type OnModuleInit } from '@vigajs/core';
+import { Injectable, inject, runInNewContext, type OnModuleInit } from 'viga';
 import { JobsService } from '../jobs/jobs.service.ts';
 import { ImportsService } from './imports.service.ts';
 

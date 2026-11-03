@@ -16,7 +16,7 @@ That brings two advantages. Each provider is created only once and shared, and y
 A class becomes a provider with `@Injectable()` and by declaring it in the `providers` of a module:
 
 ```ts title="src/clock/clock.ts"
-import { Injectable } from '@vigajs/core';
+import { Injectable } from 'viga';
 
 @Injectable()
 export class Clock {
@@ -27,7 +27,7 @@ export class Clock {
 ```
 
 ```ts title="src/books/books.module.ts"
-import { Module } from '@vigajs/core';
+import { Module } from 'viga';
 import { Clock } from '../clock/clock.ts';
 import { BooksController } from './books.controller.ts';
 import { BooksService } from './books.service.ts';
@@ -42,7 +42,7 @@ export class BooksModule {}
 Another class of the module asks for it with `inject()` in a field:
 
 ```ts title="src/books/books.service.ts"
-import { Injectable, inject } from '@vigajs/core';
+import { Injectable, inject } from 'viga';
 import { Clock } from '../clock/clock.ts';
 
 @Injectable()
@@ -108,7 +108,7 @@ Whoever asks for `inject(BOOKS_REPOSITORY)` gets an `InMemoryBooksRepository`. T
 It is for values that don't need to be constructed, like an options object:
 
 ```ts title="src/books/books.options.ts"
-import { InjectionToken } from '@vigajs/core';
+import { InjectionToken } from 'viga';
 
 export interface BooksOptions {
   pageSize: number;
@@ -128,7 +128,7 @@ providers: [BooksService, { provide: BOOKS_OPTIONS, useValue: { pageSize: 20 } }
 It is for creating objects from classes that are not yours and have no `@Injectable()`, like a library client. The function runs only once and can use `inject()` to ask for other providers:
 
 ```ts title="src/search/search.module.ts"
-import { LOGGER, Module, inject } from '@vigajs/core';
+import { LOGGER, Module, inject } from 'viga';
 import { SearchClient } from 'some-search-library';
 import { SEARCH_CLIENT } from './search.client.ts';
 
@@ -159,7 +159,7 @@ If a provider asks for another one that does not exist yet, viga creates it righ
 Some providers are available in every module without declaring them. The most useful is `LOGGER`, the app's logger:
 
 ```ts title="src/books/books.service.ts"
-import { Injectable, LOGGER, inject } from '@vigajs/core';
+import { Injectable, LOGGER, inject } from 'viga';
 
 @Injectable()
 export class BooksService {
@@ -213,7 +213,7 @@ viga calls the logger with the message first and the data after it, like `logger
 
 ```ts title="src/logger.ts"
 import pino from 'pino';
-import type { Logger } from '@vigajs/core';
+import type { Logger } from 'viga';
 
 type Level = 'info' | 'warn' | 'error' | 'debug';
 
@@ -232,7 +232,7 @@ export function pinoLogger(log: pino.Logger): Logger {
 
 ```ts title="src/main.ts"
 import pino from 'pino';
-import { createApp } from '@vigajs/core';
+import { createApp } from 'viga';
 import { AppModule } from './app.module.ts';
 import { pinoLogger } from './logger.ts';
 

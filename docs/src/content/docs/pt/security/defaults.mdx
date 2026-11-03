@@ -49,7 +49,7 @@ createApp({
 });
 ```
 
-Um texto substitui o valor, `false` remove o cabeçalho e `securityHeaders: false` desativa todos. `DEFAULT_SECURITY_HEADERS`, importado de `@vigajs/core`, contém os valores padrão.
+Um texto substitui o valor, `false` remove o cabeçalho e `securityHeaders: false` desativa todos. `DEFAULT_SECURITY_HEADERS`, importado de `viga`, contém os valores padrão.
 
 Para alterar um cabeçalho só em algumas rotas, faça isso em um [interceptor](../../core/interceptors/) ou com `res.setHeader()` no controller: eles são executados depois e substituem o valor padrão.
 
@@ -117,7 +117,7 @@ Esses limites dificultam os ataques de conexão lenta, em que um cliente abre mu
 
 ## Validação obrigatória do corpo
 
-`requireValidation` está ativado: uma rota sem `@Validate({ body })` não aceita corpo, e uma requisição que o envie responde 400. Assim nenhum dado sem validar chega aos seus métodos. Isso é explicado em [`@vigajs/validation`](../../optional/validation/#toda-rota-com-corpo-precisa-de-validate).
+`requireValidation` está ativado: uma rota sem `@Validate({ body })` não aceita corpo, e uma requisição que o envie responde 400. Assim nenhum dado sem validar chega aos seus métodos. Isso é explicado em [`viga/validation`](../../optional/validation/#toda-rota-com-corpo-precisa-de-validate).
 
 ## Rotas privadas e rotas ocultas
 

@@ -8,7 +8,7 @@ sidebar:
 Para responder con un error, lanza una excepción. Puedes hacerlo desde un controlador, un servicio, un guard o un interceptor: viga la captura y la convierte en una respuesta HTTP con un cuerpo JSON.
 
 ```ts title="src/books/books.service.ts"
-import { Injectable, NotFoundException } from '@vigajs/core';
+import { Injectable, NotFoundException } from 'viga';
 
 @Injectable()
 export class BooksService {
@@ -64,14 +64,14 @@ Usa `code` y no `message` para tomar decisiones en el frontend: `message` puede 
 | `InternalServerErrorException` | 500 | `errors.internal` |
 | `ServiceUnavailableException` | 503 | `errors.serviceUnavailable` |
 
-Todas se importan de `@vigajs/core`. Sin argumentos, usan el `code` por defecto y su mensaje en inglés.
+Todas se importan de `viga`. Sin argumentos, usan el `code` por defecto y su mensaje en inglés.
 
 ### Otros códigos de estado
 
 Para un código HTTP que no está en la tabla, como 402 o 422, usa `HttpException` con el estado, el `code` y el nombre del estado:
 
 ```ts
-import { HttpException } from '@vigajs/core';
+import { HttpException } from 'viga';
 
 throw new HttpException(402, 'billing.paymentRequired', 'Payment Required');
 ```
@@ -106,7 +106,7 @@ La respuesta queda así:
 { "statusCode": 404, "code": "books.notFound", "message": "El libro 7 no existe", "error": "Not Found" }
 ```
 
-Si `resolveMessage` devuelve `undefined`, viga usa su mensaje en inglés para sus propios códigos (`errors.*`). Como `resolveMessage` recibe la petición, también puede elegir el idioma según la cabecera `Accept-Language`; `@vigajs/i18n` hace exactamente eso, y lo verás en su página.
+Si `resolveMessage` devuelve `undefined`, viga usa su mensaje en inglés para sus propios códigos (`errors.*`). Como `resolveMessage` recibe la petición, también puede elegir el idioma según la cabecera `Accept-Language`; `viga/i18n` hace exactamente eso, y lo verás en su página.
 
 :::caution
 Si viga no encuentra un mensaje para un `code`, lo trata como texto libre: lo pone tal cual en `message` y usa el `code` por defecto del estado. `new NotFoundException('books.notFound')` sin `resolveMessage` responde con `"message": "books.notFound"`, que no es un texto para mostrar a nadie. Define el mensaje de cada código propio que uses.
@@ -129,7 +129,7 @@ Es lo que usa `@Validate` para listar los campos que no cumplen el esquema.
 Si repites el mismo error en varios lugares, crea una clase que extienda la excepción adecuada:
 
 ```ts title="src/books/book-not-found.exception.ts"
-import { NotFoundException } from '@vigajs/core';
+import { NotFoundException } from 'viga';
 
 export class BookNotFoundException extends NotFoundException {
   constructor(id: number) {

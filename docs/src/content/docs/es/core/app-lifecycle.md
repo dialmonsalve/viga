@@ -34,7 +34,7 @@ Si algo falla en los pasos 1 a 4, la app no llega a abrir el puerto y `listen()`
 `init()` hace los pasos 1 a 3 sin abrir ningún puerto. Sirve para scripts, tareas programadas o workers que usan tus servicios sin atender peticiones HTTP. Con `app.get()` obtienes cualquier provider:
 
 ```ts title="scripts/import-books.ts"
-import { createApp, runInNewContext } from '@vigajs/core';
+import { createApp, runInNewContext } from 'viga';
 import { AppModule } from '../src/app.module.ts';
 import { BooksService } from '../src/books/books.service.ts';
 
@@ -66,7 +66,7 @@ Los métodos pueden ser `async`: viga espera a que terminen antes de seguir.
 El caso más común es una conexión que se abre al arrancar y se cierra al final:
 
 ```ts title="src/database/database.service.ts"
-import { Injectable, type OnModuleDestroy, type OnModuleInit } from '@vigajs/core';
+import { Injectable, type OnModuleDestroy, type OnModuleInit } from 'viga';
 import { Pool } from 'pg';
 
 @Injectable()
@@ -85,7 +85,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 
 `onModuleInit` comprueba que la base de datos responde. Si no responde, la app no arranca, y lo sabes al desplegar en lugar de con la primera petición. Este es el lugar para el trabajo asíncrono que no puede ir en un [`useFactory`](../providers/#usefactory-construir-el-valor-con-código), que tiene que devolver el valor directamente.
 
-`OnServerListen` y `OnServerClose` son para providers que necesitan el servidor HTTP, por ejemplo para atender WebSockets en el mismo puerto. `onServerListen` recibe el `Server` de Node.js antes de que empiece a escuchar. Es lo que usa `@vigajs/websocket`.
+`OnServerListen` y `OnServerClose` son para providers que necesitan el servidor HTTP, por ejemplo para atender WebSockets en el mismo puerto. `onServerListen` recibe el `Server` de Node.js antes de que empiece a escuchar. Es lo que usa `viga/websocket`.
 
 ### El orden
 

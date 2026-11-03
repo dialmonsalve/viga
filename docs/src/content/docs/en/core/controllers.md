@@ -10,7 +10,7 @@ A controller receives the HTTP requests of one feature and returns the response.
 ## Define the routes
 
 ```ts title="src/books/books.controller.ts"
-import { Controller, Delete, Get, Post, Public, inject, type HttpContext } from '@vigajs/core';
+import { Controller, Delete, Get, Post, Public, inject, type HttpContext } from 'viga';
 import { BooksService } from './books.service.ts';
 
 @Public()
@@ -68,10 +68,10 @@ The usual thing is to destructure only what you use: `findOne({ params }: HttpCo
 
 ## Validate what comes in
 
-`Number('abc')` is `NaN`, and nothing stops someone from requesting `/books/abc`. The way to make sure the data is correct, and to get it with the right type, is to validate it with `@Validate`, from `@vigajs/validation`, and a schema from a library like Zod or Valibot:
+`Number('abc')` is `NaN`, and nothing stops someone from requesting `/books/abc`. The way to make sure the data is correct, and to get it with the right type, is to validate it with `@Validate`, from `viga/validation`, and a schema from a library like Zod or Valibot:
 
 ```ts title="src/books/books.controller.ts"
-import { Validate } from '@vigajs/validation';
+import { Validate } from 'viga/validation';
 import { z } from 'zod';
 
 const BookParams = z.object({ id: z.coerce.number().int().positive() });
@@ -124,7 +124,7 @@ publish({ params }: HttpContext) {
 To respond with an error, throw one of viga's exceptions:
 
 ```ts
-import { NotFoundException } from '@vigajs/core';
+import { NotFoundException } from 'viga';
 
 @Get('/:id')
 @Validate({ params: BookParams })

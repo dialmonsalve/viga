@@ -18,7 +18,7 @@ El error más grave en una app multi-tenant es que un usuario vea datos de otra 
 Una clave de contexto guarda la empresa de la petición actual:
 
 ```ts title="src/tenants/current-tenant.ts"
-import { createContextKey } from '@vigajs/core';
+import { createContextKey } from 'viga';
 
 export interface Tenant {
   id: number;
@@ -32,7 +32,7 @@ Un middleware lee el subdominio, busca la empresa y la guarda. Si no existe, res
 
 ```ts title="src/tenants/tenant.middleware.ts"
 import type { RequestHandler } from 'express';
-import { NotFoundException } from '@vigajs/core';
+import { NotFoundException } from 'viga';
 import { CURRENT_TENANT } from './current-tenant.ts';
 import type { TenantsService } from './tenants.service.ts';
 

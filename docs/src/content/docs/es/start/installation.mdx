@@ -53,29 +53,33 @@ viga usa Express por debajo, así que lo instalas tú junto al framework. Como d
 <Tabs syncKey="pkg">
   <TabItem label="pnpm">
     ```sh
-    pnpm add @vigajs/core express
+    pnpm add viga@npm:@vigajs/core express
     pnpm add -D typescript tsx @types/express @types/node
     ```
   </TabItem>
   <TabItem label="npm">
     ```sh
-    npm install @vigajs/core express
+    npm install viga@npm:@vigajs/core express
     npm install -D typescript tsx @types/express @types/node
     ```
   </TabItem>
   <TabItem label="yarn">
     ```sh
-    yarn add @vigajs/core express
+    yarn add viga@npm:@vigajs/core express
     yarn add -D typescript tsx @types/express @types/node
     ```
   </TabItem>
   <TabItem label="bun">
     ```sh
-    bun add @vigajs/core express
+    bun add viga@npm:@vigajs/core express
     bun add -d typescript tsx @types/express @types/node
     ```
   </TabItem>
 </Tabs>
+
+:::note[El nombre `viga`]
+En npm, el paquete se llama `@vigajs/core`, porque npm no admite `viga`. El comando lo instala con el alias `viga`, y por eso el código importa de `viga` y `viga/validation`. Todos los módulos vienen incluidos: no hay nada más que instalar para usarlos.
+:::
 
 :::note[pnpm]
 `tsx` depende de esbuild, que ejecuta un script al instalarse, y pnpm no lo permite sin tu aprobación. Si la instalación se detiene por eso, autorízalo en `pnpm-workspace.yaml`:
@@ -100,7 +104,7 @@ Crea un `tsconfig.json` en la raíz del proyecto, que hereda la configuración d
 
 ```json title="tsconfig.json"
 {
-  "extends": "@vigajs/core/tsconfig.json",
+  "extends": "viga/tsconfig.json",
   "include": ["src"]
 }
 ```
@@ -166,7 +170,7 @@ Y el script `build` de tu `package.json`:
 **Con CommonJS, el formato que usa NestJS.** Quita `"type": "module"` de tu `package.json`, y `tsc` generará `require(...)`, que no necesita extensión. Funciona porque Node.js 24 puede cargar con `require` paquetes de módulos ES como viga. CommonJS no permite `await` fuera de una función, así que el arranque va dentro de una:
 
 ```ts title="src/main.ts"
-import { createApp } from '@vigajs/core';
+import { createApp } from 'viga';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -181,13 +185,13 @@ Ten en cuenta que CommonJS es el formato antiguo de Node.js y que algunos paquet
 
 ## Paquetes de los módulos opcionales
 
-Cada módulo opcional es un paquete aparte: instala solo los que uses, como `pnpm add @vigajs/config`. Algunos necesitan además otros paquetes:
+El núcleo y la mayoría de los módulos opcionales no necesitan nada más. Algunos dependen de paquetes que instalas solo si los usas:
 
 | Módulo | Paquetes que necesita |
 |---|---|
-| `@vigajs/validation` | Una librería compatible con Standard Schema, como `zod`, `valibot` o `arktype` |
-| `@vigajs/drizzle` | `drizzle-orm@0.45` y `pg`, y `@types/pg` como dependencia de desarrollo |
-| `@vigajs/websocket` | `ws`, si usas el adaptador por defecto |
-| `@vigajs/upload` | `multer` y `file-type` |
+| `viga/validation` | Una librería compatible con Standard Schema, como `zod`, `valibot` o `arktype` |
+| `viga/drizzle` | `drizzle-orm@0.45` y `pg`, y `@types/pg` como dependencia de desarrollo |
+| `viga/websocket` | `ws`, si usas el adaptador por defecto |
+| `viga/upload` | `multer` y `file-type` |
 
 Los instalas igual que viga, con tu gestor de paquetes.

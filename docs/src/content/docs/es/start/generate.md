@@ -5,7 +5,7 @@ sidebar:
   order: 5
 ---
 
-`viga generate` crea los archivos de una funcionalidad nueva. Viene incluido en el paquete `@vigajs/core`, así que no hay nada más que instalar. Ejecútalo desde la raíz de tu proyecto:
+`viga generate` crea los archivos de una funcionalidad nueva. Viene incluido en el paquete `viga`, así que no hay nada más que instalar. Ejecútalo desde la raíz de tu proyecto:
 
 ```sh
 pnpm exec viga generate resource books
@@ -53,7 +53,7 @@ Es un punto de partida. Tres cosas quedan en tus manos:
 
 ## Validación
 
-Los esquemas usan la librería que tengas en las `dependencies` de tu `package.json`, Zod o Valibot. Para indicarla, o si usas otra, añade `--schema zod` o `--schema valibot`. Con otra librería, tendrás que reescribir `books.schemas.ts`. `module`, `controller` y `service` no necesitan ninguna. `resource` usa `@vigajs/validation`, que `pnpm create @vigajs` ya instala. Si no lo tienes, añádelo.
+Los esquemas usan la librería que tengas en las `dependencies` de tu `package.json`, Zod o Valibot. Para indicarla, o si usas otra, añade `--schema zod` o `--schema valibot`. Con otra librería, tendrás que reescribir `books.schemas.ts`. `module`, `controller` y `service` no necesitan ninguna.
 
 ## Piezas sueltas
 

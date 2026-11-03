@@ -55,7 +55,7 @@ viga runs on Express, so you can use any Express middleware with `app.use()`, be
 
 ```ts title="src/main.ts"
 import cors from 'cors';
-import { createApp } from '@vigajs/core';
+import { createApp } from 'viga';
 import { AppModule } from './app.module.ts';
 
 const app = createApp({ rootModule: AppModule, globalPrefix: '/api' }).enableShutdownHooks();
@@ -77,7 +77,7 @@ Since they run after the security headers, a middleware can change them if you n
 In [guards](../guards/#share-the-user-with-the-rest-of-the-code) you used `CURRENT_USER` so any code can know the user without receiving it as a parameter. `CURRENT_USER` is a context key, created with `createContextKey`:
 
 ```ts title="src/auth/current-user.ts"
-import { createContextKey } from '@vigajs/core';
+import { createContextKey } from 'viga';
 
 export const CURRENT_USER = createContextKey<User>('currentUser');
 ```
@@ -93,12 +93,12 @@ A key has four methods:
 | `set(value)` | Stores the value for the rest of the request. Works in middlewares, guards, interceptors, controllers and services. |
 | `run(value, fn)` | Runs `fn` with that value and, when it finishes, restores the previous one. |
 
-`createContextKey('name', { detached: true })` creates a key that doesn't pass to [`@vigajs/events`](../../optional/events/#the-context) listeners. It's for values tied to a specific operation, like a transaction.
+`createContextKey('name', { detached: true })` creates a key that doesn't pass to [`viga/events`](../../optional/events/#the-context) listeners. It's for values tied to a specific operation, like a transaction.
 
 A common case is recording who creates or changes something, without the controller having to pass the user to the service:
 
 ```ts title="src/books/books.service.ts"
-import { Injectable } from '@vigajs/core';
+import { Injectable } from 'viga';
 import { CURRENT_USER } from '../auth/current-user.ts';
 
 @Injectable()
@@ -115,7 +115,7 @@ export class BooksService {
 viga stores each request's id in `REQUEST_ID`, a context key it ships with. Use it to tie your logs to a specific request:
 
 ```ts
-import { REQUEST_ID } from '@vigajs/core';
+import { REQUEST_ID } from 'viga';
 
 this.logger.info('Book created', { requestId: REQUEST_ID.get(), bookId: book.id });
 ```
@@ -141,7 +141,7 @@ In a script, a scheduled job or a test there is no request, so there's no contex
 `runInNewContext` opens an empty context where `set()` and `get()` work:
 
 ```ts title="scripts/import-books.ts"
-import { runInNewContext } from '@vigajs/core';
+import { runInNewContext } from 'viga';
 
 await runInNewContext(async () => {
   CURRENT_USER.set(systemUser);

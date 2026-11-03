@@ -23,7 +23,7 @@ Without interceptors, every method would have its own `try/catch`, its own timin
 An interceptor is a class with an `intercept` method, which receives the request context and a `next` function. `next()` runs the controller method and returns a promise with its result:
 
 ```ts title="src/common/timing.interceptor.ts"
-import { Injectable, type CallHandler, type HttpContext, type Interceptor } from '@vigajs/core';
+import { Injectable, type CallHandler, type HttpContext, type Interceptor } from 'viga';
 
 @Injectable()
 export class TimingInterceptor implements Interceptor {
@@ -68,7 +68,7 @@ Like guards, a class interceptor can use `inject()` and doesn't need to be decla
 Since the interceptor decides what is returned, it can change the result. This one wraps every response in a `data` object:
 
 ```ts title="src/common/envelope.interceptor.ts"
-import { Injectable, type CallHandler, type HttpContext, type Interceptor } from '@vigajs/core';
+import { Injectable, type CallHandler, type HttpContext, type Interceptor } from 'viga';
 
 @Injectable()
 export class EnvelopeInterceptor implements Interceptor {
@@ -89,7 +89,7 @@ The status code is computed from what the interceptor returns, not from what the
 If the interceptor doesn't call `next()`, the method doesn't run and the response is whatever the interceptor returns. That is the basis of a cache:
 
 ```ts title="src/common/cache.interceptor.ts"
-import { Injectable, inject, type CallHandler, type HttpContext, type Interceptor } from '@vigajs/core';
+import { Injectable, inject, type CallHandler, type HttpContext, type Interceptor } from 'viga';
 import { CacheService } from './cache.service.ts';
 
 @Injectable()
@@ -120,7 +120,7 @@ This cache uses only the URL as its key, so it serves the same response to every
 If the method throws, `await next()` throws inside the interceptor, so you can catch the error and turn it into an HTTP response:
 
 ```ts title="src/common/database-errors.interceptor.ts"
-import { ConflictException, Injectable, type CallHandler, type HttpContext, type Interceptor } from '@vigajs/core';
+import { ConflictException, Injectable, type CallHandler, type HttpContext, type Interceptor } from 'viga';
 
 @Injectable()
 export class DatabaseErrorsInterceptor implements Interceptor {
