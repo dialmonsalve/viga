@@ -22,4 +22,5 @@ export const sidebar: Sidebar = [
   section('optional', { es: 'Módulos opcionales', en: 'Optional modules', pt: 'Módulos opcionais' }),
   section('security', { es: 'Seguridad', en: 'Security', pt: 'Segurança' }),
   section('guides', { es: 'Guías', en: 'Guides', pt: 'Guias' }),
+  section('reference', { es: 'Referencia', en: 'Reference', pt: 'Referência' }),
 ];
