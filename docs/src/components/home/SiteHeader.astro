@@ -1,5 +1,6 @@
 ---
 import logo from '../../assets/logo-light.svg?raw';
+import MascotPeek from '../MascotPeek.astro';
 import { LANGS, LANG_NAMES, LANG_TAGS, getDictionary, type Lang } from '../../i18n';
 
 interface Props {
@@ -29,6 +30,10 @@ const mark = logo
     <a class="wide" href="#modules">{t.nav.modules}</a>
     <a class="wide" href="#guides">{t.nav.guides}</a>
   </nav>
+
+  <div class="peek">
+    <MascotPeek />
+  </div>
 
   <a class="cta wide" href={docs('start/installation/')}>{t.cta}</a>
 
@@ -189,6 +194,25 @@ const mark = logo
 
   .links a:hover {
     color: var(--color-accent);
+  }
+
+  .peek {
+    display: none;
+  }
+
+  @media (min-width: 60rem) {
+    .peek {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      display: block;
+      width: 3.25rem;
+      transform: translateX(-50%);
+    }
+
+    .peek :global(mascot-peek) {
+      width: 100%;
+    }
   }
 
   .cta {
