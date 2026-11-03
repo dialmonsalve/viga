@@ -7,7 +7,7 @@ const MIN_NODE = [24, 13];
 const NAME_FORMAT = /^[a-z0-9][a-z0-9._-]{0,213}$/;
 
 const VERSIONS = {
-  viga: 'npm:@vigajs/core@^0.1.2',
+  viga: 'npm:@vigajs/core@^0.2.0',
   express: '^5.1.0',
   zod: '^4.0.0',
   valibot: '^1.5.0',
