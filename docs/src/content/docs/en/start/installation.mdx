@@ -181,13 +181,13 @@ Keep in mind that CommonJS is the older Node.js format and that some new package
 
 ## Packages for the optional modules
 
-The core and most optional modules don't need anything else. Some depend on packages you install only if you use them:
+Each optional module is a separate package: install only the ones you use, like `pnpm add @vigajs/config`. Some also need other packages:
 
 | Module | Packages it needs |
 |---|---|
-| `@vigajs/core/validation` | A Standard Schema compatible library, like `zod`, `valibot` or `arktype` |
-| `@vigajs/core/drizzle` | `drizzle-orm@0.45` and `pg`, and `@types/pg` as a development dependency |
-| `@vigajs/core/websocket` | `ws`, if you use the default adapter |
-| `@vigajs/core/upload` | `multer` and `file-type` |
+| `@vigajs/validation` | A Standard Schema compatible library, like `zod`, `valibot` or `arktype` |
+| `@vigajs/drizzle` | `drizzle-orm@0.45` and `pg`, and `@types/pg` as a development dependency |
+| `@vigajs/websocket` | `ws`, if you use the default adapter |
+| `@vigajs/upload` | `multer` and `file-type` |
 
 You install them the same way as viga, with your package manager.

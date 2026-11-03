@@ -1,6 +1,6 @@
 ---
 title: Colas y workers
-description: Procesa trabajos en segundo plano con BullMQ o pg-boss y @vigajs/core/workers, con reintentos, cierre ordenado y una cola por empresa.
+description: Procesa trabajos en segundo plano con BullMQ o pg-boss y @vigajs/workers, con reintentos, cierre ordenado y una cola por empresa.
 sidebar:
   order: 2
 ---
@@ -43,6 +43,8 @@ BullMQ necesita `ioredis`, que se instala aparte:
   </TabItem>
 </Tabs>
 
+Esta guía también usa los paquetes `@vigajs/config`, `@vigajs/validation`, `@vigajs/workers`, que se instalan igual.
+
 Configura Redis con `maxmemory-policy noeviction`. Con otra política, Redis puede borrar trabajos cuando se queda sin memoria.
 
 ## Añade trabajos desde la API
@@ -51,7 +53,7 @@ Un provider crea la cola y la cierra al detenerse la app:
 
 ```ts title="src/imports/imports.queue.ts"
 import { Injectable, inject, type OnModuleDestroy } from '@vigajs/core';
-import { CONFIG } from '@vigajs/core/config';
+import { CONFIG } from '@vigajs/config';
 import { Queue } from 'bullmq';
 
 export interface ImportJob {
@@ -87,7 +89,7 @@ La ruta añade el trabajo y responde 202, que significa "recibido, se procesará
 
 ```ts title="src/imports/imports.controller.ts"
 import { Controller, HttpCode, Post, inject, type HttpContext } from '@vigajs/core';
-import { Validate } from '@vigajs/core/validation';
+import { Validate } from '@vigajs/validation';
 import { z } from 'zod';
 import { ImportsQueue } from './imports.queue.ts';
 
@@ -113,7 +115,7 @@ El worker es un provider que consume la cola. `close()` espera a que terminen lo
 
 ```ts title="src/imports/imports.worker.ts"
 import { Injectable, LOGGER, inject, runInNewContext, type OnModuleDestroy, type OnModuleInit } from '@vigajs/core';
-import { CONFIG } from '@vigajs/core/config';
+import { CONFIG } from '@vigajs/config';
 import { Worker, type Job } from 'bullmq';
 import { ImportsService } from './imports.service.ts';
 import type { ImportJob } from './imports.queue.ts';
@@ -155,7 +157,7 @@ Agrúpalo en su módulo y crea el archivo de entrada. El módulo es la raíz del
 
 ```ts title="src/imports/imports-worker.module.ts"
 import { Module } from '@vigajs/core';
-import { ConfigModule } from '@vigajs/core/config';
+import { ConfigModule } from '@vigajs/config';
 import { Env } from '../config.ts';
 import { ImportsService } from './imports.service.ts';
 import { ImportsWorker } from './imports.worker.ts';
@@ -168,7 +170,7 @@ export class ImportsWorkerModule {}
 ```
 
 ```ts title="src/worker.ts"
-import { startWorker } from '@vigajs/core/workers';
+import { startWorker } from '@vigajs/workers';
 import { ImportsWorkerModule } from './imports/imports-worker.module.ts';
 
 await startWorker(ImportsWorkerModule);
@@ -302,7 +304,7 @@ Un solo provider sirve para añadir trabajos y consumirlos:
 
 ```ts title="src/jobs/jobs.service.ts"
 import { Injectable, LOGGER, inject, type OnModuleDestroy, type OnModuleInit } from '@vigajs/core';
-import { CONFIG } from '@vigajs/core/config';
+import { CONFIG } from '@vigajs/config';
 import { PgBoss } from 'pg-boss';
 
 @Injectable()

@@ -1,6 +1,6 @@
 {
   "name": "@vigajs/core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "HTTP framework for Node.js with modules, dependency injection and standard JavaScript decorators (TC39), without reflect-metadata",
   "type": "module",
   "license": "MIT",
@@ -122,9 +122,10 @@
     "test:db": "VIGA_TEST_DATABASE_URL=postgresql://viga@127.0.0.1:55432/viga_test pnpm test",
     "test:watch": "node --import tsx --import ./test/setup.ts --test --watch \"test/**/*.test.ts\"",
     "test:coverage": "node --enable-source-maps --import tsx --import ./test/setup.ts --test --experimental-test-coverage --test-coverage-exclude=\"test/**\" --test-coverage-exclude=\"node_modules/**\" \"test/**/*.test.ts\"",
-    "prepublishOnly": "pnpm check-types && pnpm test:db && pnpm build",
+    "prepublishOnly": "pnpm check-types && pnpm test:db && pnpm build && pnpm check-package",
     "db:test:up": "docker compose -f docker-compose.test.yml up -d --wait",
-    "db:test:down": "docker compose -f docker-compose.test.yml down"
+    "db:test:down": "docker compose -f docker-compose.test.yml down",
+    "check-package": "tsc -p test/package-types/tsconfig.json"
   },
   "peerDependencies": {
     "@types/express": "^5.0.0",

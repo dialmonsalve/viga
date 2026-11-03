@@ -53,7 +53,7 @@ It's a starting point. Three things are left to you:
 
 ## Validation
 
-The schemas use the library in your `package.json` `dependencies`, Zod or Valibot. To specify it, or if you use another one, add `--schema zod` or `--schema valibot`. With another library, you'll have to rewrite `books.schemas.ts`. `module`, `controller` and `service` don't need one.
+The schemas use the library in your `package.json` `dependencies`, Zod or Valibot. To specify it, or if you use another one, add `--schema zod` or `--schema valibot`. With another library, you'll have to rewrite `books.schemas.ts`. `module`, `controller` and `service` don't need one. `resource` uses `@vigajs/validation`, which `pnpm create @vigajs` already installs. If you don't have it, add it.
 
 ## Individual pieces
 

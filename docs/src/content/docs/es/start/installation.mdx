@@ -181,13 +181,13 @@ Ten en cuenta que CommonJS es el formato antiguo de Node.js y que algunos paquet
 
 ## Paquetes de los módulos opcionales
 
-El núcleo y la mayoría de los módulos opcionales no necesitan nada más. Algunos dependen de paquetes que instalas solo si los usas:
+Cada módulo opcional es un paquete aparte: instala solo los que uses, como `pnpm add @vigajs/config`. Algunos necesitan además otros paquetes:
 
 | Módulo | Paquetes que necesita |
 |---|---|
-| `@vigajs/core/validation` | Una librería compatible con Standard Schema, como `zod`, `valibot` o `arktype` |
-| `@vigajs/core/drizzle` | `drizzle-orm@0.45` y `pg`, y `@types/pg` como dependencia de desarrollo |
-| `@vigajs/core/websocket` | `ws`, si usas el adaptador por defecto |
-| `@vigajs/core/upload` | `multer` y `file-type` |
+| `@vigajs/validation` | Una librería compatible con Standard Schema, como `zod`, `valibot` o `arktype` |
+| `@vigajs/drizzle` | `drizzle-orm@0.45` y `pg`, y `@types/pg` como dependencia de desarrollo |
+| `@vigajs/websocket` | `ws`, si usas el adaptador por defecto |
+| `@vigajs/upload` | `multer` y `file-type` |
 
 Los instalas igual que viga, con tu gestor de paquetes.

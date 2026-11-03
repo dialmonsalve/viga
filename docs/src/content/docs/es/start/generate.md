@@ -53,7 +53,7 @@ Es un punto de partida. Tres cosas quedan en tus manos:
 
 ## Validación
 
-Los esquemas usan la librería que tengas en las `dependencies` de tu `package.json`, Zod o Valibot. Para indicarla, o si usas otra, añade `--schema zod` o `--schema valibot`. Con otra librería, tendrás que reescribir `books.schemas.ts`. `module`, `controller` y `service` no necesitan ninguna.
+Los esquemas usan la librería que tengas en las `dependencies` de tu `package.json`, Zod o Valibot. Para indicarla, o si usas otra, añade `--schema zod` o `--schema valibot`. Con otra librería, tendrás que reescribir `books.schemas.ts`. `module`, `controller` y `service` no necesitan ninguna. `resource` usa `@vigajs/validation`, que `pnpm create @vigajs` ya instala. Si no lo tienes, añádelo.
 
 ## Piezas sueltas
 

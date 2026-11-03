@@ -1,5 +1,5 @@
 ---
-title: '@vigajs/core/i18n'
+title: '@vigajs/i18n'
 description: Responde en el idioma de cada usuario, con catálogos de mensajes, negociación con Accept-Language y los errores del framework ya traducidos.
 sidebar:
   order: 5
@@ -7,16 +7,41 @@ sidebar:
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`@vigajs/core/i18n` elige el idioma de cada petición y traduce los mensajes de tu API a ese idioma, incluidos los de los errores. Tú escribes los textos en catálogos, uno por idioma, y viga elige cuál usar según lo que pida el cliente.
+`@vigajs/i18n` elige el idioma de cada petición y traduce los mensajes de tu API a ese idioma, incluidos los de los errores. Tú escribes los textos en catálogos, uno por idioma, y viga elige cuál usar según lo que pida el cliente.
 
 Los mensajes de error del propio framework ya vienen traducidos al inglés y al español.
+
+## Instalación
+
+<Tabs syncKey="pkg">
+  <TabItem label="pnpm">
+    ```sh
+    pnpm add @vigajs/i18n
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```sh
+    npm install @vigajs/i18n
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```sh
+    yarn add @vigajs/i18n
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```sh
+    bun add @vigajs/i18n
+    ```
+  </TabItem>
+</Tabs>
 
 ## Configura los idiomas
 
 Escribe un catálogo por idioma. Las claves pueden anidarse:
 
 ```ts title="src/i18n.ts"
-import { I18n } from '@vigajs/core/i18n';
+import { I18n } from '@vigajs/i18n';
 
 const es = {
   books: {
@@ -143,7 +168,7 @@ export class BooksService {
 En un script o una tarea en segundo plano no hay petición, así que `i18n.t()` usa el idioma por defecto. Para usar otro, por ejemplo al enviar un correo en el idioma de su destinatario, envuelve el código en `runWithLocale`:
 
 ```ts
-import { runWithLocale } from '@vigajs/core/i18n';
+import { runWithLocale } from '@vigajs/i18n';
 
 await runWithLocale(user.locale, () => mailer.send(user.email, i18n.t('emails.welcome')));
 ```
@@ -156,7 +181,7 @@ await runWithLocale(user.locale, () => mailer.send(user.email, i18n.t('emails.we
 
 ## Mensajes de validación
 
-Los mensajes de [`@vigajs/core/validation`](../validation/) los genera la librería de esquemas, normalmente en inglés. Para traducirlos, usa `formatIssue` con el identificador de cada error. Cada librería lo nombra a su manera, `code` en Zod y `type` en Valibot, y las claves del catálogo son sus valores:
+Los mensajes de [`@vigajs/validation`](../validation/) los genera la librería de esquemas, normalmente en inglés. Para traducirlos, usa `formatIssue` con el identificador de cada error. Cada librería lo nombra a su manera, `code` en Zod y `type` en Valibot, y las claves del catálogo son sus valores:
 
 <Tabs syncKey="schema">
   <TabItem label="Zod">
@@ -286,7 +311,7 @@ Los errores y avisos del propio framework, como `[DI] BooksModule cannot resolve
 
 ```ts title="src/main.ts"
 import { setDiagnostics } from '@vigajs/core';
-import { diagnosticsEs } from '@vigajs/core/i18n';
+import { diagnosticsEs } from '@vigajs/i18n';
 
 setDiagnostics(diagnosticsEs);
 ```

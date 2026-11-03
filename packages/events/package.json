@@ -1,0 +1,38 @@
+{
+  "name": "@vigajs/events",
+  "version": "0.1.1",
+  "description": "In-memory event bus for viga",
+  "type": "module",
+  "license": "MIT",
+  "author": "Diego Monsalve",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dialmonsalve/viga.git",
+    "directory": "packages/events"
+  },
+  "homepage": "https://vigajs.dev/en/optional/events/",
+  "keywords": [
+    "viga",
+    "events"
+  ],
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=24.13.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@vigajs/core": "^0.1.1"
+  }
+}

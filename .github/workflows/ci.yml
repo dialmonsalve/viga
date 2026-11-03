@@ -49,4 +49,5 @@ jobs:
       - run: pnpm check-types
       - run: pnpm test:db
       - run: pnpm build
+      - run: pnpm check-package
       - run: pnpm pack

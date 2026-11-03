@@ -93,10 +93,10 @@ Para pasar a una base de datos, escribes otra implementación y solo cambias `us
 
 ## Reemplázalo en las pruebas
 
-`createTestingApp`, de `@vigajs/core/testing`, arranca la app reemplazando el repositorio sin tocar su código:
+`createTestingApp`, de `@vigajs/testing`, arranca la app reemplazando el repositorio sin tocar su código:
 
 ```ts title="src/books/books.test.ts"
-import { createTestingApp } from '@vigajs/core/testing';
+import { createTestingApp } from '@vigajs/testing';
 import { AppModule } from '../app.module.ts';
 import { BOOKS_REPOSITORY } from './books.repository.ts';
 
@@ -110,4 +110,4 @@ const { body } = await app.request('/books');
 await app.close();
 ```
 
-`body` contiene el libro de prueba: el servicio y el controlador son los reales, y solo cambió el repositorio. Puedes ejecutar este archivo con `tsx` o dentro de tu herramienta de pruebas, como `node:test`, que verás en [@vigajs/core/testing](../../optional/testing/).
+`body` contiene el libro de prueba: el servicio y el controlador son los reales, y solo cambió el repositorio. Puedes ejecutar este archivo con `tsx` o dentro de tu herramienta de pruebas, como `node:test`, que verás en [@vigajs/testing](../../optional/testing/).

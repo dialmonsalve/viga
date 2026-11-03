@@ -7,7 +7,7 @@ sidebar:
 
 Um limite de requisições conta quantas requisições cada cliente faz em uma janela de tempo e, se passar do máximo, responde 429 até a janela terminar. Serve para frear ataques de força bruta contra o login, o abuso de rotas custosas ou os scripts que chamam sua API sem parar.
 
-No HTTP ele vem **desativado**: você decide onde colocá-lo. Ele não é ativado sozinho porque, atrás de um proxy mal configurado, todos os usuários compartilhariam o IP do proxy e seriam bloqueados ao mesmo tempo. Leia [IP do cliente e proxies](../client-ip/) antes de ativá-lo. No WebSocket há um limite por conexão ativado por padrão, como explicado em [`@vigajs/core/websocket`](../../optional/websocket/#limites-por-padrão).
+No HTTP ele vem **desativado**: você decide onde colocá-lo. Ele não é ativado sozinho porque, atrás de um proxy mal configurado, todos os usuários compartilhariam o IP do proxy e seriam bloqueados ao mesmo tempo. Leia [IP do cliente e proxies](../client-ip/) antes de ativá-lo. No WebSocket há um limite por conexão ativado por padrão, como explicado em [`@vigajs/websocket`](../../optional/websocket/#limites-por-padrão).
 
 ## Para toda a aplicação
 
@@ -28,7 +28,7 @@ Aqui cada IP pode fazer 300 requisições por minuto, somando todas as rotas.
 
 ```ts title="src/auth/auth.controller.ts"
 import { Controller, Post, Public, RateLimit, type HttpContext } from '@vigajs/core';
-import { Validate } from '@vigajs/core/validation';
+import { Validate } from '@vigajs/validation';
 import { z } from 'zod';
 
 const Login = z.object({ email: z.email(), password: z.string() });
@@ -116,4 +116,4 @@ A janela é fixa: começa com a primeira requisição e dura `windowMs`. Um clie
 
 ## No WebSocket
 
-Para limitar eventos de um gateway, use o `RateLimit` importado de `@vigajs/core/websocket`, não o de `@vigajs/core`. Isso é explicado em [`@vigajs/core/websocket`](../../optional/websocket/#guards-interceptores-e-limites-por-evento).
+Para limitar eventos de um gateway, use o `RateLimit` importado de `@vigajs/websocket`, não o de `@vigajs/core`. Isso é explicado em [`@vigajs/websocket`](../../optional/websocket/#guards-interceptores-e-limites-por-evento).

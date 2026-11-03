@@ -170,7 +170,7 @@ Se você o importar a partir de outro módulo, o viga não inicia e diz para ond
 [Module] ClockModule is global and is imported from BooksModule, but not from the root module; move it to the imports of AppModule
 ```
 
-Essa regra faz com que todos os módulos globais fiquem visíveis em um único arquivo. `ConfigModule.forRoot()`, de `@vigajs/core/config`, é um módulo global e é importado assim.
+Essa regra faz com que todos os módulos globais fiquem visíveis em um único arquivo. `ConfigModule.forRoot()`, de `@vigajs/config`, é um módulo global e é importado assim.
 
 :::tip
 Use módulos globais só para o que é realmente transversal. Um import explícito deixa claro do que cada módulo depende; um global esconde isso.

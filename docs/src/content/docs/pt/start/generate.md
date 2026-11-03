@@ -53,7 +53,7 @@ O resultado compila e funciona desde o primeiro momento, com estas rotas validad
 
 ## Validação
 
-Os esquemas usam a biblioteca que estiver nas `dependencies` do seu `package.json`, Zod ou Valibot. Para indicá-la, ou se você usa outra, adicione `--schema zod` ou `--schema valibot`. Com outra biblioteca, você terá que reescrever `books.schemas.ts`. `module`, `controller` e `service` não precisam de nenhuma.
+Os esquemas usam a biblioteca que estiver nas `dependencies` do seu `package.json`, Zod ou Valibot. Para indicá-la, ou se você usa outra, adicione `--schema zod` ou `--schema valibot`. Com outra biblioteca, você terá que reescrever `books.schemas.ts`. `module`, `controller` e `service` não precisam de nenhuma. `resource` usa `@vigajs/validation`, que `pnpm create @vigajs` já instala. Se você não o tiver, adicione-o.
 
 ## Peças soltas
 

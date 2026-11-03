@@ -1,7 +1,10 @@
 {
   "compilerOptions": {
     "target": "ES2024",
-    "lib": ["ES2024", "ESNext.Decorators"],
+    "lib": [
+      "ES2024",
+      "ESNext.Decorators"
+    ],
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "moduleDetection": "force",
@@ -17,8 +20,16 @@
     "noFallthroughCasesInSwitch": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "noEmit": true
   },
-  "include": ["src", "test"]
+  "include": [
+    "src",
+    "test"
+  ],
+  "exclude": [
+    "test/package-types"
+  ]
 }

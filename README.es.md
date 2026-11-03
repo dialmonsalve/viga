@@ -4,23 +4,23 @@
 
 Framework HTTP para Node.js sobre Express 5: módulos, inyección de dependencias, guards e interceptores con **decoradores estándar de JavaScript (TC39)**. Sin `reflect-metadata`, sin `experimentalDecorators` y sin `emitDecoratorMetadata`.
 
-El core solo resuelve lo que todo servidor necesita. Lo demás son subrutas opcionales: si no las importas, no se instala nada extra.
+El core solo resuelve lo que todo servidor necesita. Lo demás son paquetes opcionales: instala solo los que uses.
 
 | Importación | Qué trae | Requiere |
 |---|---|---|
 | `@vigajs/core` | Módulos, DI, controladores, guards, interceptores, `@Public`, excepciones HTTP, ciclo de vida, logger | `express` |
-| `@vigajs/core/validation` | `@Validate` y `ValidationModule` con cualquier librería [Standard Schema](https://standardschema.dev) | Nada (tú eliges Zod, Valibot, ArkType…) |
-| `@vigajs/core/i18n` | Catálogos de mensajes, negociación de `Accept-Language`, mensajes del framework en es/en | Nada |
-| `@vigajs/core/drizzle` | `DrizzleModule` y `DatabaseService` con cierre del pool | `drizzle-orm`, `pg` |
-| `@vigajs/core/config` | `ConfigModule` que valida y tipa las variables de entorno al arrancar | Nada |
-| `@vigajs/core/pagination` | `@Paginate` con resultados tipados, enlaces relativos y límites | Nada |
-| `@vigajs/core/websocket` | Gateways, salas y una interfaz de adaptador pública, con valores restrictivos por defecto | `ws` |
-| `@vigajs/core/testing` | `createTestingApp` para probar la app con peticiones HTTP reales y providers reemplazados | Nada |
-| `@vigajs/core/health` | Rutas `/health` y `/ready` con tus propias comprobaciones, sin revelar detalles | Nada |
-| `@vigajs/core/crypto` | Hash de contraseñas con Argon2id, tokens aleatorios, URLs firmadas y cifrado AES-256-GCM | Nada |
-| `@vigajs/core/events` | Bus de eventos en memoria con eventos tipados, errores aislados y listeners que terminan antes de apagar | Nada |
-| `@vigajs/core/workers` | El mismo worker en la API, en procesos hijos o en otro servidor, con un supervisor que los reinicia | Nada |
-| `@vigajs/core/upload` | `@Upload` con límites, tipos de archivo detectados por su contenido y limpieza automática | `multer`, `file-type` |
+| `@vigajs/validation` | `@Validate` y `ValidationModule` con cualquier librería [Standard Schema](https://standardschema.dev) | Nada (tú eliges Zod, Valibot, ArkType…) |
+| `@vigajs/i18n` | Catálogos de mensajes, negociación de `Accept-Language`, mensajes del framework en es/en | Nada |
+| `@vigajs/drizzle` | `DrizzleModule` y `DatabaseService` con cierre del pool | `drizzle-orm`, `pg` |
+| `@vigajs/config` | `ConfigModule` que valida y tipa las variables de entorno al arrancar | Nada |
+| `@vigajs/pagination` | `@Paginate` con resultados tipados, enlaces relativos y límites | Nada |
+| `@vigajs/websocket` | Gateways, salas y una interfaz de adaptador pública, con valores restrictivos por defecto | `ws` |
+| `@vigajs/testing` | `createTestingApp` para probar la app con peticiones HTTP reales y providers reemplazados | Nada |
+| `@vigajs/health` | Rutas `/health` y `/ready` con tus propias comprobaciones, sin revelar detalles | Nada |
+| `@vigajs/crypto` | Hash de contraseñas con Argon2id, tokens aleatorios, URLs firmadas y cifrado AES-256-GCM | Nada |
+| `@vigajs/events` | Bus de eventos en memoria con eventos tipados, errores aislados y listeners que terminan antes de apagar | Nada |
+| `@vigajs/workers` | El mismo worker en la API, en procesos hijos o en otro servidor, con un supervisor que los reinicia | Nada |
+| `@vigajs/upload` | `@Upload` con límites, tipos de archivo detectados por su contenido y limpieza automática | `multer`, `file-type` |
 
 ## Agradecimientos
 
@@ -45,7 +45,7 @@ La forma más rápida es crear un proyecto:
 pnpm create @vigajs mi-app
 ```
 
-Para añadir viga a un proyecto existente:
+Para añadir viga a un proyecto existente, instala el núcleo y después los módulos que necesites:
 
 ```bash
 pnpm add @vigajs/core express
@@ -59,23 +59,23 @@ pnpm add -D typescript tsx @types/express @types/node
 }
 ```
 
-Solo si usas `@vigajs/core/drizzle`:
+Solo si usas `@vigajs/drizzle`:
 
 ```bash
-pnpm add drizzle-orm@0.45 pg
+pnpm add @vigajs/drizzle drizzle-orm@0.45 pg
 pnpm add -D @types/pg
 ```
 
-Solo si usas `@vigajs/core/websocket` con el adaptador por defecto:
+Solo si usas `@vigajs/websocket` con el adaptador por defecto:
 
 ```bash
-pnpm add ws
+pnpm add @vigajs/websocket ws
 ```
 
-Solo si usas `@vigajs/core/upload`:
+Solo si usas `@vigajs/upload`:
 
 ```bash
-pnpm add multer file-type
+pnpm add @vigajs/upload multer file-type
 ```
 
 ## Ejemplo mínimo
@@ -123,7 +123,7 @@ Consulta [Ciclo de vida de la app](https://vigajs.dev/es/core/app-lifecycle/) en
 
 ### Rutas privadas por defecto
 
-Consulta [Guards](https://vigajs.dev/es/core/guards/) en la documentación. Las mismas reglas, incluido que `@Public` no se hereda, valen para los gateways de `@vigajs/core/websocket`.
+Consulta [Guards](https://vigajs.dev/es/core/guards/) en la documentación. Las mismas reglas, incluido que `@Public` no se hereda, valen para los gateways de `@vigajs/websocket`.
 
 ### Orden de una petición
 
@@ -165,53 +165,53 @@ Consulta [Mensajes para desarrolladores](https://vigajs.dev/es/optional/i18n/#me
 
 Consulta [Usa tu propio logger](https://vigajs.dev/es/core/providers/#usa-tu-propio-logger) en la documentación.
 
-## @vigajs/core/validation
+## @vigajs/validation
 
-Consulta [@vigajs/core/validation](https://vigajs.dev/es/optional/validation/) en la documentación.
+Consulta [@vigajs/validation](https://vigajs.dev/es/optional/validation/) en la documentación.
 
-## @vigajs/core/i18n
+## @vigajs/i18n
 
-Consulta [@vigajs/core/i18n](https://vigajs.dev/es/optional/i18n/) en la documentación.
+Consulta [@vigajs/i18n](https://vigajs.dev/es/optional/i18n/) en la documentación.
 
-## @vigajs/core/config
+## @vigajs/config
 
-Consulta [@vigajs/core/config](https://vigajs.dev/es/optional/config/) en la documentación.
+Consulta [@vigajs/config](https://vigajs.dev/es/optional/config/) en la documentación.
 
-## @vigajs/core/pagination
+## @vigajs/pagination
 
-Consulta [@vigajs/core/pagination](https://vigajs.dev/es/optional/pagination/) en la documentación.
+Consulta [@vigajs/pagination](https://vigajs.dev/es/optional/pagination/) en la documentación.
 
-## @vigajs/core/drizzle
+## @vigajs/drizzle
 
-Consulta [@vigajs/core/drizzle](https://vigajs.dev/es/optional/drizzle/) en la documentación.
+Consulta [@vigajs/drizzle](https://vigajs.dev/es/optional/drizzle/) en la documentación.
 
-## @vigajs/core/websocket
+## @vigajs/websocket
 
-Consulta [@vigajs/core/websocket](https://vigajs.dev/es/optional/websocket/) en la documentación.
+Consulta [@vigajs/websocket](https://vigajs.dev/es/optional/websocket/) en la documentación.
 
-## @vigajs/core/testing
+## @vigajs/testing
 
-Consulta [@vigajs/core/testing](https://vigajs.dev/es/optional/testing/) en la documentación.
+Consulta [@vigajs/testing](https://vigajs.dev/es/optional/testing/) en la documentación.
 
-## @vigajs/core/health
+## @vigajs/health
 
-Consulta [@vigajs/core/health](https://vigajs.dev/es/optional/health/) en la documentación.
+Consulta [@vigajs/health](https://vigajs.dev/es/optional/health/) en la documentación.
 
-## @vigajs/core/crypto
+## @vigajs/crypto
 
-Consulta [@vigajs/core/crypto](https://vigajs.dev/es/optional/crypto/) en la documentación.
+Consulta [@vigajs/crypto](https://vigajs.dev/es/optional/crypto/) en la documentación.
 
-## @vigajs/core/events
+## @vigajs/events
 
-Consulta [@vigajs/core/events](https://vigajs.dev/es/optional/events/) en la documentación.
+Consulta [@vigajs/events](https://vigajs.dev/es/optional/events/) en la documentación.
 
-## @vigajs/core/workers
+## @vigajs/workers
 
-Consulta [@vigajs/core/workers](https://vigajs.dev/es/optional/workers/) en la documentación.
+Consulta [@vigajs/workers](https://vigajs.dev/es/optional/workers/) en la documentación.
 
-## @vigajs/core/upload
+## @vigajs/upload
 
-Consulta [@vigajs/core/upload](https://vigajs.dev/es/optional/upload/) en la documentación.
+Consulta [@vigajs/upload](https://vigajs.dev/es/optional/upload/) en la documentación.
 
 ## Generar código
 

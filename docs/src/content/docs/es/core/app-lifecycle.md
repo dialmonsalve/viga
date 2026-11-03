@@ -85,7 +85,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 
 `onModuleInit` comprueba que la base de datos responde. Si no responde, la app no arranca, y lo sabes al desplegar en lugar de con la primera petición. Este es el lugar para el trabajo asíncrono que no puede ir en un [`useFactory`](../providers/#usefactory-construir-el-valor-con-código), que tiene que devolver el valor directamente.
 
-`OnServerListen` y `OnServerClose` son para providers que necesitan el servidor HTTP, por ejemplo para atender WebSockets en el mismo puerto. `onServerListen` recibe el `Server` de Node.js antes de que empiece a escuchar. Es lo que usa `@vigajs/core/websocket`.
+`OnServerListen` y `OnServerClose` son para providers que necesitan el servidor HTTP, por ejemplo para atender WebSockets en el mismo puerto. `onServerListen` recibe el `Server` de Node.js antes de que empiece a escuchar. Es lo que usa `@vigajs/websocket`.
 
 ### El orden
 

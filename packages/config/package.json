@@ -1,0 +1,38 @@
+{
+  "name": "@vigajs/config",
+  "version": "0.1.1",
+  "description": "Validated and typed environment configuration for viga",
+  "type": "module",
+  "license": "MIT",
+  "author": "Diego Monsalve",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dialmonsalve/viga.git",
+    "directory": "packages/config"
+  },
+  "homepage": "https://vigajs.dev/en/optional/config/",
+  "keywords": [
+    "viga",
+    "config"
+  ],
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=24.13.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@vigajs/core": "^0.1.1"
+  }
+}

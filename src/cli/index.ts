@@ -74,6 +74,7 @@ function nextStep(kind: string, name: string, directory: string, sourceRoot: str
     case 'resource':
       return [
         `Add ${plural}Module to the imports of ${join(sourceRoot, 'app.module.ts')}.`,
+        'It validates with @vigajs/validation: install it if your project does not have it yet.',
         'Its routes are private by default: add @Public() to open one, or set up app.useAuthGuard().',
         'The service keeps its data in memory: replace it with your database when you are ready.',
       ];

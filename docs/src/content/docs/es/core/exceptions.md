@@ -106,7 +106,7 @@ La respuesta queda así:
 { "statusCode": 404, "code": "books.notFound", "message": "El libro 7 no existe", "error": "Not Found" }
 ```
 
-Si `resolveMessage` devuelve `undefined`, viga usa su mensaje en inglés para sus propios códigos (`errors.*`). Como `resolveMessage` recibe la petición, también puede elegir el idioma según la cabecera `Accept-Language`; `@vigajs/core/i18n` hace exactamente eso, y lo verás en su página.
+Si `resolveMessage` devuelve `undefined`, viga usa su mensaje en inglés para sus propios códigos (`errors.*`). Como `resolveMessage` recibe la petición, también puede elegir el idioma según la cabecera `Accept-Language`; `@vigajs/i18n` hace exactamente eso, y lo verás en su página.
 
 :::caution
 Si viga no encuentra un mensaje para un `code`, lo trata como texto libre: lo pone tal cual en `message` y usa el `code` por defecto del estado. `new NotFoundException('books.notFound')` sin `resolveMessage` responde con `"message": "books.notFound"`, que no es un texto para mostrar a nadie. Define el mensaje de cada código propio que uses.

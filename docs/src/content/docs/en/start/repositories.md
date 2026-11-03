@@ -93,10 +93,10 @@ To switch to a database, you write another implementation and only change `useCl
 
 ## Replace it in tests
 
-`createTestingApp`, from `@vigajs/core/testing`, starts the app and replaces the repository without touching its code:
+`createTestingApp`, from `@vigajs/testing`, starts the app and replaces the repository without touching its code:
 
 ```ts title="src/books/books.test.ts"
-import { createTestingApp } from '@vigajs/core/testing';
+import { createTestingApp } from '@vigajs/testing';
 import { AppModule } from '../app.module.ts';
 import { BOOKS_REPOSITORY } from './books.repository.ts';
 
@@ -110,4 +110,4 @@ const { body } = await app.request('/books');
 await app.close();
 ```
 
-`body` holds the test book: the service and the controller are the real ones, and only the repository changed. You can run this file with `tsx` or inside your test tool, like `node:test`, which you'll see in [@vigajs/core/testing](../../optional/testing/).
+`body` holds the test book: the service and the controller are the real ones, and only the repository changed. You can run this file with `tsx` or inside your test tool, like `node:test`, which you'll see in [@vigajs/testing](../../optional/testing/).

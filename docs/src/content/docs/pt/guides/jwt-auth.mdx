@@ -43,9 +43,11 @@ Um JWT não pode ser anulado antes de expirar: é válido enquanto sua assinatur
   </TabItem>
 </Tabs>
 
+Este guia também usa os pacotes `@vigajs/config`, `@vigajs/validation`, que são instalados da mesma forma.
+
 ## O segredo
 
-Os access tokens são assinados com um segredo que só o seu servidor conhece. Declare `JWT_SECRET` no seu schema de [`@vigajs/core/config`](../../optional/config/) com um mínimo de 32 caracteres, para que a aplicação não inicie com um segredo fraco:
+Os access tokens são assinados com um segredo que só o seu servidor conhece. Declare `JWT_SECRET` no seu schema de [`@vigajs/config`](../../optional/config/) com um mínimo de 32 caracteres, para que a aplicação não inicie com um segredo fraco:
 
 ```ts title="src/config.ts"
 export const Env = z.object({
@@ -63,7 +65,7 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'
 
 ```ts title="src/auth/tokens.service.ts"
 import { Injectable, inject } from '@vigajs/core';
-import { CONFIG } from '@vigajs/core/config';
+import { CONFIG } from '@vigajs/config';
 import { SignJWT, jwtVerify } from 'jose';
 
 @Injectable()
@@ -201,7 +203,7 @@ Para que o guia seja curto, os tokens são guardados em memória. Em uma aplica�
 
 ```ts title="src/auth/auth.controller.ts"
 import { Controller, Get, Post, Public, RateLimit, UnauthorizedException, inject, type HttpContext } from '@vigajs/core';
-import { Validate } from '@vigajs/core/validation';
+import { Validate } from '@vigajs/validation';
 import { z } from 'zod';
 import { CURRENT_USER } from './current-user.ts';
 import { RefreshTokensService } from './refresh-tokens.service.ts';
@@ -258,7 +260,7 @@ export class AuthController {
 As três primeiras são `@Public()`, porque são usadas sem um access token válido.
 
 :::tip
-[`@vigajs/core/crypto`](../../optional/crypto/#senhas) inclui `hashPassword` e `verifyPassword` para implementar `verifyCredentials`, e `randomToken` e `hashToken` para gerar os refresh tokens e guardar o hash deles.
+[`@vigajs/crypto`](../../optional/crypto/#senhas) inclui `hashPassword` e `verifyPassword` para implementar `verifyCredentials`, e `randomToken` e `hashToken` para gerar os refresh tokens e guardar o hash deles.
 :::
 
 ## No cliente
@@ -278,8 +280,8 @@ O mesmo access token serve para autenticar um WebSocket. Passe para `WebSocketMo
 
 ```ts title="src/app.module.ts"
 import { inject } from '@vigajs/core';
-import { CONFIG } from '@vigajs/core/config';
-import { WebSocketModule } from '@vigajs/core/websocket';
+import { CONFIG } from '@vigajs/config';
+import { WebSocketModule } from '@vigajs/websocket';
 import { jwtVerify } from 'jose';
 
 WebSocketModule.forRoot(() => {
@@ -304,4 +306,4 @@ WebSocketModule.forRoot(() => {
 
 A função só vê os providers dos módulos globais, como `CONFIG`, então aqui não é possível pedir `TokensService`.
 
-O navegador não pode enviar o cabeçalho `Authorization` em um WebSocket, então o token vai na URL. Como as URLs costumam ficar nos logs, é mais um motivo para o access token durar pouco. Isso é explicado em [`@vigajs/core/websocket`](../../optional/websocket/#autenticação).
+O navegador não pode enviar o cabeçalho `Authorization` em um WebSocket, então o token vai na URL. Como as URLs costumam ficar nos logs, é mais um motivo para o access token durar pouco. Isso é explicado em [`@vigajs/websocket`](../../optional/websocket/#autenticação).

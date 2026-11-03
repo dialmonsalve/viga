@@ -16,7 +16,7 @@ export interface ConfigOptions {
   env?: ConfigSource;
 }
 
-export const CONFIG = new InjectionToken<Config>('CONFIG');
+export const CONFIG: InjectionToken<Config> = new InjectionToken<Config>('CONFIG');
 
 const REDACTED = '***';
 

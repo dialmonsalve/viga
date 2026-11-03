@@ -62,7 +62,7 @@ Se você autentica com cookies, mantenha a [proteção CSRF](../defaults/#prote�
 
 ## WebSocket
 
-Se você usa [`@vigajs/core/websocket`](../../optional/websocket/), verifique três coisas:
+Se você usa [`@vigajs/websocket`](../../optional/websocket/), verifique três coisas:
 
 - **`allowedOrigins`** contém só os seus sites, para que outra página não consiga abrir um WebSocket com os cookies dos seus usuários.
 - **As sessões expiram**: devolva `expiresAt` em `authenticate` para que uma conexão aberta não continue funcionando com uma sessão que já expirou.
@@ -70,9 +70,9 @@ Se você usa [`@vigajs/core/websocket`](../../optional/websocket/), verifique tr
 
 ## Segredos e configuração
 
-- Valide as variáveis de ambiente com [`@vigajs/core/config`](../../optional/config/), para que uma configuração incompleta impeça a aplicação de iniciar em vez de falhar mais tarde.
+- Valide as variáveis de ambiente com [`@vigajs/config`](../../optional/config/), para que uma configuração incompleta impeça a aplicação de iniciar em vez de falhar mais tarde.
 - Não envie o arquivo `.env` para o repositório.
-- Em produção, conecte-se ao banco de dados com TLS verificado. [`@vigajs/core/drizzle`](../../optional/drizzle/#tls) avisa ao iniciar se não for assim.
+- Em produção, conecte-se ao banco de dados com TLS verificado. [`@vigajs/drizzle`](../../optional/drizzle/#tls) avisa ao iniciar se não for assim.
 
 ## Dependências
 

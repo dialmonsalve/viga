@@ -7,7 +7,8 @@ const MIN_NODE = [24, 13];
 const NAME_FORMAT = /^[a-z0-9][a-z0-9._-]{0,213}$/;
 
 const VERSIONS = {
-  '@vigajs/core': '^0.1.0',
+  '@vigajs/core': '^0.1.1',
+  '@vigajs/validation': '^0.1.1',
   express: '^5.1.0',
   zod: '^4.0.0',
   valibot: '^1.5.0',
@@ -35,7 +36,7 @@ function pickVersions(names) {
 }
 
 function projectFiles(name, schema, manager) {
-  const dependencies = ['@vigajs/core', 'express', ...(schema === 'none' ? [] : [schema])];
+  const dependencies = ['@vigajs/core', 'express', ...(schema === 'none' ? [] : ['@vigajs/validation', schema])];
   const packageJson = {
     name,
     version: '0.1.0',

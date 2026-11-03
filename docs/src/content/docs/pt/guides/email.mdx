@@ -38,7 +38,9 @@ O viga não traz envio de emails, porque isso depende do seu provedor. Este guia
   </TabItem>
 </Tabs>
 
-Declare a conexão no schema de [`@vigajs/core/config`](../../optional/config/):
+Este guia também usa os pacotes `@vigajs/config`, `@vigajs/events`, `@vigajs/validation`, `@vigajs/crypto`, que são instalados da mesma forma.
+
+Declare a conexão no schema de [`@vigajs/config`](../../optional/config/):
 
 ```ts title="src/config.ts"
 export const Env = z.object({
@@ -77,7 +79,7 @@ export const MAILER = new InjectionToken<Mailer>('MAILER');
 
 ```ts title="src/mail/smtp.mailer.ts"
 import { Injectable, inject, type OnModuleDestroy } from '@vigajs/core';
-import { CONFIG } from '@vigajs/core/config';
+import { CONFIG } from '@vigajs/config';
 import { createTransport } from 'nodemailer';
 import type { Email, Mailer } from './mailer.ts';
 
@@ -143,7 +145,7 @@ Enviar um email demora, e o servidor SMTP pode estar fora do ar. Por isso uma re
 
 ```ts title="src/mail/mail.queue.ts"
 import { Injectable, inject, type OnModuleDestroy } from '@vigajs/core';
-import { CONFIG } from '@vigajs/core/config';
+import { CONFIG } from '@vigajs/config';
 import { Queue } from 'bullmq';
 import type { Email } from './mailer.ts';
 
@@ -173,7 +175,7 @@ O worker envia cada email e decide se faz sentido repetir:
 
 ```ts title="src/mail/mail.worker.ts"
 import { Injectable, LOGGER, inject, type OnModuleDestroy, type OnModuleInit } from '@vigajs/core';
-import { CONFIG } from '@vigajs/core/config';
+import { CONFIG } from '@vigajs/config';
 import { UnrecoverableError, Worker, type Job } from 'bullmq';
 import { MAILER, type Email } from './mailer.ts';
 
@@ -229,7 +231,7 @@ Execute o worker como [qualquer outro](../queues-workers/#processe-os-trabalhos)
 
 ## Envie quando algo acontecer
 
-Com [`@vigajs/core/events`](../../optional/events/), o serviço de usuários não precisa saber que os emails existem. Ele só anuncia que alguém se cadastrou:
+Com [`@vigajs/events`](../../optional/events/), o serviço de usuários não precisa saber que os emails existem. Ele só anuncia que alguém se cadastrou:
 
 ```ts title="src/users/users.service.ts"
 async register(data: NewUser) {
@@ -241,7 +243,7 @@ async register(data: NewUser) {
 
 ```ts title="src/mail/welcome.listener.ts"
 import { Injectable, inject } from '@vigajs/core';
-import { OnEvent } from '@vigajs/core/events';
+import { OnEvent } from '@vigajs/events';
 import { UserRegistered } from '../users/user-registered.event.ts';
 import { MailQueue } from './mail.queue.ts';
 import { welcomeEmail } from './templates.ts';
@@ -297,7 +299,7 @@ private async process(job: Job<{ email: string }>) {
 }
 ```
 
-`replaceFor` apaga os tokens anteriores do usuário, então uma repetição invalida o link da tentativa anterior. Para verificar o token quando ele voltar, siga os passos de [`@vigajs/core/crypto`](../../optional/crypto/#tokens-aleatórios). O link é construído com `APP_URL`, da sua configuração, e nunca com o cabeçalho `Host` da requisição, que pode ser falsificado para enviar o link a outro domínio.
+`replaceFor` apaga os tokens anteriores do usuário, então uma repetição invalida o link da tentativa anterior. Para verificar o token quando ele voltar, siga os passos de [`@vigajs/crypto`](../../optional/crypto/#tokens-aleatórios). O link é construído com `APP_URL`, da sua configuração, e nunca com o cabeçalho `Host` da requisição, que pode ser falsificado para enviar o link a outro domínio.
 
 ## Rejeições e reclamações
 

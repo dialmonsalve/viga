@@ -7,7 +7,7 @@ sidebar:
 
 A rate limit counts how many requests each client makes within a time window and, if it goes over the maximum, responds 429 until the window ends. It helps slow down brute-force attacks against login, abuse of expensive routes, or scripts that call your API nonstop.
 
-In HTTP it's **off** by default: you decide where to put it. It isn't turned on by itself because, behind a misconfigured proxy, every user would share the proxy's IP and be blocked at once. Read [Client IP and proxies](../client-ip/) before turning it on. WebSocket does have a per-connection limit on by default, as explained in [`@vigajs/core/websocket`](../../optional/websocket/#default-limits).
+In HTTP it's **off** by default: you decide where to put it. It isn't turned on by itself because, behind a misconfigured proxy, every user would share the proxy's IP and be blocked at once. Read [Client IP and proxies](../client-ip/) before turning it on. WebSocket does have a per-connection limit on by default, as explained in [`@vigajs/websocket`](../../optional/websocket/#default-limits).
 
 ## For the whole app
 
@@ -28,7 +28,7 @@ Here each IP can make 300 requests per minute, adding up all routes.
 
 ```ts title="src/auth/auth.controller.ts"
 import { Controller, Post, Public, RateLimit, type HttpContext } from '@vigajs/core';
-import { Validate } from '@vigajs/core/validation';
+import { Validate } from '@vigajs/validation';
 import { z } from 'zod';
 
 const Login = z.object({ email: z.email(), password: z.string() });
@@ -116,4 +116,4 @@ The window is fixed: it starts with the first request and lasts `windowMs`. A cl
 
 ## In WebSocket
 
-To limit a gateway's events, use the `RateLimit` imported from `@vigajs/core/websocket`, not the one from `@vigajs/core`. It's explained in [`@vigajs/core/websocket`](../../optional/websocket/#guards-interceptors-and-per-event-limits).
+To limit a gateway's events, use the `RateLimit` imported from `@vigajs/websocket`, not the one from `@vigajs/core`. It's explained in [`@vigajs/websocket`](../../optional/websocket/#guards-interceptors-and-per-event-limits).

@@ -68,10 +68,10 @@ O habitual é desestruturar só o que você usa: `findOne({ params }: HttpContex
 
 ## Valide o que chega
 
-`Number('abc')` é `NaN`, e nada impede alguém de pedir `/books/abc`. A forma de garantir que os dados estão corretos, e de tê-los com o tipo adequado, é validá-los com `@Validate`, de `@vigajs/core/validation`, e um schema de uma biblioteca como Zod ou Valibot:
+`Number('abc')` é `NaN`, e nada impede alguém de pedir `/books/abc`. A forma de garantir que os dados estão corretos, e de tê-los com o tipo adequado, é validá-los com `@Validate`, de `@vigajs/validation`, e um schema de uma biblioteca como Zod ou Valibot:
 
 ```ts title="src/books/books.controller.ts"
-import { Validate } from '@vigajs/core/validation';
+import { Validate } from '@vigajs/validation';
 import { z } from 'zod';
 
 const BookParams = z.object({ id: z.coerce.number().int().positive() });

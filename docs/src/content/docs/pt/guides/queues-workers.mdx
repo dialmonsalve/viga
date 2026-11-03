@@ -1,6 +1,6 @@
 ---
 title: Filas e workers
-description: Processe trabalhos em segundo plano com BullMQ ou pg-boss e @vigajs/core/workers, com repetições, encerramento ordenado e uma fila por empresa.
+description: Processe trabalhos em segundo plano com BullMQ ou pg-boss e @vigajs/workers, com repetições, encerramento ordenado e uma fila por empresa.
 sidebar:
   order: 2
 ---
@@ -43,6 +43,8 @@ O BullMQ precisa de `ioredis`, que é instalado à parte:
   </TabItem>
 </Tabs>
 
+Este guia também usa os pacotes `@vigajs/config`, `@vigajs/validation`, `@vigajs/workers`, que são instalados da mesma forma.
+
 Configure o Redis com `maxmemory-policy noeviction`. Com outra política, o Redis pode apagar trabalhos quando fica sem memória.
 
 ## Adicione trabalhos pela API
@@ -51,7 +53,7 @@ Um provider cria a fila e a fecha quando a aplicação para:
 
 ```ts title="src/imports/imports.queue.ts"
 import { Injectable, inject, type OnModuleDestroy } from '@vigajs/core';
-import { CONFIG } from '@vigajs/core/config';
+import { CONFIG } from '@vigajs/config';
 import { Queue } from 'bullmq';
 
 export interface ImportJob {
@@ -87,7 +89,7 @@ A rota adiciona o trabalho e responde 202, que significa "recebido, será proces
 
 ```ts title="src/imports/imports.controller.ts"
 import { Controller, HttpCode, Post, inject, type HttpContext } from '@vigajs/core';
-import { Validate } from '@vigajs/core/validation';
+import { Validate } from '@vigajs/validation';
 import { z } from 'zod';
 import { ImportsQueue } from './imports.queue.ts';
 
@@ -113,7 +115,7 @@ O worker é um provider que consome a fila. `close()` espera os trabalhos em and
 
 ```ts title="src/imports/imports.worker.ts"
 import { Injectable, LOGGER, inject, runInNewContext, type OnModuleDestroy, type OnModuleInit } from '@vigajs/core';
-import { CONFIG } from '@vigajs/core/config';
+import { CONFIG } from '@vigajs/config';
 import { Worker, type Job } from 'bullmq';
 import { ImportsService } from './imports.service.ts';
 import type { ImportJob } from './imports.queue.ts';
@@ -155,7 +157,7 @@ Agrupe-o no módulo dele e crie o arquivo de entrada. O módulo é a raiz do pro
 
 ```ts title="src/imports/imports-worker.module.ts"
 import { Module } from '@vigajs/core';
-import { ConfigModule } from '@vigajs/core/config';
+import { ConfigModule } from '@vigajs/config';
 import { Env } from '../config.ts';
 import { ImportsService } from './imports.service.ts';
 import { ImportsWorker } from './imports.worker.ts';
@@ -168,7 +170,7 @@ export class ImportsWorkerModule {}
 ```
 
 ```ts title="src/worker.ts"
-import { startWorker } from '@vigajs/core/workers';
+import { startWorker } from '@vigajs/workers';
 import { ImportsWorkerModule } from './imports/imports-worker.module.ts';
 
 await startWorker(ImportsWorkerModule);
@@ -302,7 +304,7 @@ Um único provider serve para adicionar e consumir trabalhos:
 
 ```ts title="src/jobs/jobs.service.ts"
 import { Injectable, LOGGER, inject, type OnModuleDestroy, type OnModuleInit } from '@vigajs/core';
-import { CONFIG } from '@vigajs/core/config';
+import { CONFIG } from '@vigajs/config';
 import { PgBoss } from 'pg-boss';
 
 @Injectable()

@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/). While the version is `0.x`, minor releases may include breaking changes.
 
+## [0.1.1] - 2026-11-02
+
+### Added
+
+- Each optional module is also its own package, so imports are shorter: `@vigajs/validation` instead of `@vigajs/core/validation`. They are thin re-exports of `@vigajs/core`, and its subpaths keep working.
+
+### Fixed
+
+- `inject(CONFIG)` lost the type registered through `declare module` in installed packages, so its values were `unknown`.
+
 ## [0.1.0] - 2026-11-02
 
 First public release.

@@ -1,5 +1,5 @@
 ---
-title: '@vigajs/core/drizzle'
+title: '@vigajs/drizzle'
 description: Connect your app to PostgreSQL with Drizzle ORM, with transactions that span services and repositories without passing them as a parameter.
 sidebar:
   order: 6
@@ -10,34 +10,34 @@ sidebar:
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`@vigajs/core/drizzle` connects your app to PostgreSQL with [Drizzle ORM](https://orm.drizzle.team). It creates the connection pool, closes it when the app stops and gives you a `DatabaseService` you can inject into any repository. Its most useful part is transactions: several repositories write inside the same transaction without you passing it from one method to another.
+`@vigajs/drizzle` connects your app to PostgreSQL with [Drizzle ORM](https://orm.drizzle.team). It creates the connection pool, closes it when the app stops and gives you a `DatabaseService` you can inject into any repository. Its most useful part is transactions: several repositories write inside the same transaction without you passing it from one method to another.
 
 ## Installation
 
-`@vigajs/core/drizzle` uses Drizzle ORM and the `pg` driver, which you install yourself:
+`@vigajs/drizzle` uses Drizzle ORM and the `pg` driver, which you install along with it:
 
 <Tabs syncKey="pkg">
   <TabItem label="pnpm">
     ```sh
-    pnpm add drizzle-orm@0.45 pg
+    pnpm add @vigajs/drizzle drizzle-orm@0.45 pg
     pnpm add -D @types/pg
     ```
   </TabItem>
   <TabItem label="npm">
     ```sh
-    npm install drizzle-orm@0.45 pg
+    npm install @vigajs/drizzle drizzle-orm@0.45 pg
     npm install -D @types/pg
     ```
   </TabItem>
   <TabItem label="yarn">
     ```sh
-    yarn add drizzle-orm@0.45 pg
+    yarn add @vigajs/drizzle drizzle-orm@0.45 pg
     yarn add -D @types/pg
     ```
   </TabItem>
   <TabItem label="bun">
     ```sh
-    bun add drizzle-orm@0.45 pg
+    bun add @vigajs/drizzle drizzle-orm@0.45 pg
     bun add -d @types/pg
     ```
   </TabItem>
@@ -49,7 +49,7 @@ viga works with `drizzle-orm` from version 0.45 and before 1.0, which isn't stab
 
 ## Define the schema
 
-Describe your tables with Drizzle and register the schema in `@vigajs/core/drizzle`:
+Describe your tables with Drizzle and register the schema in `@vigajs/drizzle`:
 
 ```ts title="src/database/schema.ts"
 import { integer, pgTable, serial, text } from 'drizzle-orm/pg-core';
@@ -60,14 +60,14 @@ export const books = pgTable('books', {
   stock: integer('stock').notNull().default(0),
 });
 
-declare module '@vigajs/core/drizzle' {
+declare module '@vigajs/drizzle' {
   interface Register {
     schema: typeof import('./schema.ts');
   }
 }
 ```
 
-The `declare module` block makes `database.db` know your tables, just like in [`@vigajs/core/config`](../config/). You only need it once in the project.
+The `declare module` block makes `database.db` know your tables, just like in [`@vigajs/config`](../config/). You only need it once in the project.
 
 ## Register the module
 
@@ -75,8 +75,8 @@ The `declare module` block makes `database.db` know your tables, just like in [`
 
 ```ts title="src/app.module.ts"
 import { Module, inject } from '@vigajs/core';
-import { CONFIG, ConfigModule } from '@vigajs/core/config';
-import { DrizzleModule } from '@vigajs/core/drizzle';
+import { CONFIG, ConfigModule } from '@vigajs/config';
+import { DrizzleModule } from '@vigajs/drizzle';
 import { BooksModule } from './books/books.module.ts';
 import { Env } from './config.ts';
 import * as schema from './database/schema.ts';
@@ -91,9 +91,9 @@ import * as schema from './database/schema.ts';
 export class AppModule {}
 ```
 
-`forRoot` receives a function that runs inside the container when the app starts, so it can ask for `CONFIG` with `inject()`: the URL comes from the configuration already validated by [`@vigajs/core/config`](../config/), and a missing or invalid URL stops the app from starting. The function only sees the providers of global modules, like `CONFIG`.
+`forRoot` receives a function that runs inside the container when the app starts, so it can ask for `CONFIG` with `inject()`: the URL comes from the configuration already validated by [`@vigajs/config`](../config/), and a missing or invalid URL stops the app from starting. The function only sees the providers of global modules, like `CONFIG`.
 
-If you don't use `@vigajs/core/config`, `forRoot` also accepts an object with the options directly.
+If you don't use `@vigajs/config`, `forRoot` also accepts an object with the options directly.
 
 `connection` accepts a URL or the full `pg` `Pool` configuration, with `host`, `user`, `max` and the rest of the options.
 
@@ -103,7 +103,7 @@ Ask for `DatabaseService` in your repositories and use `database.db`:
 
 ```ts title="src/books/books.repository.ts"
 import { Injectable, inject } from '@vigajs/core';
-import { DatabaseService } from '@vigajs/core/drizzle';
+import { DatabaseService } from '@vigajs/drizzle';
 import { eq } from 'drizzle-orm';
 import { books } from '../database/schema.ts';
 
@@ -157,7 +157,7 @@ The three repositories don't receive the transaction as a parameter: they use `d
 `@Transactional()` wraps a whole method in a transaction:
 
 ```ts
-import { Transactional } from '@vigajs/core/drizzle';
+import { Transactional } from '@vigajs/drizzle';
 
 @Transactional()
 async receive(orderId: number, lines: ReceivedLine[]) {
@@ -241,7 +241,7 @@ In production, add `?sslmode=verify-full` to the URL or pass your provider's cer
 
 ## Migrations
 
-`@vigajs/core/drizzle` doesn't handle migrations. Use [drizzle-kit](https://orm.drizzle.team/docs/kit-overview), Drizzle's tool, which generates and applies migrations from the same schema.
+`@vigajs/drizzle` doesn't handle migrations. Use [drizzle-kit](https://orm.drizzle.team/docs/kit-overview), Drizzle's tool, which generates and applies migrations from the same schema.
 
 ## Another ORM
 
@@ -261,4 +261,4 @@ export class PrismaService implements OnModuleDestroy {
 }
 ```
 
-What you lose compared to `@vigajs/core/drizzle` are transactions that span repositories without passing them as a parameter; if you need them, you can build them with a [context key](../../core/request-lifecycle/#the-request-context), just as `@vigajs/core/drizzle` does.
+What you lose compared to `@vigajs/drizzle` are transactions that span repositories without passing them as a parameter; if you need them, you can build them with a [context key](../../core/request-lifecycle/#the-request-context), just as `@vigajs/drizzle` does.

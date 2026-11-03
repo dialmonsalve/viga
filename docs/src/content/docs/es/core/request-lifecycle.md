@@ -93,7 +93,7 @@ Una clave tiene cuatro métodos:
 | `set(value)` | Guarda el valor para el resto de la petición. Funciona en middlewares, guards, interceptores, controladores y servicios. |
 | `run(value, fn)` | Ejecuta `fn` con ese valor y, al terminar, restaura el anterior. |
 
-`createContextKey('nombre', { detached: true })` crea una clave que no pasa a los listeners de [`@vigajs/core/events`](../../optional/events/#el-contexto). Es para valores ligados a una operación concreta, como una transacción.
+`createContextKey('nombre', { detached: true })` crea una clave que no pasa a los listeners de [`@vigajs/events`](../../optional/events/#el-contexto). Es para valores ligados a una operación concreta, como una transacción.
 
 Un caso habitual es registrar quién crea o modifica algo, sin que el controlador tenga que pasar el usuario al servicio:
 

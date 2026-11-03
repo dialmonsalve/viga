@@ -51,6 +51,8 @@ Usa [jose](https://github.com/panva/jose) en el servidor y en la app:
   </TabItem>
 </Tabs>
 
+Esta guía también usa los paquetes `@vigajs/config`, `@vigajs/crypto`, `@vigajs/drizzle`, `@vigajs/validation`, que se instalan igual.
+
 ## Las claves
 
 Genera el par una sola vez:
@@ -65,7 +67,7 @@ console.log(publicKey.export({ type: 'spki', format: 'pem' }));
 "
 ```
 
-Guarda `LICENSE_PRIVATE_KEY` como un secreto de tu servidor y declárala en [`@vigajs/core/config`](../../optional/config/). Copia la clave pública en el código de la app.
+Guarda `LICENSE_PRIVATE_KEY` como un secreto de tu servidor y declárala en [`@vigajs/config`](../../optional/config/). Copia la clave pública en el código de la app.
 
 Si se filtra la clave privada, cualquiera puede crear licencias, y tendrás que publicar una versión de la app con otra clave pública. Guárdala solo donde corre el servidor de licencias.
 
@@ -113,7 +115,7 @@ await this.database.db.insert(licenses).values({
 ```ts title="src/licenses/license-tokens.service.ts"
 import { createPrivateKey } from 'node:crypto';
 import { Injectable, inject } from '@vigajs/core';
-import { CONFIG } from '@vigajs/core/config';
+import { CONFIG } from '@vigajs/config';
 import { SignJWT } from 'jose';
 
 const THIRTY_DAYS_IN_SECONDS = 30 * 24 * 60 * 60;
@@ -145,8 +147,8 @@ El servicio bloquea la fila de la licencia dentro de una transacción. Sin ese b
 
 ```ts title="src/licenses/licenses.service.ts"
 import { ConflictException, ForbiddenException, Injectable, inject } from '@vigajs/core';
-import { hashToken } from '@vigajs/core/crypto';
-import { DatabaseService } from '@vigajs/core/drizzle';
+import { hashToken } from '@vigajs/crypto';
+import { DatabaseService } from '@vigajs/drizzle';
 import { and, count, eq } from 'drizzle-orm';
 import { LicenseTokens } from './license-tokens.service.ts';
 import { activations, licenses } from './licenses.schema.ts';
@@ -230,7 +232,7 @@ Las rutas son públicas, porque quien las llama no tiene sesión, así que neces
 
 ```ts title="src/licenses/licenses.controller.ts"
 import { Controller, HttpCode, Post, Public, RateLimit, inject, type HttpContext } from '@vigajs/core';
-import { Validate } from '@vigajs/core/validation';
+import { Validate } from '@vigajs/validation';
 import { z } from 'zod';
 import { LicensesService } from './licenses.service.ts';
 

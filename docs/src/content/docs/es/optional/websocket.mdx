@@ -1,5 +1,5 @@
 ---
-title: '@vigajs/core/websocket'
+title: '@vigajs/websocket'
 description: Comunicación en tiempo real con WebSocket en el mismo puerto que tu API, con salas, validación de mensajes, autenticación en el handshake y límites por defecto.
 sidebar:
   order: 7
@@ -10,33 +10,33 @@ sidebar:
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`@vigajs/core/websocket` añade comunicación en tiempo real a tu app: el servidor y el navegador mantienen una conexión abierta y se envían mensajes en los dos sentidos. Sirve para chats, notificaciones, paneles que se actualizan solos o juegos.
+`@vigajs/websocket` añade comunicación en tiempo real a tu app: el servidor y el navegador mantienen una conexión abierta y se envían mensajes en los dos sentidos. Sirve para chats, notificaciones, paneles que se actualizan solos o juegos.
 
 Funciona en el mismo puerto que tu API HTTP y con las mismas piezas: los gateways son providers con `inject()`, los mensajes se validan con esquemas y los errores usan los mismos códigos que en HTTP.
 
 ## Instalación
 
-`@vigajs/core/websocket` usa la librería `ws`, que instalas tú:
+`@vigajs/websocket` usa la librería `ws`, que instalas junto a él:
 
 <Tabs syncKey="pkg">
   <TabItem label="pnpm">
     ```sh
-    pnpm add ws
+    pnpm add @vigajs/websocket ws
     ```
   </TabItem>
   <TabItem label="npm">
     ```sh
-    npm install ws
+    npm install @vigajs/websocket ws
     ```
   </TabItem>
   <TabItem label="yarn">
     ```sh
-    yarn add ws
+    yarn add @vigajs/websocket ws
     ```
   </TabItem>
   <TabItem label="bun">
     ```sh
-    bun add ws
+    bun add @vigajs/websocket ws
     ```
   </TabItem>
 </Tabs>
@@ -49,7 +49,7 @@ Un gateway es al WebSocket lo que un controlador es a HTTP: recibe los mensajes 
 
 ```ts title="src/chat/chat.gateway.ts"
 import { inject } from '@vigajs/core';
-import { Gateway, OnMessage, WsServer, type WsContext } from '@vigajs/core/websocket';
+import { Gateway, OnMessage, WsServer, type WsContext } from '@vigajs/websocket';
 import { z } from 'zod';
 
 const Join = z.object({ room: z.string().min(1) });
@@ -90,7 +90,7 @@ Y `WebSocketModule.forRoot` va en el módulo raíz, con la autenticación y los 
 
 ```ts title="src/app.module.ts"
 import { Module } from '@vigajs/core';
-import { WebSocketModule } from '@vigajs/core/websocket';
+import { WebSocketModule } from '@vigajs/websocket';
 import { ChatModule } from './chat/chat.module.ts';
 
 @Module({
@@ -214,7 +214,7 @@ El `WebSocket` del navegador no puede enviar cabeceras propias, así que `Author
 
 ### Usa la configuración en `forRoot`
 
-`WebSocketModule.forRoot` también acepta una función, que se ejecuta dentro del contenedor al arrancar la app. Así puede pedir valores con `inject()`, como un secreto de [`@vigajs/core/config`](../config/):
+`WebSocketModule.forRoot` también acepta una función, que se ejecuta dentro del contenedor al arrancar la app. Así puede pedir valores con `inject()`, como un secreto de [`@vigajs/config`](../config/):
 
 ```ts title="src/app.module.ts"
 WebSocketModule.forRoot(() => {
@@ -251,7 +251,7 @@ Las conexiones sin `Origin`, que vienen de clientes que no son navegadores, como
 Las mismas herramientas de HTTP funcionan en cada mensaje:
 
 - [`@UseGuards()`](../../core/guards/#guards-por-ruta) y [`@UseInterceptors()`](../../core/interceptors/) van en un método o en todo el gateway.
-- `RateLimit`, importado de `@vigajs/core/websocket`, limita un evento o todos los de un gateway. Por defecto cuenta por conexión; con `key: ({ client }) => String(client.state.userId)` cuenta por usuario, sumando todas sus pestañas. Por encima del límite responde `errors.tooManyRequests` con `details.retryAfter` en segundos.
+- `RateLimit`, importado de `@vigajs/websocket`, limita un evento o todos los de un gateway. Por defecto cuenta por conexión; con `key: ({ client }) => String(client.state.userId)` cuenta por usuario, sumando todas sus pestañas. Por encima del límite responde `errors.tooManyRequests` con `details.retryAfter` en segundos.
 
 El `@RateLimit` que se importa de `@vigajs/core` es solo para rutas HTTP.
 
@@ -260,7 +260,7 @@ El `@RateLimit` que se importa de `@vigajs/core` es solo para rutas HTTP.
 Un gateway puede ejecutar código cuando un cliente se conecta o se desconecta, implementando `OnWsConnection` y `OnWsDisconnect`:
 
 ```ts
-import { Gateway, type OnWsConnection, type OnWsDisconnect, type WsClient } from '@vigajs/core/websocket';
+import { Gateway, type OnWsConnection, type OnWsDisconnect, type WsClient } from '@vigajs/websocket';
 
 @Gateway('/chat')
 export class ChatGateway implements OnWsConnection, OnWsDisconnect {
@@ -276,7 +276,7 @@ export class ChatGateway implements OnWsConnection, OnWsDisconnect {
 
 ## Idioma
 
-Si pasas una instancia de [`@vigajs/core/i18n`](../i18n/) en la opción `i18n`, el idioma se elige una vez, al conectarse, y se usa en todos los mensajes de esa conexión: `i18n.t()` funciona dentro de los gateways, los errores salen traducidos y `client.locale` contiene el idioma.
+Si pasas una instancia de [`@vigajs/i18n`](../i18n/) en la opción `i18n`, el idioma se elige una vez, al conectarse, y se usa en todos los mensajes de esa conexión: `i18n.t()` funciona dentro de los gateways, los errores salen traducidos y `client.locale` contiene el idioma.
 
 El navegador no deja enviar cabeceras propias, así que para que el usuario elija el idioma, léelo de la URL con `resolveLocale`:
 
@@ -289,7 +289,7 @@ WebSocketModule.forRoot({
 
 ## Límites por defecto
 
-`@vigajs/core/websocket` trae límites para que un cliente no pueda agotar la memoria ni las conexiones del servidor. Todos se cambian en `WebSocketModule.forRoot`:
+`@vigajs/websocket` trae límites para que un cliente no pueda agotar la memoria ni las conexiones del servidor. Todos se cambian en `WebSocketModule.forRoot`:
 
 | Opción | Por defecto | Qué limita |
 | --- | --- | --- |
@@ -307,4 +307,4 @@ WebSocketModule.forRoot({
 
 ## Otros adaptadores
 
-Por defecto, `@vigajs/core/websocket` usa `ws`, y el navegador se conecta con su `WebSocket` normal. La opción `adapter` acepta cualquier implementación de la interfaz `WsAdapter`, que es pública, para usar otra librería sin cambiar tus gateways. Cambiar de adaptador sí cambia el cliente: con socket.io, por ejemplo, el navegador necesita `socket.io-client`.
+Por defecto, `@vigajs/websocket` usa `ws`, y el navegador se conecta con su `WebSocket` normal. La opción `adapter` acepta cualquier implementación de la interfaz `WsAdapter`, que es pública, para usar otra librería sin cambiar tus gateways. Cambiar de adaptador sí cambia el cliente: con socket.io, por ejemplo, el navegador necesita `socket.io-client`.

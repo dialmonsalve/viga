@@ -117,7 +117,7 @@ These limits make slow-connection attacks harder, in which a client opens many c
 
 ## Mandatory body validation
 
-`requireValidation` is on: a route without `@Validate({ body })` doesn't accept a body, and a request that sends one responds 400. That way no unvalidated data reaches your methods. It's explained in [`@vigajs/core/validation`](../../optional/validation/#every-route-with-a-body-needs-validate).
+`requireValidation` is on: a route without `@Validate({ body })` doesn't accept a body, and a request that sends one responds 400. That way no unvalidated data reaches your methods. It's explained in [`@vigajs/validation`](../../optional/validation/#every-route-with-a-body-needs-validate).
 
 ## Private and concealed routes
 

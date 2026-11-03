@@ -33,7 +33,7 @@ describe('viga generate', () => {
     for (const file of readdirSync(join(project, directory))) {
       const path = join(project, directory, file);
       const content = readFileSync(path, 'utf8')
-        .replace("from '@vigajs/core/validation'", `from '${toSrc}/validation/index.ts'`)
+        .replace("from '@vigajs/validation'", `from '${toSrc}/validation/index.ts'`)
         .replace("from '@vigajs/core'", `from '${toSrc}/index.ts'`);
       writeFileSync(path, content);
     }

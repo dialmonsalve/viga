@@ -142,7 +142,7 @@ export class ${plural}Service {
 
 export function resourceControllerTemplate({ file, plural, route, singular, variable }: Names) {
   return `import { Controller, Delete, Get, Patch, Post, inject, type HttpContext } from '@vigajs/core';
-import { Validate } from '@vigajs/core/validation';
+import { Validate } from '@vigajs/validation';
 import { Create${singular}, ${singular}Params, Update${singular} } from './${file}.schemas.ts';
 import { ${plural}Service } from './${file}.service.ts';
 
