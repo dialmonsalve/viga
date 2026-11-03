@@ -1,6 +1,9 @@
 ---
 title: viga/testing
 description: Teste sua aplicação com requisições HTTP reais, substituindo os providers que você não quer usar nos testes, como o banco de dados ou um serviço externo.
+head:
+  - tag: title
+    content: 'Testes de uma API HTTP em Node.js com viga/testing'
 sidebar:
   order: 3
 ---

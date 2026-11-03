@@ -1,6 +1,9 @@
 ---
 title: viga/health
 description: Add the /health and /ready routes so Kubernetes, Docker or a load balancer know whether your app is alive and ready to receive traffic.
+head:
+  - tag: title
+    content: 'Health checks in Node.js with viga/health'
 sidebar:
   order: 8
 ---

@@ -1,6 +1,9 @@
 ---
 title: viga/pagination
 description: Paginate lists with ?page and ?limit, with typed results, links to the next and previous page, and limits that protect the database.
+head:
+  - tag: title
+    content: 'API pagination in Node.js with viga/pagination'
 sidebar:
   order: 4
 ---

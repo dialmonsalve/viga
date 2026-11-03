@@ -1,6 +1,9 @@
 ---
 title: viga/workers
 description: Run background work with the same code inside the API, in child processes or on another server, with a supervisor that restarts crashed processes.
+head:
+  - tag: title
+    content: 'Background workers in Node.js with viga/workers'
 sidebar:
   order: 11
 ---

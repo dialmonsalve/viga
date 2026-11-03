@@ -1,6 +1,9 @@
 ---
 title: viga/workers
-description: Execute trabalho em segundo plano com o mesmo código dentro da API, em processos filhos ou em outro servidor, com um supervisor que reinicia os processos que caem.
+description: Execute trabalho em segundo plano com o mesmo código dentro da API, em processos filhos ou em outro servidor, com um supervisor que reinicia os que caem.
+head:
+  - tag: title
+    content: 'Trabalho em segundo plano em Node.js com viga/workers'
 sidebar:
   order: 11
 ---

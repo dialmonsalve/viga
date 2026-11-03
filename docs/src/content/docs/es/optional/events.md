@@ -1,6 +1,9 @@
 ---
 title: viga/events
 description: Separa tus servicios con un bus de eventos en memoria, con eventos tipados, errores aislados y listeners que terminan antes de apagar la app.
+head:
+  - tag: title
+    content: 'Bus de eventos en Node.js con viga/events'
 sidebar:
   order: 10
 ---

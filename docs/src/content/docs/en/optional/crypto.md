@@ -1,6 +1,9 @@
 ---
 title: viga/crypto
 description: Store passwords with Argon2id, generate random tokens, sign URLs with an expiry and encrypt data with AES-256-GCM, with no dependencies to install.
+head:
+  - tag: title
+    content: 'Password hashing and signed URLs with viga/crypto'
 sidebar:
   order: 9
 ---

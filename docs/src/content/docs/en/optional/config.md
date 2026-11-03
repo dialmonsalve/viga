@@ -1,6 +1,9 @@
 ---
 title: viga/config
 description: Validate and type the environment variables at startup, so a wrong configuration stops the app from starting instead of failing in production.
+head:
+  - tag: title
+    content: 'Validated environment variables in Node.js with viga/config'
 sidebar:
   order: 1
 ---

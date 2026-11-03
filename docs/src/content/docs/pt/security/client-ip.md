@@ -1,6 +1,6 @@
 ---
 title: IP do cliente e proxies
-description: Como o viga obtém o IP real do cliente quando a aplicação está atrás de um proxy ou de um balanceador, e como configurar trustProxy sem que possa ser falsificado.
+description: Como o viga obtém o IP real do cliente quando a aplicação está atrás de um proxy ou balanceador, e como configurar trustProxy sem que possa ser falsificado.
 sidebar:
   order: 3
 ---

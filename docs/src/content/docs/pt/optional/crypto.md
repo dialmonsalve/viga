@@ -1,6 +1,9 @@
 ---
 title: viga/crypto
 description: Guarde senhas com Argon2id, gere tokens aleatórios, assine URLs com validade e criptografe dados com AES-256-GCM, sem instalar dependências.
+head:
+  - tag: title
+    content: 'Hash de senhas e URLs assinadas com viga/crypto'
 sidebar:
   order: 9
 ---

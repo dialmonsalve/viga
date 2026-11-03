@@ -1,6 +1,9 @@
 ---
 title: viga/pagination
 description: Pagina listados con ?page y ?limit, con resultados tipados, enlaces a la página siguiente y anterior, y límites que protegen la base de datos.
+head:
+  - tag: title
+    content: 'Paginación de una API en Node.js con viga/pagination'
 sidebar:
   order: 4
 ---

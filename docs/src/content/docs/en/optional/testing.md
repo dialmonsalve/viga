@@ -1,6 +1,9 @@
 ---
 title: viga/testing
 description: Test your app with real HTTP requests, replacing the providers you don't want to use in tests, like the database or an external service.
+head:
+  - tag: title
+    content: 'HTTP API testing in Node.js with viga/testing'
 sidebar:
   order: 3
 ---

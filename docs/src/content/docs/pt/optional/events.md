@@ -1,6 +1,9 @@
 ---
 title: viga/events
 description: Separe seus serviços com um barramento de eventos em memória, com eventos tipados, erros isolados e listeners que terminam antes de a aplicação ser encerrada.
+head:
+  - tag: title
+    content: 'Barramento de eventos em Node.js com viga/events'
 sidebar:
   order: 10
 ---

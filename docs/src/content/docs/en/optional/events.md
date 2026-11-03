@@ -1,6 +1,9 @@
 ---
 title: viga/events
 description: Decouple your services with an in-memory event bus, with typed events, isolated errors and listeners that finish before the app shuts down.
+head:
+  - tag: title
+    content: 'Event bus in Node.js with viga/events'
 sidebar:
   order: 10
 ---

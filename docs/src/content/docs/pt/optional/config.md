@@ -1,6 +1,9 @@
 ---
 title: viga/config
 description: Valide e tipe as variáveis de ambiente ao iniciar, para que uma configuração incorreta impeça a aplicação de iniciar em vez de falhar em produção.
+head:
+  - tag: title
+    content: 'Variáveis de ambiente validadas em Node.js com viga/config'
 sidebar:
   order: 1
 ---

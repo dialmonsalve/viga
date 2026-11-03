@@ -1,6 +1,9 @@
 ---
 title: viga/health
 description: Adicione as rotas /health e /ready para que o Kubernetes, o Docker ou um balanceador saibam se a sua aplicação está viva e pronta para receber tráfego.
+head:
+  - tag: title
+    content: 'Health checks em Node.js com viga/health'
 sidebar:
   order: 8
 ---

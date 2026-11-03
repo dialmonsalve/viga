@@ -1,6 +1,9 @@
 ---
 title: viga/crypto
 description: Guarda contraseñas con Argon2id, genera tokens aleatorios, firma URLs con caducidad y cifra datos con AES-256-GCM, sin instalar dependencias.
+head:
+  - tag: title
+    content: 'Hash de contraseñas y URLs firmadas con viga/crypto'
 sidebar:
   order: 9
 ---
