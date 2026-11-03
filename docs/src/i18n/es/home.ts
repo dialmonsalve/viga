@@ -109,6 +109,7 @@ export default {
     heading: 'Guías',
     intro: 'Problemas habituales resueltos de principio a fin:',
     items: [
+      { title: 'Tutorial: API REST con PostgreSQL', href: 'guides/rest-api/' },
       { title: 'Autenticación con JWT y refresh tokens', href: 'guides/jwt-auth/' },
       { title: 'Multi-tenant con subdominios', href: 'guides/multi-tenant/' },
       { title: 'Colas y workers con BullMQ y pg-boss', href: 'guides/queues-workers/' },

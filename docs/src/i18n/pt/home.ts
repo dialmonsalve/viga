@@ -35,7 +35,7 @@ export default {
     title: 'Uma API em poucas linhas',
     label: 'Arquivos do exemplo',
     heading: 'O que este código faz',
-    intro: 'O controlador do exemplo tem uma rota pública e outra privada que valida o que recebe:',
+    intro: 'O controller do exemplo tem uma rota pública e outra privada que valida o que recebe:',
     points: [
       {
         title: 'Privada, a menos que você diga o contrário',
@@ -81,7 +81,7 @@ export default {
       },
       {
         title: 'Gerador de código',
-        text: '`viga generate resource books` cria o módulo, o controlador e o serviço, sem modificar os arquivos que você já tem.',
+        text: '`viga generate resource books` cria o módulo, o controller e o serviço, sem modificar os arquivos que você já tem.',
         href: 'start/generate/',
       },
     ],
@@ -109,6 +109,7 @@ export default {
     heading: 'Guias',
     intro: 'Problemas comuns resolvidos do início ao fim:',
     items: [
+      { title: 'Tutorial: API REST com PostgreSQL', href: 'guides/rest-api/' },
       { title: 'Autenticação com JWT e refresh tokens', href: 'guides/jwt-auth/' },
       { title: 'Multi-tenant com subdomínios', href: 'guides/multi-tenant/' },
       { title: 'Filas e workers com BullMQ e pg-boss', href: 'guides/queues-workers/' },
@@ -119,7 +120,7 @@ export default {
   },
   closing: {
     heading: 'Crie sua primeira API',
-    text: 'Um guia passo a passo para montar uma API com um módulo, um controlador e um serviço.',
+    text: 'Um guia passo a passo para montar uma API com um módulo, um controller e um serviço.',
     cta: 'Construa sua primeira aplicação',
   },
   footer: {

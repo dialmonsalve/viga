@@ -161,4 +161,6 @@ No viga, uma rota é aberta de propósito, nunca por esquecimento. Para as rotas
 
 Agora você tem uma aplicação com um módulo, um controller e um serviço. O próximo passo é separar o acesso a dados num [repositório](../repositories/), para mudar de onde vêm os dados sem mexer no serviço e substituí-los nos testes. Depois, você pode validar os dados que chegam, organizar mais módulos e conectar um banco de dados, que é o que as próximas seções cobrem.
 
+Se preferir ver uma API completa, com PostgreSQL, autenticação e testes, siga o [tutorial de API REST](../../guides/rest-api/).
+
 <img src="/mascot-beam.svg" alt="" width="260" style="display: block; margin: 2rem auto 0" />

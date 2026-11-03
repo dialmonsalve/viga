@@ -161,4 +161,6 @@ In viga, a route is opened on purpose, never by oversight. For routes that requi
 
 You now have an app with a module, a controller and a service. The next step is to move data access into a [repository](../repositories/), so you can change where the data comes from without touching the service and replace it in tests. After that you can validate incoming data, organize more modules and connect a database, which is what the following sections cover.
 
+If you'd rather see a complete API, with PostgreSQL, authentication and tests, follow the [REST API tutorial](../../guides/rest-api/).
+
 <img src="/mascot-beam.svg" alt="" width="260" style="display: block; margin: 2rem auto 0" />

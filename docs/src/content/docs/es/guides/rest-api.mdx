@@ -1,0 +1,674 @@
+---
+title: 'Tutorial: API REST con PostgreSQL'
+description: Construye paso a paso una API REST con Node.js, TypeScript y PostgreSQL, con registro, inicio de sesión, rutas privadas, migraciones y tests.
+sidebar:
+  order: 0
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+En este tutorial construyes una API REST completa con Node.js, TypeScript y PostgreSQL: cada usuario se registra, inicia sesión y gestiona su propia lista de libros. Al terminar tendrás estas rutas, con su validación y sus tests:
+
+| Ruta | Acceso | Qué hace |
+| --- | --- | --- |
+| `POST /auth/register` | Pública | Crea un usuario. |
+| `POST /auth/login` | Pública | Devuelve un token de acceso. |
+| `GET /books` | Privada | Lista tus libros. |
+| `GET /books/:id` | Privada | Devuelve uno de tus libros, o 404. |
+| `POST /books` | Privada | Crea un libro. |
+| `PATCH /books/:id` | Privada | Modifica uno de tus libros. |
+| `DELETE /books/:id` | Privada | Borra uno de tus libros. |
+
+Necesitas Node.js 24.13 o superior y Docker para la base de datos. Si es tu primer contacto con viga, empieza por [Primera app](../../start/first-app/), que explica las piezas más despacio.
+
+## Crea el proyecto
+
+<Tabs syncKey="pkg">
+  <TabItem label="pnpm">
+    ```sh
+    pnpm create @vigajs libros-api
+    cd libros-api
+    pnpm install
+    pnpm add drizzle-orm@0.45 pg jose
+    pnpm add -D drizzle-kit @types/pg
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```sh
+    npm create @vigajs@latest libros-api
+    cd libros-api
+    npm install
+    npm install drizzle-orm@0.45 pg jose
+    npm install -D drizzle-kit @types/pg
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```sh
+    yarn create @vigajs libros-api
+    cd libros-api
+    yarn install
+    yarn add drizzle-orm@0.45 pg jose
+    yarn add -D drizzle-kit @types/pg
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```sh
+    bunx @vigajs/create libros-api
+    cd libros-api
+    bun install
+    bun add drizzle-orm@0.45 pg jose
+    bun add -d drizzle-kit @types/pg
+    ```
+  </TabItem>
+</Tabs>
+
+El proyecto incluye un módulo de ejemplo en `src/hello`. Borra esa carpeta: `app.module.ts` dejará de compilar hasta que lo reescribas [más adelante](#une-las-piezas).
+
+## Levanta PostgreSQL
+
+Este comando crea un contenedor con la base de datos `libros`, y el segundo añade otra para los tests:
+
+```sh
+docker run -d --name libros-db -p 5432:5432 -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=libros postgres:17
+docker exec libros-db createdb -U postgres libros_test
+```
+
+Si el segundo comando dice que el servidor aún no acepta conexiones, espera unos segundos y repítelo. Si ya usas el puerto 5432, cambia el primer número, como en `-p 5433:5432`, y también el puerto de las URLs de los archivos `.env`.
+
+## Configura la app
+
+Crea el archivo `.env`. El proyecto ya lo ignora en Git:
+
+```sh title=".env"
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/libros
+JWT_SECRET=pega-aqui-un-valor-aleatorio
+```
+
+`JWT_SECRET` firma los tokens: quien lo conozca puede hacerse pasar por cualquier usuario. Genera uno con este comando:
+
+```sh
+node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"
+```
+
+Declara las variables con [`viga/config`](../../optional/config/). Si falta alguna o no es válida, la app no arranca, y el error nombra la variable sin mostrar su valor:
+
+```ts title="src/config.ts"
+import { z } from 'zod';
+
+export const Env = z.object({
+  DATABASE_URL: z.string().min(1),
+  JWT_SECRET: z.string().min(32),
+});
+
+declare module 'viga/config' {
+  interface Register {
+    schema: typeof Env;
+  }
+}
+```
+
+## Define las tablas
+
+Cada libro pertenece a un usuario, y al borrar un usuario se borran sus libros:
+
+```ts title="src/database/schema.ts"
+import { integer, pgTable, serial, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+
+export const users = pgTable('users', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: text('email').notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const books = pgTable('books', {
+  id: serial('id').primaryKey(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  year: integer('year').notNull(),
+});
+
+declare module 'viga/drizzle' {
+  interface Register {
+    schema: typeof import('./schema.ts');
+  }
+}
+```
+
+Las migraciones las gestiona [drizzle-kit](https://orm.drizzle.team/docs/kit-overview), con esta configuración:
+
+```ts title="drizzle.config.ts"
+import { existsSync } from 'node:fs';
+import { defineConfig } from 'drizzle-kit';
+
+if (existsSync('.env')) process.loadEnvFile();
+
+export default defineConfig({
+  dialect: 'postgresql',
+  schema: './src/database/schema.ts',
+  out: './drizzle',
+  dbCredentials: { url: process.env.DATABASE_URL ?? '' },
+});
+```
+
+Añade dos scripts a tu `package.json`:
+
+```json title="package.json"
+{
+  "scripts": {
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
+  }
+}
+```
+
+Ejecuta `db:generate` para crear la migración en la carpeta `drizzle/`, y `db:migrate` para aplicarla. Con pnpm:
+
+```sh
+pnpm db:generate
+pnpm db:migrate
+```
+
+Guarda la carpeta `drizzle/` en Git: es el historial de cambios de tu base de datos. Cada vez que cambies `schema.ts`, repite los dos comandos.
+
+## Autenticación
+
+viga no trae autenticación propia: te da el [guard de autenticación](../../core/guards/) y tú decides cómo comprobar quién es el usuario. Aquí usas un token JWT firmado con [jose](https://github.com/panva/jose).
+
+### Los tokens
+
+```ts title="src/auth/tokens.service.ts"
+import { Injectable, inject } from 'viga';
+import { CONFIG } from 'viga/config';
+import { SignJWT, jwtVerify } from 'jose';
+
+@Injectable()
+export class TokensService {
+  private readonly key = new TextEncoder().encode(inject(CONFIG).JWT_SECRET);
+
+  sign(userId: string) {
+    return new SignJWT()
+      .setProtectedHeader({ alg: 'HS256' })
+      .setSubject(userId)
+      .setIssuedAt()
+      .setExpirationTime('1h')
+      .sign(this.key);
+  }
+
+  async verify(token: string) {
+    const { payload } = await jwtVerify(token, this.key, { algorithms: ['HS256'] });
+    return payload;
+  }
+}
+```
+
+La opción `algorithms` fija el algoritmo que se acepta, para que no se pueda presentar un token firmado de otra forma.
+
+Un JWT no se puede anular antes de que caduque, así que este dura una hora. Es una decisión sencilla para este tutorial: para sesiones más largas y que se puedan cerrar, usa los refresh tokens de la [guía de JWT](../jwt-auth/).
+
+### El guard
+
+El guard se ejecuta en cada ruta privada. Si el token es válido, guarda el usuario en una [clave de contexto](../../core/request-lifecycle/#el-contexto-de-la-petición), que el resto del código puede leer durante esa petición:
+
+```ts title="src/auth/current-user.ts"
+import { createContextKey } from 'viga';
+
+export const CURRENT_USER = createContextKey<{ id: string }>('currentUser');
+```
+
+```ts title="src/auth/auth.guard.ts"
+import { Injectable, inject, type CanActivate, type HttpContext } from 'viga';
+import { CURRENT_USER } from './current-user.ts';
+import { TokensService } from './tokens.service.ts';
+
+@Injectable()
+export class AuthGuard implements CanActivate {
+  private readonly tokens = inject(TokensService);
+
+  async canActivate({ req }: HttpContext) {
+    const header = req.headers.authorization;
+    if (!header?.startsWith('Bearer ')) return false;
+
+    try {
+      const { sub } = await this.tokens.verify(header.slice('Bearer '.length));
+      if (typeof sub !== 'string') return false;
+
+      CURRENT_USER.set({ id: sub });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+```
+
+Si devuelve `false`, viga responde 401.
+
+### Registro e inicio de sesión
+
+Los datos de entrada se validan con estos esquemas. `z.strictObject` rechaza cualquier campo que no esté declarado, y el email se pasa a minúsculas para que `Ana@example.com` y `ana@example.com` sean la misma cuenta:
+
+```ts title="src/auth/auth.schemas.ts"
+import { z } from 'zod';
+
+const Email = z.email().toLowerCase();
+
+export const Register = z.strictObject({
+  email: Email,
+  password: z.string().min(12).max(128),
+});
+
+export const Login = z.strictObject({
+  email: Email,
+  password: z.string().min(1).max(128),
+});
+```
+
+```ts title="src/auth/auth.service.ts"
+import { ConflictException, Injectable, UnauthorizedException, inject } from 'viga';
+import { hashPassword, randomToken, verifyPassword } from 'viga/crypto';
+import { DatabaseService } from 'viga/drizzle';
+import { eq } from 'drizzle-orm';
+import { users } from '../database/schema.ts';
+import { TokensService } from './tokens.service.ts';
+
+@Injectable()
+export class AuthService {
+  private readonly database = inject(DatabaseService);
+  private readonly tokens = inject(TokensService);
+  private readonly dummyHash = hashPassword(randomToken());
+
+  async register(email: string, password: string) {
+    const passwordHash = await hashPassword(password);
+    const [user] = await this.database.db
+      .insert(users)
+      .values({ email, passwordHash })
+      .onConflictDoNothing({ target: users.email })
+      .returning({ id: users.id, email: users.email });
+
+    if (!user) throw new ConflictException();
+    return user;
+  }
+
+  async login(email: string, password: string) {
+    const [user] = await this.database.db.select().from(users).where(eq(users.email, email));
+    const valid = await verifyPassword(password, user?.passwordHash ?? (await this.dummyHash));
+    if (!user || !valid) throw new UnauthorizedException();
+
+    return { accessToken: await this.tokens.sign(user.id) };
+  }
+}
+```
+
+Tres detalles de este servicio:
+
+- **La contraseña** se guarda como un hash Argon2id de [`viga/crypto`](../../optional/crypto/#contraseñas), del que no se puede recuperar.
+- **`onConflictDoNothing`** deja que sea la restricción `UNIQUE` de PostgreSQL la que detecte un email repetido. Si comprobaras primero con un `SELECT`, dos registros simultáneos podrían pasar los dos la comprobación.
+- **`dummyHash`** hace que el inicio de sesión también calcule un hash cuando el email no existe. Si no, la diferencia en el tiempo de respuesta revelaría qué emails están registrados, igual que responder con un error distinto en cada caso.
+
+```ts title="src/auth/auth.controller.ts"
+import { Controller, HttpCode, Post, Public, RateLimit, inject, type HttpContext } from 'viga';
+import { Validate } from 'viga/validation';
+import { Login, Register } from './auth.schemas.ts';
+import { AuthService } from './auth.service.ts';
+
+@Public()
+@Controller('/auth')
+export class AuthController {
+  private readonly auth = inject(AuthService);
+
+  @Post('/register')
+  @RateLimit({ max: 10, windowMs: 60 * 60_000 })
+  @Validate({ body: Register })
+  register({ body }: HttpContext<{ body: typeof Register }>) {
+    return this.auth.register(body.email, body.password);
+  }
+
+  @Post('/login')
+  @HttpCode(200)
+  @RateLimit({ max: 5, windowMs: 15 * 60_000 })
+  @Validate({ body: Login })
+  login({ body }: HttpContext<{ body: typeof Login }>) {
+    return this.auth.login(body.email, body.password);
+  }
+}
+```
+
+`@Public()` sobre la clase abre todas sus rutas. Calcular un hash es caro a propósito, así que [`@RateLimit`](../../security/rate-limiting/) limita cuántas veces se pueden llamar. `@HttpCode(200)` cambia el código del inicio de sesión, porque un `POST` responde 201 por defecto y aquí no se crea nada.
+
+```ts title="src/auth/auth.module.ts"
+import { Module } from 'viga';
+import { AuthController } from './auth.controller.ts';
+import { AuthService } from './auth.service.ts';
+import { TokensService } from './tokens.service.ts';
+
+@Module({
+  controllers: [AuthController],
+  providers: [AuthService, TokensService],
+  exports: [TokensService],
+})
+export class AuthModule {}
+```
+
+`TokensService` se exporta porque el guard de autenticación se crea con el contenedor del módulo raíz, y tiene que poder verlo desde ahí.
+
+## Los libros
+
+Genera el recurso con el [generador de viga](../../start/generate/):
+
+```sh
+pnpm exec viga g resource books
+```
+
+Con npm y yarn es `npx viga` y `yarn viga`. Crea el módulo, el controlador, el servicio y los esquemas en `src/books/`, con las cinco rutas de la tabla inicial. Solo tienes que adaptar los datos y cambiar el almacenamiento en memoria por la base de datos.
+
+Reemplaza los esquemas por los campos de un libro:
+
+```ts title="src/books/books.schemas.ts"
+import { z } from 'zod';
+
+export const CreateBook = z.strictObject({
+  title: z.string().min(1).max(200),
+  year: z.number().int().min(0).max(9999),
+});
+
+export const UpdateBook = CreateBook.partial().refine((book) => Object.keys(book).length > 0);
+
+export const BookParams = z.object({
+  id: z.coerce.number().int().positive(),
+});
+```
+
+`refine` rechaza un `PATCH` sin ningún campo, porque no habría nada que modificar. Como `CreateBook` no incluye `userId` y es estricto, un cliente no puede crear libros a nombre de otro usuario: esa petición responde 400.
+
+Reemplaza el servicio:
+
+```ts title="src/books/books.service.ts"
+import { Injectable, NotFoundException, inject } from 'viga';
+import { DatabaseService } from 'viga/drizzle';
+import { and, eq } from 'drizzle-orm';
+import { CURRENT_USER } from '../auth/current-user.ts';
+import { books } from '../database/schema.ts';
+
+@Injectable()
+export class BooksService {
+  private readonly database = inject(DatabaseService);
+
+  findAll() {
+    const { id: userId } = CURRENT_USER.get();
+    return this.database.db.select().from(books).where(eq(books.userId, userId)).orderBy(books.id);
+  }
+
+  async findOne(id: number) {
+    const [book] = await this.database.db.select().from(books).where(this.owned(id));
+    if (!book) throw new NotFoundException();
+    return book;
+  }
+
+  async create(data: { title: string; year: number }) {
+    const { id: userId } = CURRENT_USER.get();
+    const [book] = await this.database.db.insert(books).values({ ...data, userId }).returning();
+    return book;
+  }
+
+  async update(id: number, data: { title?: string | undefined; year?: number | undefined }) {
+    const [book] = await this.database.db.update(books).set(data).where(this.owned(id)).returning();
+    if (!book) throw new NotFoundException();
+    return book;
+  }
+
+  async remove(id: number) {
+    const [book] = await this.database.db.delete(books).where(this.owned(id)).returning();
+    if (!book) throw new NotFoundException();
+  }
+
+  private owned(id: number) {
+    return and(eq(books.id, id), eq(books.userId, CURRENT_USER.get().id));
+  }
+}
+```
+
+El dueño de cada libro sale siempre de `CURRENT_USER`, es decir, del token ya verificado, y nunca de lo que envía el cliente. `owned()` añade esa condición a cada consulta sobre un libro concreto, así que el libro de otro usuario responde 404, igual que uno que no existe, sin revelar que existe.
+
+En el controlador generado, `remove` ahora es asíncrono. Añade `return` para que viga espere a que termine y un error llegue a la respuesta:
+
+```ts title="src/books/books.controller.ts" ins={3}
+@Delete('/:id')
+@Validate({ params: BookParams })
+remove({ params }: HttpContext<{ params: typeof BookParams }>) {
+  return this.books.remove(params.id);
+}
+```
+
+## Une las piezas
+
+Reescribe el módulo raíz:
+
+```ts title="src/app.module.ts"
+import { Module, inject } from 'viga';
+import { CONFIG, ConfigModule } from 'viga/config';
+import { DrizzleModule } from 'viga/drizzle';
+import { AuthModule } from './auth/auth.module.ts';
+import { BooksModule } from './books/books.module.ts';
+import { Env } from './config.ts';
+import * as schema from './database/schema.ts';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({ schema: Env }),
+    DrizzleModule.forRoot(() => ({ connection: inject(CONFIG).DATABASE_URL, schema })),
+    AuthModule,
+    BooksModule,
+  ],
+})
+export class AppModule {}
+```
+
+Y activa el guard en `main.ts`. El archivo `.env` se carga solo si existe, porque en producción las variables suelen venir del entorno:
+
+```ts title="src/main.ts"
+import { existsSync } from 'node:fs';
+import { createApp } from 'viga';
+import { AppModule } from './app.module.ts';
+import { AuthGuard } from './auth/auth.guard.ts';
+
+if (existsSync('.env')) process.loadEnvFile();
+
+const app = createApp({ rootModule: AppModule }).enableShutdownHooks().useAuthGuard(AuthGuard);
+
+await app.listen();
+```
+
+Arranca la app con `pnpm dev`, o `npm run dev`, `yarn dev` o `bun run dev`.
+
+## Pruébala
+
+Sin token, las rutas privadas responden 401:
+
+```sh
+curl -i http://localhost:3000/books
+```
+
+Crea un usuario:
+
+```sh
+curl -X POST http://localhost:3000/auth/register \
+  -H 'content-type: application/json' \
+  -d '{"email":"ana@example.com","password":"una-clave-bien-larga"}'
+```
+
+```json
+{ "id": "be62cf42-d696-4725-8b8b-1abfc45a9151", "email": "ana@example.com" }
+```
+
+Inicia sesión y guarda el token en una variable:
+
+```sh
+TOKEN=$(curl -s -X POST http://localhost:3000/auth/login \
+  -H 'content-type: application/json' \
+  -d '{"email":"ana@example.com","password":"una-clave-bien-larga"}' \
+  | node -pe 'JSON.parse(require("fs").readFileSync(0)).accessToken')
+```
+
+Crea un libro y lístalos:
+
+```sh
+curl -X POST http://localhost:3000/books \
+  -H "authorization: Bearer $TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{"title":"Dune","year":1965}'
+
+curl http://localhost:3000/books -H "authorization: Bearer $TOKEN"
+```
+
+```json
+[{ "id": 1, "userId": "be62cf42-d696-4725-8b8b-1abfc45a9151", "title": "Dune", "year": 1965 }]
+```
+
+Si envías un dato incorrecto, la respuesta dice qué campo falló. Este es el resultado de registrarse con una contraseña corta, sin el `requestId` y el `timestamp` que acompañan a cada error:
+
+```json
+{
+  "statusCode": 400,
+  "code": "errors.validation",
+  "message": "Invalid input data",
+  "error": "Bad Request",
+  "details": {
+    "body": [
+      {
+        "path": "password",
+        "code": "too_small",
+        "message": "Too small: expected string to have >=12 characters"
+      }
+    ]
+  }
+}
+```
+
+Puedes traducir estos mensajes con [`viga/i18n`](../../optional/i18n/).
+
+## Añade tests
+
+Los tests hacen peticiones HTTP reales con [`viga/testing`](../../optional/testing/) contra la base de datos `libros_test`, que nunca se mezcla con tus datos. Crea su configuración:
+
+```sh title=".env.test"
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/libros_test
+JWT_SECRET=solo-para-las-pruebas-solo-para-las-pruebas
+```
+
+Añade el script:
+
+```json title="package.json"
+{
+  "scripts": {
+    "test": "node --env-file=.env.test --import tsx --test \"src/**/*.test.ts\""
+  }
+}
+```
+
+Y escribe los tests:
+
+```ts title="src/app.test.ts"
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { after, before, describe, it } from 'node:test';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import { DatabaseService } from 'viga/drizzle';
+import { createTestingApp, type TestingApp } from 'viga/testing';
+import { AppModule } from './app.module.ts';
+import { AuthGuard } from './auth/auth.guard.ts';
+
+interface Book {
+  id: number;
+  title: string;
+}
+
+describe('la API de libros', () => {
+  let app: TestingApp;
+
+  async function signUp() {
+    const json = { email: `${randomUUID()}@example.com`, password: 'una-clave-bien-larga' };
+    await app.request('/auth/register', { method: 'POST', json });
+
+    const { body } = await app.request<{ accessToken: string }>('/auth/login', { method: 'POST', json });
+    return { authorization: `Bearer ${body.accessToken}` };
+  }
+
+  before(async () => {
+    app = await createTestingApp(AppModule, { configure: (app) => app.useAuthGuard(AuthGuard) });
+    await migrate(app.get(DatabaseService).db, { migrationsFolder: 'drizzle' });
+  });
+
+  after(() => app.close());
+
+  it('rechaza las peticiones sin token', async () => {
+    const { status } = await app.request('/books');
+    assert.equal(status, 401);
+  });
+
+  it('crea y lista los libros del usuario', async () => {
+    const headers = await signUp();
+    const json = { title: 'Dune', year: 1965 };
+
+    const created = await app.request('/books', { method: 'POST', headers, json });
+    assert.equal(created.status, 201);
+
+    const { body } = await app.request<Book[]>('/books', { headers });
+    assert.deepEqual(body.map((book) => book.title), ['Dune']);
+  });
+
+  it('rechaza un libro no válido', async () => {
+    const headers = await signUp();
+    const { status } = await app.request('/books', { method: 'POST', headers, json: { title: '' } });
+    assert.equal(status, 400);
+  });
+
+  it('no deja ver el libro de otro usuario', async () => {
+    const owner = await signUp();
+    const other = await signUp();
+    const json = { title: 'Fundación', year: 1951 };
+
+    const { body } = await app.request<Book>('/books', { method: 'POST', headers: owner, json });
+    const { status } = await app.request(`/books/${body.id}`, { headers: other });
+    assert.equal(status, 404);
+  });
+});
+```
+
+- **`migrate`** aplica las migraciones antes de empezar, así que los tests funcionan también en una base de datos vacía, como la de un servidor de integración continua.
+- **`configure`** activa el guard, que en la app real se activa en `main.ts`.
+- **Cada usuario** tiene un email aleatorio, para que los tests no choquen con datos de ejecuciones anteriores.
+
+Ejecútalos con `pnpm test`, `npm test`, `yarn test` o `bun run test`:
+
+```txt
+✔ la API de libros
+ℹ tests 4
+ℹ pass 4
+ℹ fail 0
+```
+
+## Compila para producción
+
+```sh
+pnpm build
+pnpm db:migrate
+pnpm start
+```
+
+`build` compila el proyecto en `dist/`, y `start` lo ejecuta con Node.js. En producción, define `DATABASE_URL` y `JWT_SECRET` en el entorno de tu servidor, con un secreto distinto al de desarrollo.
+
+Antes de publicar la API, revisa estos puntos:
+
+- **Conexión segura con PostgreSQL:** usa TLS si la base de datos no está en la misma máquina, como explica [`viga/drizzle`](../../optional/drizzle/#tls).
+- **Proxy:** si la app está detrás de un proxy o un balanceador, configura [`trustProxy`](../../security/client-ip/). Sin él, los límites de `@RateLimit` contarían a todos tus usuarios como si fueran uno.
+- **La lista de comprobación de [seguridad](../../security/checklist/):** repasa lo que viga no puede decidir por ti.
+
+## Siguientes pasos
+
+- Pagina el listado de libros con [`viga/pagination`](../../optional/pagination/).
+- Añade las rutas `/health` y `/ready` con [`viga/health`](../../optional/health/).
+- Añade sesiones largas con refresh tokens, con la [guía de JWT](../jwt-auth/).
+- Envía un correo al registrarse, con la [guía de envío de correos](../email/).

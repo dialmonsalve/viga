@@ -474,6 +474,16 @@ const copyLabels = { copy: t.copy.idle, copied: t.copy.done, copyFailed: t.copy.
     color: var(--color-accent);
   }
 
+  .guides li:first-child:not(:last-child):nth-last-child(3n + 1) {
+    grid-column: 1 / -1;
+  }
+
+  .guides li:first-child:nth-last-child(3n + 1) a {
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+    color: var(--color-accent);
+  }
+
   .closing {
     overflow: hidden;
     padding-block: 2.5rem 0;

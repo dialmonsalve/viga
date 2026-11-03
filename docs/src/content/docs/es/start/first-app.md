@@ -161,4 +161,6 @@ En viga, una ruta se abre a propósito, nunca por olvido. Para las rutas que req
 
 Ya tienes una app con un módulo, un controlador y un servicio. El siguiente paso es separar el acceso a los datos en un [repositorio](../repositories/), para cambiar de dónde salen los datos sin tocar el servicio y reemplazarlos en las pruebas. Después puedes validar los datos que llegan, organizar más módulos y conectar una base de datos, que es lo que cubren las siguientes secciones.
 
+Si prefieres ver una API completa, con PostgreSQL, autenticación y tests, sigue el [tutorial de API REST](../../guides/rest-api/).
+
 <img src="/mascot-beam.svg" alt="" width="260" style="display: block; margin: 2rem auto 0" />
