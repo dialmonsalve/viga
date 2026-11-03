@@ -32,7 +32,8 @@ const copyLabels = { copy: t.copy.idle, copied: t.copy.done, copyFailed: t.copy.
   <SiteHeader lang={lang} github={GITHUB} />
 
   <main>
-    <div class="hero">
+    <div class="hero" data-hero>
+      <div class="spotlight" aria-hidden="true"></div>
       <div class="wrap hero-grid">
         <div class="intro">
           <h1>{t.heading}</h1>
@@ -158,6 +159,37 @@ const copyLabels = { copy: t.copy.idle, copied: t.copy.done, copyFailed: t.copy.
   </footer>
 </Layout>
 
+<script>
+  document.addEventListener('astro:page-load', () => {
+    const hero = document.querySelector<HTMLElement>('[data-hero]');
+    if (!hero || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    let frame = 0;
+    let x = 0;
+    let y = 0;
+
+    hero.addEventListener('pointermove', (event) => {
+      if (event.pointerType !== 'mouse') return;
+
+      const box = hero.getBoundingClientRect();
+      x = event.clientX - box.left;
+      y = event.clientY - box.top;
+      hero.dataset.lit = '';
+
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        hero.style.setProperty('--spot-x', `${x}px`);
+        hero.style.setProperty('--spot-y', `${y}px`);
+      });
+    });
+
+    hero.addEventListener('pointerleave', () => {
+      delete hero.dataset.lit;
+    });
+  });
+</script>
+
 <style>
   .wrap {
     max-width: 74rem;
@@ -171,6 +203,9 @@ const copyLabels = { copy: t.copy.idle, copied: t.copy.done, copyFailed: t.copy.
   }
 
   .hero {
+    --beam-tile: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cpath d='M18 18h36M18 54h36M36 18v36' fill='none' stroke='%23000' stroke-width='3'/%3E%3C/svg%3E");
+    --spot-x: 50%;
+    --spot-y: 50%;
     position: relative;
     isolation: isolate;
     margin-top: -5rem;
@@ -200,9 +235,27 @@ const copyLabels = { copy: t.copy.idle, copied: t.copy.done, copyFailed: t.copy.
     background: var(--color-accent);
     opacity: 0.13;
     mask-image:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cpath d='M18 18h36M18 54h36M36 18v36' fill='none' stroke='%23000' stroke-width='3'/%3E%3C/svg%3E"),
+      var(--beam-tile),
       radial-gradient(ellipse 60% 85% at 62% 50%, #000, transparent 75%);
     mask-composite: intersect;
+  }
+
+  .spotlight {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--color-spot);
+    opacity: 0;
+    pointer-events: none;
+    mask-image:
+      var(--beam-tile),
+      radial-gradient(circle 15rem at var(--spot-x) var(--spot-y), #000, transparent);
+    mask-composite: intersect;
+    transition: opacity 200ms ease;
+  }
+
+  .hero[data-lit] .spotlight {
+    opacity: 1;
   }
 
   .hero-grid {
