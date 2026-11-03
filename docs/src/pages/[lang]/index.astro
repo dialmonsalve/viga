@@ -1,7 +1,11 @@
 ---
 import Mascot from '../../components/Mascot.astro';
+import CodeTabs from '../../components/home/CodeTabs.astro';
+import Inline from '../../components/home/Inline.astro';
+import SiteHeader from '../../components/home/SiteHeader.astro';
+import { examples } from '../../components/home/examples';
 import Layout from '../../layouts/Layout.astro';
-import { LANGS, LANG_NAMES, LANG_TAGS, getDictionary, type Lang } from '../../i18n';
+import { LANGS, getDictionary, type Lang } from '../../i18n';
 
 export function getStaticPaths() {
   return LANGS.map((lang) => ({ params: { lang } }));
@@ -9,112 +13,526 @@ export function getStaticPaths() {
 
 const lang = Astro.params.lang as Lang;
 const t = getDictionary(lang).home;
+const docs = (path: string) => `/${lang}/${path}`;
+
+const GITHUB = 'https://github.com/dialmonsalve/viga';
+const NPM = 'https://www.npmjs.com/package/@vigajs/core';
+
+const name = t.install.projectName;
+const installs = [
+  { label: 'pnpm', code: `pnpm create @vigajs ${name}` },
+  { label: 'npm', code: `npm create @vigajs@latest ${name}` },
+  { label: 'yarn', code: `yarn create @vigajs ${name}` },
+  { label: 'bun', code: `bunx @vigajs/create ${name}` },
+];
+const copyLabels = { copy: t.copy.idle, copied: t.copy.done, copyFailed: t.copy.failed };
 ---
 
 <Layout lang={lang} title={t.title} description={t.description}>
+  <SiteHeader lang={lang} github={GITHUB} />
+
   <main>
-    <div class="intro">
-      <h1>{t.heading}</h1>
-      <p class="tagline">{t.tagline}</p>
-      <a class="cta" href={`/${lang}/start/what-is-viga/`}>{t.cta}</a>
-      <nav aria-label={t.languages}>
-        <ul>
+    <div class="hero">
+      <div class="wrap hero-grid">
+        <div class="intro">
+          <h1>{t.heading}</h1>
+          <p class="tagline">{t.tagline}</p>
+          <div class="actions">
+            <a class="button primary" href={docs('start/installation/')}>{t.cta}</a>
+            <a class="button secondary" href={docs('start/what-is-viga/')}>{t.secondaryCta}</a>
+          </div>
+          <CodeTabs
+            id="install"
+            label={t.install.label}
+            caption={t.install.requirements}
+            lang="sh"
+            tabs={installs}
+            sync
+            {...copyLabels}
+          />
+        </div>
+        <div class="tilt">
+          <div class="tilt-card">
+            <CodeTabs
+              id="example"
+              title={t.example.title}
+              label={t.example.label}
+              caption="TypeScript"
+              lang="ts"
+              tabs={examples.map(({ file, code }) => ({ label: file, code }))}
+              numbered
+              {...copyLabels}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <section class="wrap" aria-labelledby="example-heading">
+      <h2 id="example-heading">{t.example.heading}</h2>
+      <p class="lead">{t.example.intro}</p>
+      <div class="points">
+        {
+          t.example.points.map((point) => (
+            <div class="point">
+              <h3>{point.title}</h3>
+              <p>
+                <Inline text={point.text} />
+              </p>
+            </div>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="wrap" aria-labelledby="features-heading">
+      <h2 id="features-heading">{t.features.heading}</h2>
+      <ul class="cards">
+        {
+          t.features.items.map((item) => (
+            <li>
+              <a class="card" href={docs(item.href)}>
+                <h3>{item.title}</h3>
+                <p>
+                  <Inline text={item.text} />
+                </p>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section id="modules" class="tinted" aria-labelledby="modules-heading">
+      <div class="wrap">
+        <h2 id="modules-heading">{t.modules.heading}</h2>
+        <p class="lead">{t.modules.intro}</p>
+        <ul class="modules">
           {
-            LANGS.map((target) => (
+            t.modules.items.map((item) => (
               <li>
-                <a
-                  href={`/${target}/`}
-                  hreflang={LANG_TAGS[target]}
-                  lang={LANG_TAGS[target]}
-                  aria-current={target === lang ? 'page' : undefined}
-                >
-                  {LANG_NAMES[target]}
+                <a href={docs(item.href)}>
+                  <code>{item.name}</code>
+                  <span>{item.text}</span>
                 </a>
               </li>
             ))
           }
         </ul>
-      </nav>
-    </div>
-    <Mascot alt={t.mascotAlt} />
+      </div>
+    </section>
+
+    <section id="guides" class="wrap" aria-labelledby="guides-heading">
+      <h2 id="guides-heading">{t.guides.heading}</h2>
+      <p class="lead">{t.guides.intro}</p>
+      <ul class="guides">
+        {
+          t.guides.items.map((item) => (
+            <li>
+              <a href={docs(item.href)}>
+                {item.title}
+                <span aria-hidden="true">→</span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="closing" aria-labelledby="closing-heading">
+      <div class="wrap closing-grid">
+        <div class="closing-text">
+          <h2 id="closing-heading">{t.closing.heading}</h2>
+          <p>{t.closing.text}</p>
+          <a class="button inverse" href={docs('start/first-app/')}>{t.closing.cta}</a>
+        </div>
+        <Mascot alt={t.mascotAlt} />
+      </div>
+    </section>
   </main>
+
+  <footer class="wrap site-footer">
+    <span>{t.footer.license}</span>
+    <a href={GITHUB}>GitHub</a>
+    <a href={NPM}>npm</a>
+  </footer>
 </Layout>
 
 <style>
-  main {
-    max-width: 64rem;
-    margin: 0 auto;
-    padding: 4rem 1rem;
-    display: grid;
-    gap: 3rem;
-    align-items: center;
-    justify-items: center;
+  .wrap {
+    max-width: 74rem;
+    margin-inline: auto;
+    padding-inline: 1rem;
   }
 
-  @media (min-width: 48rem) {
-    main {
-      grid-template-columns: 1fr auto;
-      padding-block: 6rem;
+  section {
+    padding-block: 3.5rem;
+    scroll-margin-top: 4.5rem;
+  }
+
+  .hero {
+    position: relative;
+    isolation: isolate;
+    margin-top: -5rem;
+    padding-block: 7rem 4rem;
+    overflow: hidden;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .hero::before,
+  .hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  .hero::before {
+    background: radial-gradient(
+      ellipse 55% 75% at 62% 50%,
+      color-mix(in srgb, var(--color-glow) 60%, transparent),
+      transparent 70%
+    );
+  }
+
+  .hero::after {
+    background: var(--color-accent);
+    opacity: 0.13;
+    mask-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cpath d='M18 18h36M18 54h36M36 18v36' fill='none' stroke='%23000' stroke-width='3'/%3E%3C/svg%3E"),
+      radial-gradient(ellipse 60% 85% at 62% 50%, #000, transparent 75%);
+    mask-composite: intersect;
+  }
+
+  .hero-grid {
+    display: grid;
+    gap: 2.5rem;
+    align-items: center;
+  }
+
+  @media (min-width: 60rem) {
+    .hero-grid {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+      gap: 3.5rem;
+    }
+  }
+
+  .tilt {
+    min-width: 0;
+    perspective: 1600px;
+  }
+
+  .tilt-card {
+    position: relative;
+    transform-style: preserve-3d;
+  }
+
+  .tilt-card :global(code-tabs) {
+    position: relative;
+    box-shadow:
+      0 2px 4px color-mix(in srgb, var(--color-accent-strong) 10%, transparent),
+      0 24px 48px -16px color-mix(in srgb, var(--color-accent-strong) 28%, transparent);
+  }
+
+  @media (min-width: 60rem) and (prefers-reduced-motion: no-preference) {
+    .tilt-card {
+      transform: rotateY(-5deg) rotateX(2deg);
+      transition: transform 300ms ease;
+    }
+
+    .tilt-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 0.75rem;
+      background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+      transform: translate3d(14px, 14px, -40px);
+      transition: transform 300ms ease;
+    }
+
+    .tilt-card:hover,
+    .tilt-card:focus-within {
+      transform: rotateY(-1deg) rotateX(0.5deg);
+    }
+
+    .tilt-card:hover::before,
+    .tilt-card:focus-within::before {
+      transform: translate3d(8px, 8px, -24px);
     }
   }
 
   .intro {
     display: grid;
     gap: 1.5rem;
-    justify-items: start;
+    min-width: 0;
   }
 
   h1 {
     margin: 0;
-    font-size: clamp(2.5rem, 8vw, 4rem);
+    color: var(--color-accent-strong);
+    font-size: clamp(2.25rem, 5vw, 3.5rem);
+    line-height: 1.1;
     letter-spacing: -0.03em;
   }
 
-  .tagline {
+  h2 {
+    margin: 0 0 0.5rem;
+    color: var(--color-accent-strong);
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    letter-spacing: -0.02em;
+  }
+
+  h3 {
+    margin: 0 0 0.375rem;
+    font-size: 1rem;
+  }
+
+  p {
     margin: 0;
-    font-size: 1.25rem;
+  }
+
+  .tagline {
+    color: var(--color-muted);
+    font-size: 1.1875rem;
+  }
+
+  .lead {
+    margin-bottom: 1.75rem;
     color: var(--color-muted);
   }
 
-  .cta {
-    padding: 0.75rem 1.25rem;
-    border-radius: 0.5rem;
-    background: var(--color-accent);
-    color: var(--color-accent-text);
-    font-weight: 600;
-    text-decoration: none;
-    transition: opacity 150ms ease;
+  .actions {
+    display: grid;
+    gap: 0.75rem;
   }
 
-  .cta:hover {
+  @media (min-width: 30rem) {
+    .actions {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .button {
+    padding: 0.75rem 1.25rem;
+    border: 1px solid transparent;
+    border-radius: 0.625rem;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    transition: opacity 150ms ease, border-color 150ms ease, background-color 150ms ease;
+  }
+
+  .primary {
+    background: var(--color-accent);
+    color: var(--color-accent-text);
+  }
+
+  .primary:hover {
     opacity: 0.85;
   }
 
-  ul {
-    display: flex;
-    gap: 0.25rem;
+  .secondary {
+    border-color: var(--color-border);
+    background: var(--color-bg);
+    color: var(--color-text);
+  }
+
+  .secondary:hover {
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+  }
+
+  .inverse {
+    justify-self: start;
+    background: #ffffff;
+    color: #172443;
+  }
+
+  .inverse:hover {
+    opacity: 0.88;
+  }
+
+  .inverse:focus-visible {
+    outline-color: #ffffff;
+  }
+
+  .points {
+    display: grid;
+    gap: 1.5rem;
+  }
+
+  @media (min-width: 48rem) {
+    .points {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  .point {
+    padding-inline-start: 1rem;
+    border-inline-start: 3px solid var(--color-accent);
+  }
+
+  .point p,
+  .card p,
+  .modules span {
+    color: var(--color-muted);
+    font-size: 0.9375rem;
+  }
+
+  .point :global(code),
+  .card :global(code) {
+    font-size: 0.875em;
+  }
+
+  .cards,
+  .modules,
+  .guides {
+    display: grid;
     margin: 0;
     padding: 0;
     list-style: none;
   }
 
-  nav a {
-    display: inline-block;
-    padding: 0.25rem 0.5rem;
-    border: 1px solid transparent;
-    border-radius: 0.375rem;
-    color: var(--color-muted);
-    font-size: 0.875rem;
+  .cards {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+  }
+
+  .card {
+    display: block;
+    height: 100%;
+    padding: 1.25rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    color: inherit;
     text-decoration: none;
+    transition: border-color 150ms ease, background-color 150ms ease;
   }
 
-  nav a:hover {
-    color: var(--color-text);
+  .card h3 {
+    color: var(--color-accent);
   }
 
-  nav a[aria-current='page'] {
-    border-color: var(--color-border);
+  .card:hover {
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+  }
+
+  .tinted {
+    background: var(--color-accent-soft);
+  }
+
+  .modules {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+    gap: 0.5rem 0.75rem;
+  }
+
+  .modules a {
+    display: grid;
+    gap: 0.125rem;
+    height: 100%;
+    padding: 0.75rem 0.875rem;
+    border: 1px solid transparent;
+    border-radius: 0.625rem;
+    color: inherit;
+    text-decoration: none;
+    transition: background-color 150ms ease, border-color 150ms ease;
+  }
+
+  .modules a:hover {
+    border-color: var(--color-accent);
+    background: var(--color-bg);
+  }
+
+  .modules code {
+    color: var(--color-accent);
+    font-weight: 700;
+  }
+
+  .guides {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+    gap: 0.5rem 0.75rem;
+  }
+
+  .guides a {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 0.875rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.625rem;
     color: var(--color-text);
     font-weight: 600;
+    text-decoration: none;
+    transition: border-color 150ms ease, color 150ms ease;
+  }
+
+  .guides a:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .closing {
+    overflow: hidden;
+    padding-block: 2.5rem 0;
+    background: linear-gradient(120deg, #172443, #2b4478);
+    color: #ffffff;
+  }
+
+  .closing h2 {
+    color: #ffffff;
+  }
+
+  .closing-grid {
+    display: grid;
+    gap: 2rem;
+    align-items: end;
+    justify-items: center;
+  }
+
+  @media (min-width: 48rem) {
+    .closing-grid {
+      grid-template-columns: minmax(0, 1fr) auto;
+      justify-items: stretch;
+    }
+  }
+
+  .closing-text {
+    display: grid;
+    gap: 1rem;
+    align-self: center;
+    padding-block-end: 1rem;
+  }
+
+  .closing-text p {
+    color: #d7dff5;
+    font-size: 1.0625rem;
+  }
+
+  .closing-grid :global(.mascot) {
+    width: min(15rem, 60vw);
+    margin-block-end: 1.5rem;
+    animation: none;
+  }
+
+  .site-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+    padding-block: 1.5rem;
+    color: var(--color-muted);
+    font-size: 0.9375rem;
+  }
+
+  .site-footer a {
+    color: var(--color-muted);
+    text-decoration: none;
+    transition: color 150ms ease;
+  }
+
+  .site-footer a:hover {
+    color: var(--color-accent);
   }
 </style>

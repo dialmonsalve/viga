@@ -39,6 +39,19 @@ const pathFor = (target: Lang) => Astro.url.pathname.replace(new RegExp(`^/${lan
     <meta name="twitter:card" content="summary_large_image" />
     <SocialImage lang={lang} />
     <ClientRouter />
+    <script is:inline>
+      (() => {
+        const apply = () => {
+          try {
+            const theme = localStorage.getItem('starlight-theme');
+            if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+          } catch {}
+        };
+
+        apply();
+        document.addEventListener('astro:after-swap', apply);
+      })();
+    </script>
   </head>
   <body>
     <slot />
@@ -47,25 +60,39 @@ const pathFor = (target: Lang) => Astro.url.pathname.replace(new RegExp(`^/${lan
 
 <style is:global>
   :root {
-    --color-bg: #ffffff;
-    --color-text: #17181c;
-    --color-muted: #545864;
-    --color-border: #dcdee3;
-    --color-accent: #3a4d6e;
-    --color-accent-text: #ffffff;
+    --color-bg: light-dark(#ffffff, #12151f);
+    --color-text: light-dark(#17181c, #eceef2);
+    --color-muted: light-dark(#545864, #a9aebb);
+    --color-border: light-dark(#d8dde8, #2c3244);
+    --color-surface: light-dark(#f4f6fb, #1a1f2d);
+    --color-accent: light-dark(#2b4478, #9db3ee);
+    --color-accent-strong: light-dark(#172443, #dbe3fa);
+    --color-accent-text: light-dark(#ffffff, #10131f);
+    --color-accent-soft: light-dark(#e9eef9, #1c2438);
+    --color-glow: light-dark(#7f9fe6, #3f62bd);
+    --color-success: light-dark(#1a6b3c, #7fd6a2);
+    --color-danger: light-dark(#b3261e, #f2a39d);
+    --astro-code-foreground: var(--color-text);
+    --astro-code-background: var(--color-surface);
+    --astro-code-token-keyword: light-dark(#8a2f7d, #e0a6ea);
+    --astro-code-token-string: light-dark(#1a6b3c, #7fd6a2);
+    --astro-code-token-string-expression: light-dark(#1a6b3c, #7fd6a2);
+    --astro-code-token-function: light-dark(#2b4478, #9db3ee);
+    --astro-code-token-constant: light-dark(#8a4b08, #f0c27b);
+    --astro-code-token-parameter: var(--color-text);
+    --astro-code-token-punctuation: var(--color-muted);
+    --astro-code-token-comment: var(--color-muted);
+    --astro-code-token-link: var(--color-accent);
     font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     color-scheme: light dark;
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --color-bg: #17181c;
-      --color-text: #eceef2;
-      --color-muted: #a6aab5;
-      --color-border: #33363f;
-      --color-accent: #b7c3ea;
-      --color-accent-text: #10131f;
-    }
+  :root[data-theme='light'] {
+    color-scheme: light;
+  }
+
+  :root[data-theme='dark'] {
+    color-scheme: dark;
   }
 
   *,

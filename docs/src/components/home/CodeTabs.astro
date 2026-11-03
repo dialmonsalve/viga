@@ -1,0 +1,318 @@
+---
+import { Code } from 'astro:components';
+import type { CodeLanguage } from 'astro';
+
+interface Props {
+  id: string;
+  label: string;
+  title?: string;
+  caption: string;
+  lang: CodeLanguage;
+  tabs: { label: string; code: string }[];
+  copy: string;
+  copied: string;
+  copyFailed: string;
+  sync?: boolean;
+  numbered?: boolean;
+}
+
+const { id, label, title, caption, lang, tabs, copy, copied, copyFailed, sync, numbered } = Astro.props;
+---
+
+<code-tabs
+  class:list={['panel', { numbered }]}
+  data-copy={copy}
+  data-copied={copied}
+  data-copy-failed={copyFailed}
+  data-sync={sync ? 'true' : undefined}
+>
+  {title && <p class="title">{title}</p>}
+  <div class="tabs" role="tablist" aria-label={label}>
+    {
+      tabs.map((tab, index) => (
+        <button
+          type="button"
+          role="tab"
+          id={`${id}-tab-${index}`}
+          aria-controls={`${id}-panel-${index}`}
+          aria-selected={index === 0 ? 'true' : 'false'}
+          tabindex={index === 0 ? 0 : -1}
+          data-label={tab.label}
+        >
+          {tab.label}
+        </button>
+      ))
+    }
+  </div>
+  <div class="tabpanels">
+    {
+      tabs.map((tab, index) => (
+        <div
+          class="tabpanel"
+          role="tabpanel"
+          id={`${id}-panel-${index}`}
+          aria-labelledby={`${id}-tab-${index}`}
+          hidden={index !== 0}
+        >
+          <Code code={tab.code} lang={lang} theme="css-variables" />
+        </div>
+      ))
+    }
+  </div>
+  <div class="footer">
+    <span>{caption}</span>
+    <button type="button" class="copy" data-state="idle">{copy}</button>
+    <span class="status" role="status"></span>
+  </div>
+</code-tabs>
+
+<script>
+  const STORAGE_KEY = 'starlight-synced-tabs__pkg';
+
+  function readStored() {
+    try {
+      return localStorage.getItem(STORAGE_KEY);
+    } catch {
+      return null;
+    }
+  }
+
+  function store(value: string) {
+    try {
+      localStorage.setItem(STORAGE_KEY, value);
+    } catch {
+      return;
+    }
+  }
+
+  class CodeTabs extends HTMLElement {
+    connectedCallback() {
+      const tabs = [...this.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+      const panels = [...this.querySelectorAll<HTMLElement>('[role="tabpanel"]')];
+      const copy = this.querySelector<HTMLButtonElement>('.copy');
+      const status = this.querySelector<HTMLElement>('.status');
+      const synced = this.dataset.sync === 'true';
+
+      const select = (tab: HTMLButtonElement) => {
+        for (const other of tabs) {
+          const selected = other === tab;
+          other.setAttribute('aria-selected', String(selected));
+          other.tabIndex = selected ? 0 : -1;
+        }
+        for (const panel of panels) {
+          panel.hidden = panel.getAttribute('aria-labelledby') !== tab.id;
+        }
+      };
+
+      const choose = (tab: HTMLButtonElement) => {
+        select(tab);
+        if (synced) store(tab.dataset.label ?? '');
+      };
+
+      if (synced) {
+        const stored = tabs.find((tab) => tab.dataset.label === readStored());
+        if (stored) select(stored);
+      }
+
+      tabs.forEach((tab, index) => {
+        tab.addEventListener('click', () => choose(tab));
+        tab.addEventListener('keydown', (event) => {
+          const targets: Record<string, number> = {
+            ArrowRight: (index + 1) % tabs.length,
+            ArrowLeft: (index - 1 + tabs.length) % tabs.length,
+            Home: 0,
+            End: tabs.length - 1,
+          };
+          const next = tabs[targets[event.key] ?? -1];
+          if (!next) return;
+
+          event.preventDefault();
+          next.focus();
+          choose(next);
+        });
+      });
+
+      let timer: ReturnType<typeof setTimeout> | undefined;
+
+      copy?.addEventListener('click', async () => {
+        const code = panels.find((panel) => !panel.hidden)?.textContent ?? '';
+        const { copied = '', copyFailed = '', copy: idle = '' } = this.dataset;
+        let succeeded = true;
+
+        try {
+          await navigator.clipboard.writeText(code);
+        } catch {
+          succeeded = false;
+        }
+
+        const message = succeeded ? copied : copyFailed;
+        copy.textContent = message;
+        copy.dataset.state = succeeded ? 'copied' : 'failed';
+        if (status) status.textContent = message;
+
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          copy.textContent = idle;
+          copy.dataset.state = 'idle';
+          if (status) status.textContent = '';
+        }, 2000);
+      });
+    }
+  }
+
+  if (!customElements.get('code-tabs')) customElements.define('code-tabs', CodeTabs);
+</script>
+
+<style>
+  .panel {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    background: var(--astro-code-background);
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--color-accent) 12%, transparent);
+  }
+
+  .title {
+    margin: 0;
+    padding: 0.75rem 1rem 0.25rem;
+    background: var(--color-bg);
+    color: var(--color-accent-strong);
+    font-size: 0.9375rem;
+    font-weight: 700;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 0.25rem;
+    overflow-x: auto;
+    padding-inline: 0.5rem;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg);
+  }
+
+  [role='tab'] {
+    flex: none;
+    min-height: 2.75rem;
+    padding: 0.25rem 0.625rem;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: var(--color-muted);
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 150ms ease, border-color 150ms ease;
+  }
+
+  [role='tab']:hover {
+    color: var(--color-text);
+  }
+
+  [role='tab']:focus-visible {
+    outline-offset: -3px;
+  }
+
+  [role='tab'][aria-selected='true'] {
+    border-bottom-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .tabpanels {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    background: var(--astro-code-background);
+  }
+
+  .tabpanel {
+    grid-area: 1 / 1;
+    min-width: 0;
+  }
+
+  .tabpanel[hidden] {
+    display: block;
+    visibility: hidden;
+  }
+
+  .tabpanel :global(pre) {
+    height: 100%;
+    margin: 0;
+    scrollbar-color: var(--color-border) transparent;
+    scrollbar-width: thin;
+    padding: 1rem;
+    font-size: 0.8125rem;
+    line-height: 1.6;
+  }
+
+  .tabpanel :global(pre:focus-visible) {
+    outline-offset: -3px;
+  }
+
+  .numbered :global(code) {
+    counter-reset: line;
+  }
+
+  .numbered :global(.line::before) {
+    content: counter(line);
+    counter-increment: line;
+    display: inline-block;
+    width: 2ch;
+    margin-inline-end: 1.25rem;
+    color: var(--color-muted);
+    text-align: end;
+  }
+
+  .footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.375rem 0.5rem 0.375rem 1rem;
+    border-top: 1px solid var(--color-border);
+    background: var(--color-bg);
+    color: var(--color-muted);
+    font-size: 0.8125rem;
+  }
+
+  .copy {
+    flex: none;
+    min-width: 5.5rem;
+    min-height: 2.25rem;
+    padding: 0.25rem 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    transition: border-color 150ms ease, background-color 150ms ease;
+  }
+
+  .copy:hover {
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+  }
+
+  .copy[data-state='copied'] {
+    border-color: var(--color-success);
+    color: var(--color-success);
+  }
+
+  .copy[data-state='failed'] {
+    border-color: var(--color-danger);
+    color: var(--color-danger);
+  }
+
+  .status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+</style>
