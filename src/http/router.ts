@@ -16,11 +16,27 @@ import type { Logger } from '../logger.ts';
 
 export const CONCEAL_ROUTES = new InjectionToken<boolean>('CONCEAL_ROUTES');
 
+export interface RouteSource {
+  controller: AnyConstructor;
+  handler: unknown;
+  handlerName: string | symbol;
+  httpCode: number | undefined;
+  guards: readonly unknown[];
+}
+
 export interface MountedRoute {
   method: HttpMethod;
   path: string;
   isPublic: boolean;
+  source?: RouteSource;
 }
+
+export interface MountedRoutes {
+  prefix: string;
+  routes: readonly MountedRoute[];
+}
+
+export const MOUNTED_ROUTES = new InjectionToken<() => MountedRoutes>('MOUNTED_ROUTES');
 
 export interface RoutePipeline {
   authGuard?: GuardFn;
@@ -157,6 +173,13 @@ export function mountController(
       method: route.method,
       path: normalizePath(`${definition.prefix}/${route.path}`),
       isPublic,
+      source: {
+        controller: ControllerClass,
+        handler,
+        handlerName: route.handlerName,
+        httpCode: definition.httpCodes[route.handlerName],
+        guards: definition.guards,
+      },
     });
 
     router[route.method](normalizePath(route.path), async (req: Request, res: Response) => {

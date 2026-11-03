@@ -16,6 +16,7 @@ const MODULES = [
   'events',
   'workers',
   'upload',
+  'openapi',
 ];
 
 function declaredIn(file: string) {

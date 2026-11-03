@@ -124,6 +124,13 @@ export function Upload<const O extends UploadOptions>(options: O) {
   ) {
     const decorated: M = addToPipeline(method, {
       validates: ['upload'],
+      notes: {
+        upload: {
+          field: options.field,
+          multiple: (options.maxFiles ?? 1) > 1,
+          optional: options.optional === true,
+        },
+      },
       readers: [
         async (self, rawCtx) => {
           const ctx = rawCtx as UploadContext;

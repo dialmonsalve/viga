@@ -21,6 +21,7 @@ El core solo resuelve lo que todo servidor necesita. Lo demás son subrutas opci
 | `viga/events` | Bus de eventos en memoria con eventos tipados, errores aislados y listeners que terminan antes de apagar | Nada |
 | `viga/workers` | El mismo worker en la API, en procesos hijos o en otro servidor, con un supervisor que los reinicia | Nada |
 | `viga/upload` | `@Upload` con límites, tipos de archivo detectados por su contenido y limpieza automática | `multer`, `file-type` |
+| `viga/openapi` | Genera un documento OpenAPI 3.1 a partir de tus decoradores, para Scalar o cualquier otra herramienta | Nada |
 
 ## Agradecimientos
 
@@ -214,6 +215,10 @@ Consulta [viga/workers](https://vigajs.dev/es/optional/workers/) en la documenta
 ## viga/upload
 
 Consulta [viga/upload](https://vigajs.dev/es/optional/upload/) en la documentación.
+
+## viga/openapi
+
+Consulta [viga/openapi](https://vigajs.dev/es/optional/openapi/) en la documentación.
 
 ## Generar código
 

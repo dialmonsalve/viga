@@ -49,6 +49,7 @@ export function UseGuards<C = HttpContext>(...guards: Guard<C>[]): GuardDecorato
     }
 
     return addToPipeline(target, {
+      notes: { guards },
       guards: [
         async (self, ctx) => {
           const injector = injectorOf(self);

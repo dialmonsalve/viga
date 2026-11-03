@@ -1,0 +1,147 @@
+---
+title: Documentación de tu API con Scalar
+description: Muestra tu API como una página interactiva con Scalar y viga/openapi, servida desde tu propio servidor, sin CDN y con una política de seguridad estricta.
+sidebar:
+  order: 6
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+[Scalar](https://scalar.com) muestra un documento OpenAPI como una página donde se pueden leer las rutas y probarlas. Esta guía lo añade en `/docs` con el documento que genera [`viga/openapi`](../../optional/openapi/), como un middleware de Express.
+
+viga no depende de Scalar. Para usar otra herramienta, como Swagger UI, solo cambia lo que hay en esta guía.
+
+:::note
+Probada con `@scalar/express-api-reference` 0.10.34 y `@scalar/api-reference` 1.76.4. Esta guía usa una ruta interna de ese paquete, así que fija las versiones y revisa la página al actualizarlas.
+:::
+
+## Instalación
+
+<Tabs syncKey="pkg">
+  <TabItem label="pnpm">
+    ```sh
+    pnpm add -E @scalar/express-api-reference @scalar/api-reference
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```sh
+    npm install -E @scalar/express-api-reference @scalar/api-reference
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```sh
+    yarn add -E @scalar/express-api-reference @scalar/api-reference
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```sh
+    bun add -E @scalar/express-api-reference @scalar/api-reference
+    ```
+  </TabItem>
+</Tabs>
+
+Con pnpm, una de sus dependencias, `vue-demi`, tiene un script de instalación que pnpm no ejecuta sin tu permiso, y el comando termina con un error. No hace falta ejecutarlo: decláralo en tu `pnpm-workspace.yaml`:
+
+```yaml title="pnpm-workspace.yaml"
+allowBuilds:
+  esbuild: true
+  vue-demi: false
+```
+
+## Por qué no sirve la configuración por defecto
+
+Por defecto, Scalar descarga su código desde un CDN sin fijar la versión. Eso significa ejecutar en tu sitio un código externo que puede cambiar sin que lo sepas. Además, las [cabeceras de seguridad](../../security/defaults/#cabeceras-de-seguridad) de viga lo bloquean, y la página se queda en blanco.
+
+Por eso esta guía sirve el código de Scalar desde tu servidor, y permite solo eso en esa página.
+
+## Añade la página
+
+```ts title="src/scalar.ts"
+import { randomBytes } from 'node:crypto';
+import { join } from 'node:path';
+import { apiReference } from '@scalar/express-api-reference';
+import { Router, type RequestHandler } from 'express';
+
+const BUNDLE = join(process.cwd(), 'node_modules/@scalar/api-reference/dist/browser/standalone.js');
+
+export function scalarDocs() {
+  const router = Router();
+
+  router.get('/docs/scalar.js', (_req, res) => {
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.sendFile(BUNDLE);
+  });
+
+  const page: RequestHandler<never, string> = (req, res, next) => {
+    const nonce = randomBytes(16).toString('base64');
+
+    res.setHeader(
+      'Content-Security-Policy',
+      [
+        "default-src 'none'",
+        `script-src 'self' 'nonce-${nonce}'`,
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data:",
+        "font-src 'self' data:",
+        "connect-src 'self'",
+      ].join('; ')
+    );
+
+    apiReference({
+      url: '/openapi.json',
+      cdn: '/docs/scalar.js',
+      nonce,
+      withDefaultFonts: false,
+      showDeveloperTools: 'never',
+      agent: { disabled: true },
+      telemetry: false,
+    })(req, res, next);
+  };
+
+  router.get('/docs', page);
+
+  return router;
+}
+```
+
+Regístralo solo fuera de producción:
+
+```ts title="src/main.ts"
+import { createApp } from 'viga';
+import { AppModule } from './app.module.ts';
+import { scalarDocs } from './scalar.ts';
+
+const app = createApp({ rootModule: AppModule }).enableShutdownHooks();
+
+if (process.env.NODE_ENV !== 'production') app.use(scalarDocs());
+
+await app.listen();
+```
+
+`/openapi.json` tiene que ser público para que el navegador pueda leerlo, como en el [ejemplo de `viga/openapi`](../../optional/openapi/#actívalo). Con la app en marcha, abre `http://localhost:3000/docs`.
+
+La ruta del archivo parte de la carpeta desde la que arrancas la app, así que arráncala desde la raíz del proyecto.
+
+## Qué permite esta página
+
+Esta política solo se aplica a `/docs`. El resto de tu API conserva las cabeceras de viga.
+
+| Directiva | Por qué |
+| --- | --- |
+| `script-src 'self' 'nonce-…'` | El código de Scalar, desde tu servidor, y su script de arranque. El `nonce` cambia en cada petición. |
+| `style-src 'unsafe-inline'` | Scalar añade estilos en la propia página. |
+| `connect-src 'self'` | Leer el documento y enviar las peticiones de prueba. No puede llamar a otros dominios. |
+
+Las opciones de `apiReference` desactivan lo que necesitaría servicios externos: las fuentes, que pasan a ser las del sistema, las herramientas de desarrollo, el asistente y la telemetría.
+
+Scalar intenta usar `eval`, y esta política lo bloquea. Verás ese aviso en la consola del navegador, pero la página y las peticiones de prueba funcionan.
+
+## En producción
+
+Esta guía deja `/docs` y el documento cerrados en producción: `/docs` responde 404 y `/openapi.json` pasa por tu guard de autenticación. Es lo más prudente, porque revelan todas tus rutas.
+
+Si necesitas la página en producción, protégela tú, por ejemplo con un guard, una VPN o una regla en tu proxy, y ten en cuenta que el navegador también tiene que poder leer `/openapi.json`.
+
+## Rutas privadas
+
+Si declaraste `securitySchemes`, las rutas privadas aparecen con su método de autenticación, y Scalar te deja indicar el token en su panel **Authentication** antes de enviar una petición de prueba.

@@ -21,6 +21,7 @@ The core only covers what every server needs. Everything else lives in optional 
 | `viga/events` | In-memory event bus with typed events, isolated errors and listeners that finish before shutdown | Nothing |
 | `viga/workers` | The same worker in the API, in child processes or on another server, with a supervisor that restarts them | Nothing |
 | `viga/upload` | `@Upload` with limits, file types detected from the content and automatic cleanup | `multer`, `file-type` |
+| `viga/openapi` | Generates an OpenAPI 3.1 document from your decorators, for Scalar or any other tool | Nothing |
 
 ## Acknowledgements
 
@@ -214,6 +215,10 @@ See [viga/workers](https://vigajs.dev/en/optional/workers/) in the documentation
 ## viga/upload
 
 See [viga/upload](https://vigajs.dev/en/optional/upload/) in the documentation.
+
+## viga/openapi
+
+See [viga/openapi](https://vigajs.dev/en/optional/openapi/) in the documentation.
 
 ## Generating code
 

@@ -103,6 +103,7 @@ export default {
       { name: 'viga/events', text: 'Barramento de eventos em memória e tipado.', href: 'optional/events/' },
       { name: 'viga/workers', text: 'Trabalho em segundo plano em outros processos.', href: 'optional/workers/' },
       { name: 'viga/upload', text: 'Upload de arquivos com limites.', href: 'optional/upload/' },
+      { name: 'viga/openapi', text: 'Documento OpenAPI 3.1 a partir dos seus decoradores.', href: 'optional/openapi/' },
     ],
   },
   guides: {
@@ -116,6 +117,7 @@ export default {
       { title: 'Envio de emails', href: 'guides/email/' },
       { title: 'Bloquear VPNs', href: 'guides/vpn-blocking/' },
       { title: 'Ativação de licenças', href: 'guides/license-activation/' },
+      { title: 'Documentação da sua API com Scalar', href: 'guides/scalar/' },
     ],
   },
   closing: {

@@ -73,6 +73,7 @@ export function Validate<const S extends RequestSchemas>(schemas: S) {
   ) {
     return addToPipeline(method, {
       validates: PARTS.filter((part) => schemas[part] !== undefined),
+      notes: { schemas },
       pipes: [
         (self, ctx) => {
           const options = findInjectorOf(self)?.find(VALIDATION_OPTIONS);

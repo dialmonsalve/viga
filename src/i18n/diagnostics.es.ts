@@ -103,6 +103,8 @@ export const diagnosticsEs = {
     '{type} no tiene una firma en su contenido, así que types no puede detectarlo; usa la opción check',
   'upload.httpOnly': '@Upload solo funciona en rutas HTTP',
   'upload.cleanupFailed': 'No se pudo borrar la subida temporal {path}',
+  'openapi.unconvertible': 'No se pudo convertir a JSON Schema {part} de {route}: {reason}',
+  'openapi.noJsonSchema': '{part} de {route} no tiene JSON Schema porque su librería no lo expone en ~standard.jsonSchema',
   'ws.noAuthenticate':
     'No hay una función authenticate configurada, así que los {count} gateways privados rechazarán cada handshake con 401; define authenticate en WebSocketModule.forRoot() o marca los gateways públicos con @Public()',
   'ws.publicGateways': 'Gateways públicos: {paths}',

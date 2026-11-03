@@ -103,6 +103,8 @@ export const DIAGNOSTICS = {
     '{type} has no signature in its content, so types cannot detect it; use the check option instead',
   'upload.httpOnly': '@Upload only works on HTTP routes',
   'upload.cleanupFailed': 'Could not remove the temporary upload {path}',
+  'openapi.unconvertible': '{route} {part} could not be converted to JSON Schema: {reason}',
+  'openapi.noJsonSchema': '{route} {part} has no JSON Schema because its library does not expose one in ~standard.jsonSchema',
   'ws.noAuthenticate':
     'No authenticate function is configured, so the {count} private gateways will reject every handshake with 401; set authenticate in WebSocketModule.forRoot() or mark public gateways with @Public()',
   'ws.publicGateways': 'Public gateways: {paths}',
@@ -144,6 +146,7 @@ const PREFIXES: Record<string, string> = {
   events: 'Events',
   workers: 'Workers',
   upload: 'Upload',
+  openapi: 'OpenApi',
   ws: 'WebSocket',
   testing: 'Testing',
 };

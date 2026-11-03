@@ -28,6 +28,7 @@ import {
   checkRoutes,
   mountController,
   normalizePath,
+  MOUNTED_ROUTES,
   type MountedRoute,
   type RoutePipeline,
 } from './http/router.ts';
@@ -93,6 +94,7 @@ export class App {
   private readonly interceptors: InterceptorRef[] = [];
   private readonly initialized: unknown[] = [];
   private globalPrefix = '';
+  private mountedRoutes: MountedRoute[] = [];
   private authGuard?: Guard;
   private running?: Running;
   private initializing?: Promise<Running>;
@@ -252,6 +254,10 @@ export class App {
       platformProviders: [
         { provide: LOGGER, useValue: this.logger },
         { provide: PROVIDER_INSTANCES, useValue: () => this.initialized },
+        {
+          provide: MOUNTED_ROUTES,
+          useValue: () => ({ prefix: this.globalPrefix, routes: this.mountedRoutes }),
+        },
         { provide: CONCEAL_ROUTES, useValue: concealRoutes },
         { provide: CLIENT_IP, useValue: clientIpResolver(this.express) },
         ...this[PLATFORM_PROVIDERS],
@@ -277,6 +283,7 @@ export class App {
       mountController(apiRouter, controller, injector, pipeline)
     );
     checkRoutes(routes, this.logger);
+    this.mountedRoutes = routes;
     this.reportRoutes(routes);
 
     this.express.use(contextMiddleware);

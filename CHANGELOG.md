@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/). While the version is `0.x`, minor releases may include breaking changes.
 
+## [Unreleased]
+
+### Added
+
+- `viga/openapi`: `OpenApiModule.forRoot()` generates an OpenAPI 3.1 document from your routes, `@Validate`, `@Public`, `@HttpCode`, `@RateLimit` and `@Upload`, and serves it at `/openapi.json`, private by default. `@Docs` adds summaries, tags and response schemas, and `OpenApiService.document()` returns the document from code. Schemas are converted through `~standard.jsonSchema`, without tying viga to a validation library.
+
 ## [0.1.2] - 2026-11-02
 
 ### Changed

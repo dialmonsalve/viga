@@ -550,3 +550,80 @@ interface UploadedFile {
 ```
 
 Los valores por defecto están en [Límites](../../optional/upload/#límites).
+
+## viga/openapi
+
+[Ver la guía](../../optional/openapi/).
+
+| Decorador | Qué hace |
+| --- | --- |
+| `@Docs(options)` | Añade textos y respuestas a una ruta, o agrupa las de una clase. |
+
+```ts
+class OpenApiModule {
+  static forRoot(options: OpenApiOptions | (() => OpenApiOptions), { path, public: isPublic }?: OpenApiRoutes): {
+      new (): {};
+  };
+}
+
+interface OpenApiRoutes {
+  path?: string;
+  public?: boolean;
+}
+
+interface OpenApiOptions {
+  title: string;
+  version: string;
+  description?: string;
+  securitySchemes?: Readonly<Record<string, OpenApiSecurityScheme>>;
+}
+
+type OpenApiSecurityScheme = {
+  type: 'http';
+  scheme: string;
+  bearerFormat?: string;
+  description?: string;
+} | {
+  type: 'apiKey';
+  name: string;
+  in: 'query' | 'header' | 'cookie';
+  description?: string;
+} | {
+  type: 'oauth2';
+  flows: Record<string, unknown>;
+  description?: string;
+} | {
+  type: 'openIdConnect';
+  openIdConnectUrl: string;
+  description?: string;
+};
+
+interface DocsOptions {
+  summary?: string;
+  description?: string;
+  tags?: readonly string[];
+  responses?: Readonly<Record<number, DocsResponse>>;
+  deprecated?: boolean;
+  hidden?: boolean;
+}
+
+class OpenApiService implements OnServerListen {
+  document(): OpenApiDocument;
+}
+
+interface OpenApiDocument {
+  openapi: '3.1.0';
+  info: {
+      title: string;
+      version: string;
+      description?: string;
+  };
+  paths: Record<string, Record<string, unknown>>;
+  components: {
+      schemas: Record<string, unknown>;
+      securitySchemes?: Record<string, OpenApiSecurityScheme>;
+  };
+}
+```
+
+`path` es `'/openapi.json'` por defecto y `public` es `false`. `DocsResponse` es un esquema o un texto, y `OPENAPI_OPTIONS` es el token de las opciones.

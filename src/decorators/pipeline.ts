@@ -1,3 +1,11 @@
+import type { RequestSchemas } from '../http/context.ts';
+
+export interface RouteNotes {
+  schemas?: RequestSchemas;
+  upload?: { field: string; multiple: boolean; optional: boolean };
+  guards?: readonly unknown[];
+}
+
 export type GuardStep = (self: object, ctx: object) => Promise<void>;
 
 export type InterceptorStep = (
@@ -15,9 +23,13 @@ interface Pipeline {
   interceptors: InterceptorStep[];
   pipes: PipeStep[];
   validated: Set<string>;
+  notes: RouteNotes;
 }
 
-type Steps = Partial<Omit<Pipeline, 'validated' | 'target'>> & { validates?: string[] };
+type Steps = Partial<Omit<Pipeline, 'validated' | 'target' | 'notes'>> & {
+  validates?: string[];
+  notes?: RouteNotes;
+};
 
 const PIPELINE = Symbol('pipeline');
 
@@ -26,6 +38,10 @@ type Handler = ((this: object, ctx: object) => unknown) & { [PIPELINE]?: Pipelin
 export interface HandlerSteps {
   guard(self: object, ctx: object): Promise<void>;
   invoke(self: object, ctx: object): Promise<unknown>;
+}
+
+export function routeNotes(method: unknown): RouteNotes {
+  return (method as Handler | undefined)?.[PIPELINE]?.notes ?? {};
 }
 
 export function validatedParts(method: unknown): ReadonlySet<string> {
@@ -74,6 +90,7 @@ export function addToPipeline<M>(method: M, steps: Steps): M {
     interceptors: [],
     pipes: [],
     validated: new Set(),
+    notes: {},
   };
 
   pipeline.guards.unshift(...(steps.guards ?? []));
@@ -81,6 +98,12 @@ export function addToPipeline<M>(method: M, steps: Steps): M {
   pipeline.interceptors.unshift(...(steps.interceptors ?? []));
   pipeline.pipes.unshift(...(steps.pipes ?? []));
   for (const part of steps.validates ?? []) pipeline.validated.add(part);
+  pipeline.notes = {
+    ...pipeline.notes,
+    ...steps.notes,
+    schemas: { ...pipeline.notes.schemas, ...steps.notes?.schemas },
+    guards: [...(pipeline.notes.guards ?? []), ...(steps.notes?.guards ?? [])],
+  };
 
   if (existing) return method;
 
