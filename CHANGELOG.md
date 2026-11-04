@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/). While the version is `0.x`, minor releases may include breaking changes.
 
+## [Unreleased]
+
+### Fixed
+
+- `@vigajs/create`: projects opened in an editor before installing kept showing `File 'viga/tsconfig.json' not found` and import errors after the install, until the TypeScript server was restarted. The generated `tsconfig.json` now holds its own options instead of extending `viga/tsconfig.json`, so those errors clear when the install finishes. `viga/tsconfig.json` still works in existing projects.
+
 ## [0.2.0] - 2026-11-02
 
 ### Added

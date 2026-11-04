@@ -19,6 +19,22 @@ const VERSIONS = {
 
 const SCHEMAS = ['zod', 'valibot', 'none'];
 
+const TSCONFIG = {
+  compilerOptions: {
+    target: 'ES2024',
+    lib: ['ES2024', 'ESNext.Decorators'],
+    module: 'nodenext',
+    moduleResolution: 'nodenext',
+    rewriteRelativeImportExtensions: true,
+    strict: true,
+    skipLibCheck: true,
+    types: ['node'],
+    rootDir: './src',
+    outDir: './dist',
+  },
+  include: ['src'],
+};
+
 function fail(message) {
   console.error(`error: ${message}`);
   process.exit(1);
@@ -52,7 +68,7 @@ function projectFiles(name, schema, manager) {
 
   const files = {
     'package.json': `${JSON.stringify(packageJson, null, 2)}\n`,
-    'tsconfig.json': `${JSON.stringify({ extends: 'viga/tsconfig.json', include: ['src'] }, null, 2)}\n`,
+    'tsconfig.json': `${JSON.stringify(TSCONFIG, null, 2)}\n`,
     '.gitignore': 'node_modules\ndist\n.env\n',
     'src/main.ts': `import { createApp } from 'viga';
 import { AppModule } from './app.module.ts';
@@ -115,7 +131,7 @@ export class HelloService {
 
 function nextSteps(directory, manager) {
   const run = manager.name === 'npm' ? 'npm run dev' : `${manager.name} dev`;
-  return ['', 'Next steps:', '', `  cd ${directory}`, `  ${manager.name} install`, `  ${run}`, '', 'Then open http://localhost:3000/hello', ''].join('\n');
+  return ['', 'Next steps:', '', `  cd ${directory}`, `  ${manager.name} install`, `  ${run}`, '', 'Then open http://localhost:3000/hello', '', 'If your editor is already open, it shows errors until the install finishes.', ''].join('\n');
 }
 
 function main() {

@@ -38,12 +38,22 @@ describe('@vigajs/create', () => {
     assert.deepEqual(Object.keys(pkg.scripts), ['dev', 'build', 'start']);
     assert.deepEqual(Object.keys(pkg.dependencies), ['express', 'viga', 'zod']);
     assert.match(pkg.dependencies.viga, /^npm:@vigajs\/core@/);
-    assert.deepEqual(JSON.parse(read('my-app', 'tsconfig.json')), { extends: 'viga/tsconfig.json', include: ['src'] });
     for (const file of ['.gitignore', 'src/main.ts', 'src/app.module.ts', 'src/hello/hello.controller.ts']) {
       assert.ok(existsSync(join(directory, 'my-app', file)), file);
     }
     assert.match(stdout, /pnpm install/);
     assert.match(stdout, /pnpm dev/);
+    assert.match(stdout, /errors until the install finishes/);
+  });
+
+  it('genera un tsconfig autocontenido con las opciones de tsconfig.base.json', () => {
+    run(['with-tsconfig']);
+    const generated = JSON.parse(read('with-tsconfig', 'tsconfig.json'));
+    const base = JSON.parse(readFileSync(fileURLToPath(new URL('../../tsconfig.base.json', import.meta.url)), 'utf8'));
+
+    assert.equal(generated.extends, undefined);
+    assert.deepEqual(generated.include, ['src']);
+    assert.deepEqual(generated.compilerOptions, { ...base.compilerOptions, rootDir: './src', outDir: './dist' });
   });
 
   it('elige la librería de validación', () => {
