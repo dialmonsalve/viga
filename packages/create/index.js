@@ -7,7 +7,7 @@ const MIN_NODE = [24, 13];
 const NAME_FORMAT = /^[a-z0-9][a-z0-9._-]{0,213}$/;
 
 const VERSIONS = {
-  viga: 'npm:@vigajs/core@^0.2.0',
+  viga: 'npm:@vigajs/core@^0.3.0',
   express: '^5.1.0',
   zod: '^4.0.0',
   valibot: '^1.5.0',
@@ -58,9 +58,9 @@ function projectFiles(name, schema, manager) {
     private: true,
     type: 'module',
     scripts: {
-      dev: 'tsx watch src/main.ts',
+      dev: 'viga dev',
       build: 'tsc',
-      start: 'node dist/main.js',
+      start: 'viga start',
     },
     dependencies: pickVersions(dependencies),
     devDependencies: pickVersions(['typescript', 'tsx', '@types/express', '@types/node']),

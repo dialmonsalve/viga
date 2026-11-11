@@ -35,7 +35,7 @@ describe('@vigajs/create', () => {
     assert.equal(pkg.name, 'my-app');
     assert.equal(pkg.type, 'module');
     assert.equal(pkg.private, true);
-    assert.deepEqual(Object.keys(pkg.scripts), ['dev', 'build', 'start']);
+    assert.deepEqual(pkg.scripts, { dev: 'viga dev', build: 'tsc', start: 'viga start' });
     assert.deepEqual(Object.keys(pkg.dependencies), ['express', 'viga', 'zod']);
     assert.match(pkg.dependencies.viga, /^npm:@vigajs\/core@/);
     for (const file of ['.gitignore', 'src/main.ts', 'src/app.module.ts', 'src/hello/hello.controller.ts']) {

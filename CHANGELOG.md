@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/). While the version is `0.x`, minor releases may include breaking changes.
 
-## [Unreleased]
+## [0.3.0] - 2026-11-10
 
 ### Added
 
@@ -12,6 +12,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ### Changed
 
 - The default logger colors the area of viga's messages by level (`[App]`, `[DI]`…) when the output is a terminal, and respects `NO_COLOR` and `FORCE_COLOR`. Pass `logger: console` to keep plain `console`.
+- `@vigajs/create` generates the scripts `"dev": "viga dev"` and `"start": "viga start"`.
 
 ### Fixed
 
