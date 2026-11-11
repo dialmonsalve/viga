@@ -48,9 +48,17 @@ A JWT can't be revoked before it expires: it's valid as long as its signature an
 Access tokens are signed with a secret only your server knows. Declare `JWT_SECRET` in your [`viga/config`](../../optional/config/) schema with a minimum of 32 characters, so the app doesn't start with a weak secret:
 
 ```ts title="src/config.ts"
+import { z } from 'zod';
+
 export const Env = z.object({
   JWT_SECRET: z.string().min(32),
 });
+
+declare module 'viga/config' {
+  interface Register {
+    schema: typeof Env;
+  }
+}
 ```
 
 Generate a random one with:
@@ -58,6 +66,8 @@ Generate a random one with:
 ```sh
 node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"
 ```
+
+The schema is registered with `ConfigModule.forRoot()` in the root module, as you'll see in [The module](#the-module).
 
 ## Sign and verify access tokens
 
@@ -134,7 +144,7 @@ Register it in `main.ts`:
 const app = createApp({ rootModule: AppModule }).enableShutdownHooks().useAuthGuard(AuthGuard);
 ```
 
-Since the authentication guard is created with the root module's container, `TokensService` has to be visible from there: export `TokensService` from your `AuthModule` and import `AuthModule` in the root module.
+The guard doesn't work yet: viga creates it with the root module's container, so `TokensService` has to be visible from there. You solve that in [The module](#the-module).
 
 ## Refresh tokens
 
@@ -260,6 +270,62 @@ The first three are `@Public()`, because they're used without a valid access tok
 :::tip
 [`viga/crypto`](../../optional/crypto/#passwords) includes `hashPassword` and `verifyPassword` to implement `verifyCredentials`, and `randomToken` and `hashToken` to generate refresh tokens and store their hash.
 :::
+
+## The module
+
+Put the pieces together in `AuthModule`:
+
+```ts title="src/auth/auth.module.ts"
+import { Module } from 'viga';
+import { UsersModule } from '../users/users.module.ts';
+import { AuthController } from './auth.controller.ts';
+import { RefreshTokensService } from './refresh-tokens.service.ts';
+import { TokensService } from './tokens.service.ts';
+
+@Module({
+  imports: [UsersModule],
+  controllers: [AuthController],
+  providers: [TokensService, RefreshTokensService],
+  exports: [TokensService],
+})
+export class AuthModule {}
+```
+
+- **`exports: [TokensService]`** lets the root module see `TokensService`, and so the guard too. Without this line the app doesn't start: `[DI] AppModule cannot resolve TokensService`.
+- **`imports: [UsersModule]`** gives access to `UsersService`, which `AuthController` asks for. Without it, the error is `[DI] AuthModule cannot resolve UsersService`.
+- **`AuthGuard`** doesn't go in `providers`: viga creates it on its own with `useAuthGuard()`.
+
+Importing a module only gives access to what it [exports](../../core/modules/#export-what-others-need), so `UsersModule` has to export its service:
+
+```ts title="src/users/users.module.ts" ins={6}
+import { Module } from 'viga';
+import { UsersService } from './users.service.ts';
+
+@Module({
+  providers: [UsersService],
+  exports: [UsersService],
+})
+export class UsersModule {}
+```
+
+Finally, import `AuthModule` in the root module, next to `ConfigModule`:
+
+```ts title="src/app.module.ts"
+import { Module } from 'viga';
+import { ConfigModule } from 'viga/config';
+import { AuthModule } from './auth/auth.module.ts';
+import { Env } from './config.ts';
+import { UsersModule } from './users/users.module.ts';
+
+@Module({
+  imports: [ConfigModule.forRoot({ schema: Env }), UsersModule, AuthModule],
+})
+export class AppModule {}
+```
+
+`TokensService` can ask for `CONFIG` without importing anything else, because `ConfigModule` is [global](../../core/modules/#global-modules).
+
+These errors show up when the app starts, not when it compiles: `tsc` doesn't catch them, because viga resolves dependencies when it creates the container.
 
 ## On the client
 
