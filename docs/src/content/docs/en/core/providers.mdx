@@ -176,7 +176,7 @@ It has the methods `info`, `warn`, `error` and `debug`.
 
 ### Use your own logger
 
-By default, `LOGGER` is `console`, and viga writes its own messages to it: the startup one, configuration warnings and 500 errors with their `requestId`. In production people usually use a library that writes logs as JSON, like pino or winston, to send them to a monitoring service.
+By default, `LOGGER` writes with `console`, and viga uses it for its own messages: the startup one, configuration warnings and 500 errors with their `requestId`. When the output is a terminal, it colors the message's area by level: `[App]` in cyan for `info`, yellow for `warn` and red for `error`, and the whole message in gray for `debug`. It respects `NO_COLOR` and `FORCE_COLOR`, and writes plain text to a file or a log service. If you'd rather have `console` as is, pass `logger: console`. In production people usually use a library that writes logs as JSON, like pino or winston, to send them to a monitoring service.
 
 To use another logger, pass it to `createApp`. Any object with the methods `info`, `warn`, `error` and `debug` works, and it's the same one you get with `inject(LOGGER)`:
 

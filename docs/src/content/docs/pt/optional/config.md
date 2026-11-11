@@ -36,7 +36,7 @@ declare module 'viga/config' {
 
 As variáveis de ambiente são sempre texto, então use `z.coerce` para as que devem ser números ou booleanos. Aqui `PORT` passa de `'3000'` para `3000`, e se não estiver definida vale `3000` por causa do `default`.
 
-O bloco `declare module` registra seu schema em `viga/config`. Graças a ele, o TypeScript sabe o tipo de cada variável quando você a pede. Você só precisa escrevê-lo uma vez em todo o projeto.
+O bloco `declare module` registra seu schema em `viga/config`. Graças a ele, o TypeScript sabe o tipo de cada variável quando você a pede. Você só precisa escrevê-lo uma vez em todo o projeto. Ele funciona assim que algum arquivo do projeto importa `viga/config`: se o TypeScript mostrar `Invalid module name in augmentation`, é porque você ainda não registrou o módulo, que é o próximo passo.
 
 ## Registre o módulo
 
@@ -118,7 +118,9 @@ Além disso, a configuração só contém as variáveis que você declarou. O re
 
 ## Arquivos `.env`
 
-O viga não lê arquivos `.env` por conta própria: carregar o arquivo é uma decisão que fica visível no seu projeto. O Node.js já sabe fazer isso, e você tem duas formas de pedir. Escolha a que preferir; o resultado é o mesmo.
+Se você inicia a aplicação com `viga dev` e `viga start`, como na [instalação](../../start/installation/#configure-o-projeto), não precisa fazer nada: os dois carregam o `.env` se ele existir, e `--env-file` muda o arquivo.
+
+Fora desses comandos, `createApp` não lê arquivos `.env` por conta própria: carregar o arquivo é uma decisão que fica visível no seu projeto. O Node.js já sabe fazer isso, e você tem duas formas de pedir. Escolha a que preferir; o resultado é o mesmo.
 
 ### A partir do código
 

@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+
+- `viga dev` runs the app with tsx, restarts it on changes, loads `.env` if it exists and checks the types with tsc after every change, labeling each line `[app]` or `[types]`. It also restarts after a startup crash when the fix is in an imported file, which `tsx watch` alone doesn't do. `--entry`, `--env-file` and `--no-check` change its defaults, and Node.js options go after `--`.
+- `viga start` runs the built app with Node.js and loads `.env` if it exists, with the same `--entry` and `--env-file` options.
+
+### Changed
+
+- The default logger colors the area of viga's messages by level (`[App]`, `[DI]`…) when the output is a terminal, and respects `NO_COLOR` and `FORCE_COLOR`. Pass `logger: console` to keep plain `console`.
+
 ### Fixed
 
 - `@vigajs/create`: projects opened in an editor before installing kept showing `File 'viga/tsconfig.json' not found` and import errors after the install, until the TypeScript server was restarted. The generated `tsconfig.json` now holds its own options instead of extending `viga/tsconfig.json`, so those errors clear when the install finishes. `viga/tsconfig.json` still works in existing projects.

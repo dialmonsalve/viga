@@ -34,7 +34,7 @@ import {
 } from './http/router.ts';
 import { requestId, type RequestIdOptions } from './http/request-id.ts';
 import { securityHeaders, type SecurityHeaders } from './http/security-headers.ts';
-import { LOGGER, type Logger } from './logger.ts';
+import { LOGGER, consoleLogger, type Logger } from './logger.ts';
 import type { AnyConstructor } from './metadata.ts';
 import { diagnostic } from './diagnostics.ts';
 
@@ -103,7 +103,7 @@ export class App {
 
   constructor(options: AppOptions) {
     this.rootModule = options.rootModule;
-    this.logger = options.logger ?? console;
+    this.logger = options.logger ?? consoleLogger;
     this.bodyParser = options.bodyParser ?? true;
     this.bodyLimit = options.bodyLimit ?? '100kb';
     this.securityHeaders =

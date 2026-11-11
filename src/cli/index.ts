@@ -12,8 +12,11 @@ import {
   serviceTemplate,
   type SchemaLibrary,
 } from './templates.ts';
+import { DEV_USAGE, dev } from './dev.ts';
+import { CliError } from './process.ts';
+import { START_USAGE, start } from './start.ts';
 
-const USAGE = `Usage: viga generate <kind> <name> [--path src] [--schema zod|valibot]
+const GENERATE_USAGE = `Usage: viga generate <kind> <name> [--path src] [--schema zod|valibot]
 
 <name> can include folders: admin/books goes in <path>/admin/books/.
 
@@ -28,8 +31,6 @@ Kinds:
 
 const NAME_FORMAT = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 const KINDS = ['resource', 'module', 'controller', 'service'];
-
-class CliError extends Error {}
 
 function detectSchema(root: string): SchemaLibrary {
   const manifest = join(root, 'package.json');
@@ -98,13 +99,12 @@ function generate(argv: string[]) {
   });
 
   if (values.help || positionals.length === 0) {
-    console.log(USAGE);
+    console.log(GENERATE_USAGE);
     return;
   }
 
-  const [command, kind, fullName, ...rest] = positionals;
-  if (command !== 'generate' && command !== 'g') throw new CliError(`Unknown command "${command}"\n\n${USAGE}`);
-  if (!kind || !KINDS.includes(kind) || !fullName || rest.length > 0) throw new CliError(USAGE);
+  const [, kind, fullName, ...rest] = positionals;
+  if (!kind || !KINDS.includes(kind) || !fullName || rest.length > 0) throw new CliError(GENERATE_USAGE);
 
   const segments = fullName.split('/');
   const name = segments.pop() ?? '';
@@ -143,9 +143,40 @@ function generate(argv: string[]) {
   console.log(`\n${nextStep(kind, name, directory, sourceRoot).join('\n')}`);
 }
 
-try {
-  generate(process.argv.slice(2));
-} catch (error) {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
+const USAGE = `Usage: viga <command>
+
+Commands:
+  dev       Runs the app in development, restarting it on changes and checking its types
+  start     Runs the built app
+  generate  Creates a resource, module, controller or service ("g" for short)
+
+Run viga <command> --help to see its options.
+
+${DEV_USAGE}
+${START_USAGE}
+${GENERATE_USAGE}`;
+
+async function main(argv: string[]) {
+  const [command] = argv;
+  if (command === 'dev') return dev(argv.slice(1));
+  if (command === 'start') return start(argv.slice(1));
+  if (command === 'generate' || command === 'g') {
+    generate(argv);
+    return 0;
+  }
+  if (command === undefined || command === '--help' || command === '-h') {
+    console.log(USAGE);
+    return 0;
+  }
+  throw new CliError(`Unknown command "${command}"\n\n${USAGE}`);
 }
+
+main(process.argv.slice(2)).then(
+  (code) => {
+    process.exitCode = code;
+  },
+  (error: unknown) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  }
+);

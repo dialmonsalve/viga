@@ -176,7 +176,7 @@ Ele tem os métodos `info`, `warn`, `error` e `debug`.
 
 ### Use seu próprio logger
 
-Por padrão, `LOGGER` é `console`, e o viga escreve nele suas próprias mensagens: a de inicialização, os avisos de configuração e os erros 500 com seu `requestId`. Em produção costuma-se usar uma biblioteca que escreve os logs em JSON, como pino ou winston, para enviá-los a um serviço de monitoramento.
+Por padrão, `LOGGER` escreve com `console`, e o viga o usa para suas próprias mensagens: a de inicialização, os avisos de configuração e os erros 500 com seu `requestId`. Quando a saída é um terminal, colore a área da mensagem conforme o nível: `[App]` em ciano para `info`, amarelo para `warn` e vermelho para `error`, e a mensagem inteira em cinza para `debug`. Respeita `NO_COLOR` e `FORCE_COLOR`, e escreve texto simples em um arquivo ou em um serviço de logs. Se preferir o `console` como ele é, passe `logger: console`. Em produção costuma-se usar uma biblioteca que escreve os logs em JSON, como pino ou winston, para enviá-los a um serviço de monitoramento.
 
 Para usar outro logger, passe-o para `createApp`. Serve qualquer objeto com os métodos `info`, `warn`, `error` e `debug`, e é o mesmo que você recebe com `inject(LOGGER)`:
 

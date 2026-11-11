@@ -126,16 +126,25 @@ O viga é um pacote de módulos ES, então o seu projeto também precisa ser. No
 {
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/main.ts",
+    "dev": "viga dev",
     "build": "tsc",
-    "start": "node dist/main.js"
+    "start": "viga start"
   }
 }
 ```
 
-- `dev` executa a aplicação com o `tsx` e a reinicia cada vez que você salva um arquivo.
+- `dev` executa a aplicação com o `tsx`, a reinicia cada vez que você salva um arquivo e verifica os tipos com o `tsc` após cada mudança. Cada linha do console leva a etiqueta `[app]` ou `[types]`.
 - `build` compila o projeto para JavaScript na pasta `dist`.
 - `start` inicia a versão compilada, a que você vai usar em produção.
+
+`viga dev` e `viga start` vêm no pacote `viga` e carregam o arquivo `.env` se ele existir. Por padrão usam `src/main.ts` e `dist/main.js`:
+
+- `--entry` muda o arquivo de entrada, como em `viga dev --entry src/server.ts`.
+- `--env-file` muda o arquivo de variáveis, como em `viga start --env-file .env.production`.
+- `--no-check` faz o `viga dev` não verificar os tipos.
+- As opções do Node.js vão depois de `--`, como em `viga dev -- --inspect`.
+
+Se a aplicação cair ao iniciar, o `viga dev` a executa de novo assim que você salva a correção, mesmo que o erro esteja em um arquivo importado.
 
 ## Por que é preciso compilar
 

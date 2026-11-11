@@ -49,7 +49,7 @@ class App {
 | `rootModule` | `AnyConstructor` | Required | The root module. |
 | `globalPrefix` | `string` | No prefix | Prefix for every route. |
 | `resolveMessage` | `MessageResolver` | English messages | Translates errors, as [`viga/i18n`](../../optional/i18n/) does. |
-| `logger` | `Logger` | `console` | [The app's logger](../../core/providers/#use-your-own-logger). |
+| `logger` | `Logger` | `console` with colors in a terminal | [The app's logger](../../core/providers/#use-your-own-logger). |
 | `bodyParser` | `boolean` | `true` | Reads JSON bodies. |
 | `bodyLimit` | `number \| string` | `'100kb'` | [Maximum body size](../../security/defaults/#body-size). |
 | `securityHeaders` | `boolean \| SecurityHeaders` | `true` | [Security headers](../../security/defaults/#security-headers). |
