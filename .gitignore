@@ -5,3 +5,6 @@ coverage
 .env
 .notes
 .vscode
+test/cli/dev-*/
+test/cli/start-*/
+test/cli/generated-*/
