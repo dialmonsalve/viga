@@ -2,7 +2,17 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, watch, type FSWatcher } from 'node:fs';
 import { normalize, resolve, sep } from 'node:path';
 import { parseArgs, styleText } from 'node:util';
-import { CliError, childEnv, exitCodeOf, findBin, labelFor, prefixLines, relaySignals, usesColor } from './process.ts';
+import {
+  CliError,
+  childEnv,
+  envFileFlags,
+  exitCodeOf,
+  findBin,
+  labelFor,
+  prefixLines,
+  relaySignals,
+  usesColor,
+} from './process.ts';
 
 export const DEV_USAGE = `Usage: viga dev [--entry src/main.ts] [--env-file .env] [--no-check] [-- <node options>]
 
@@ -114,13 +124,17 @@ export function dev(argv: string[]) {
   const width = values.check ? 'types'.length : 'app'.length;
   const app = spawn(
     process.execPath,
-    [tsx, 'watch', '--clear-screen=false', '--include', directory, `--env-file-if-exists=${values['env-file']}`, ...positionals, entry],
+    [tsx, 'watch', '--clear-screen=false', '--include', directory, ...envFileFlags(root, values['env-file']), ...positionals, entry],
     { cwd: root, env: childEnv(), stdio: ['inherit', 'pipe', 'pipe'] }
   );
   prefixLines(app, labelFor('app', 'green', width));
 
   const stopChecker = values.check ? startTypeChecker(root, directory, labelFor('types', 'blue', width)) : () => {};
-  const release = relaySignals(app, stopChecker);
+  let interrupted = false;
+  const release = relaySignals(app, () => {
+    interrupted = true;
+    stopChecker();
+  });
 
   return new Promise<number>((done) => {
     app.on('error', (error) => {
@@ -132,7 +146,7 @@ export function dev(argv: string[]) {
     app.on('close', (code, signal) => {
       release();
       stopChecker();
-      done(exitCodeOf(code, signal));
+      done(interrupted ? 0 : exitCodeOf(code, signal));
     });
   });
 }

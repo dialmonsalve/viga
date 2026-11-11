@@ -45,10 +45,11 @@ describe('viga start', () => {
     rmSync(join(project, '.env'), { force: true });
     entry('console.log("started", process.env.GREETING ?? "sin variable");');
 
-    const { status, stdout } = run([]);
+    const { status, stdout, stderr } = run([]);
 
     assert.equal(status, 0);
     assert.match(stdout, /started sin variable/);
+    assert.doesNotMatch(stderr, /not found/);
   });
 
   it('devuelve el código de salida de la app', () => {

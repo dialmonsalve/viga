@@ -29,6 +29,10 @@ export function findBin(root: string, name: string, bin: string) {
   return typeof path === 'string' ? join(dirname(manifest), path) : undefined;
 }
 
+export function envFileFlags(root: string, file: string) {
+  return existsSync(resolve(root, file)) ? [`--env-file-if-exists=${file}`] : [];
+}
+
 export function childEnv(): NodeJS.ProcessEnv {
   const { FORCE_COLOR, NO_COLOR } = process.env;
   if (process.stdout.isTTY && FORCE_COLOR === undefined && NO_COLOR === undefined) {

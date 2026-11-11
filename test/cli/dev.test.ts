@@ -123,6 +123,7 @@ describe('viga dev', () => {
     await dev.waitFor(/\[app\]\s+ready one/);
     await new Promise((resolve) => setTimeout(resolve, 1500));
     assert.doesNotMatch(dev.output(), /\[types\]/);
+    assert.doesNotMatch(dev.output(), /\.env not found/);
   });
 
   it('acepta otra entrada y pasa a Node.js las opciones que van después de --', async () => {
@@ -133,7 +134,7 @@ describe('viga dev', () => {
     await dev.waitFor(/\[app\]\s+flags true/);
   });
 
-  it('se detiene con SIGTERM y no deja procesos', async () => {
+  it('se detiene con SIGTERM, termina con código 0 y no deja procesos', async () => {
     write('src/main.ts', `console.log('ready');\n${KEEP_ALIVE}`);
     const dev = start();
     await dev.waitFor(/\[app\]\s+ready/);
@@ -141,7 +142,7 @@ describe('viga dev', () => {
     const closed = new Promise<number | null>((resolve) => dev.child.once('close', (code) => resolve(code)));
     dev.child.kill('SIGTERM');
 
-    assert.notEqual(await closed, null);
+    assert.equal(await closed, 0);
     const leftovers = spawnSync('pgrep', ['-f', project], { encoding: 'utf8' }).stdout.trim();
     assert.equal(leftovers, '');
   });
