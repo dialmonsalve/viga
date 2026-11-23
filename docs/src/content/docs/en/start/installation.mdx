@@ -142,6 +142,7 @@ viga is an ES module package, so your project must be one too. In your `package.
 - `--entry` changes the entry file, as in `viga dev --entry src/server.ts`.
 - `--env-file` changes the variables file, as in `viga start --env-file .env.production`.
 - `--no-check` makes `viga dev` skip the type check.
+- `--strict` makes the app run only while `tsc` finds no errors, including those from options like `noUnusedLocals`: it waits for you to fix them before starting, and stops the app when a change introduces one. Put it in the script so the whole team works this way: `"dev": "viga dev --strict"`.
 - Node.js options go after `--`, as in `viga dev -- --inspect`.
 
 If the app crashes on startup, `viga dev` runs it again as soon as you save the fix, even when the error is in an imported file.

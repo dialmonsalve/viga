@@ -156,4 +156,90 @@ describe('viga dev', () => {
     assert.equal(status, 1);
     assert.match(stderr, /src\/main\.ts does not exist; pass your entry file with --entry/);
   });
+
+  it('explica cómo ver las opciones si una no existe', () => {
+    write('src/main.ts', KEEP_ALIVE);
+    const { status, stderr } = spawnSync(process.execPath, ['--import', loader, cli, 'dev', '--strcit'], {
+      cwd: project,
+      encoding: 'utf8',
+    });
+
+    assert.equal(status, 1);
+    assert.match(stderr, /Unknown option '--strcit'; run viga dev --help to see the options/);
+  });
+
+  it('avisa si el tsconfig no es estricto o activa experimentalDecorators', async () => {
+    write('tsconfig.json', JSON.stringify({ ...TSCONFIG, compilerOptions: { ...TSCONFIG.compilerOptions, strict: false, experimentalDecorators: true } }));
+    write('src/main.ts', `console.log('ready');\n${KEEP_ALIVE}`);
+
+    const dev = start();
+
+    await dev.waitFor(/\[types\].*experimentalDecorators/);
+    await dev.waitFor(/\[types\].*"strict": true/);
+  });
+
+  describe('--strict', () => {
+    const STOPPABLE = `process.on('SIGTERM', () => { console.log('bye'); process.exit(0); });\n${KEEP_ALIVE}`;
+
+    it('no arranca la app hasta que no haya errores de tipos', async () => {
+      write('src/main.ts', `const count: number = 'one';\nconsole.log('ready', count);\n${STOPPABLE}`);
+
+      const dev = start(['--strict']);
+
+      await dev.waitFor(/\[types\].*TS2322/);
+      await dev.waitFor(/\[app\]\s+Waiting for the type errors to be fixed/);
+      assert.doesNotMatch(dev.output(), /ready/);
+
+      write('src/main.ts', `const count: number = 1;\nconsole.log('ready', count);\n${STOPPABLE}`);
+      await dev.waitFor(/\[app\]\s+ready 1/);
+    });
+
+    it('detiene la app con un error nuevo y la vuelve a arrancar al corregirlo', async () => {
+      write('src/main.ts', `console.log('ready v1');\n${STOPPABLE}`);
+      const dev = start(['--strict']);
+      await dev.waitFor(/\[app\]\s+ready v1/);
+
+      write('src/main.ts', `const count: number = 'two';\nconsole.log('ready v2', count);\n${STOPPABLE}`);
+      await dev.waitFor(/\[app\]\s+Stopped until the type errors are fixed/);
+      await dev.waitFor(/\[app\]\s+bye/);
+      assert.doesNotMatch(dev.output(), /ready v2/);
+      assert.doesNotMatch(dev.output(), /Exited with code/);
+
+      write('src/main.ts', `console.log('ready v3');\n${STOPPABLE}`);
+      await dev.waitFor(/\[app\]\s+ready v3/);
+    });
+
+    it('avisa si la app termina sola y la arranca de nuevo con el siguiente cambio', async () => {
+      write('src/main.ts', `console.log('ready v1');\nprocess.exit(3);\n`);
+      const dev = start(['--strict']);
+
+      await dev.waitFor(/\[app\]\s+Exited with code 3; it starts again when you save a change without type errors/);
+      write('src/main.ts', `console.log('ready v2');\n${STOPPABLE}`);
+      await dev.waitFor(/\[app\]\s+ready v2/);
+    });
+
+    it('se detiene con SIGTERM, termina con código 0 y no deja procesos', async () => {
+      write('src/main.ts', `console.log('ready');\n${STOPPABLE}`);
+      const dev = start(['--strict']);
+      await dev.waitFor(/\[app\]\s+ready/);
+
+      const closed = new Promise<number | null>((resolve) => dev.child.once('close', (code) => resolve(code)));
+      dev.child.kill('SIGTERM');
+
+      assert.equal(await closed, 0);
+      const leftovers = spawnSync('pgrep', ['-f', project], { encoding: 'utf8' }).stdout.trim();
+      assert.equal(leftovers, '');
+    });
+
+    it('no se puede combinar con --no-check', () => {
+      write('src/main.ts', KEEP_ALIVE);
+      const { status, stderr } = spawnSync(process.execPath, ['--import', loader, cli, 'dev', '--strict', '--no-check'], {
+        cwd: project,
+        encoding: 'utf8',
+      });
+
+      assert.equal(status, 1);
+      assert.match(stderr, /--strict needs the type check, so it cannot be used with --no-check/);
+    });
+  });
 });

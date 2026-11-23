@@ -3,11 +3,22 @@ import { existsSync, readFileSync } from 'node:fs';
 import { constants } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
-import { styleText } from 'node:util';
+import { parseArgs, styleText, type ParseArgsConfig } from 'node:util';
 
 export class CliError extends Error {}
 
-export type Color = 'green' | 'blue';
+export function parseCommand<T extends ParseArgsConfig>(command: string, config: T) {
+  try {
+    return parseArgs(config);
+  } catch (error) {
+    const code = error instanceof Error && 'code' in error ? error.code : undefined;
+    if (typeof code !== 'string' || !code.startsWith('ERR_PARSE_ARGS')) throw error;
+    const [reason = 'Invalid options'] = (error as Error).message.split('. ');
+    throw new CliError(`${reason}; run viga ${command} --help to see the options`);
+  }
+}
+
+export type Color = 'green' | 'blue' | 'yellow';
 
 function findPackage(root: string, name: string) {
   let directory = resolve(root);

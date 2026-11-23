@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/). While the version is `0.x`, minor releases may include breaking changes.
 
+## [Unreleased]
+
+### Added
+
+- `viga dev --strict` runs the app only while `tsc` finds no errors: it waits for them to be fixed before starting, stops the app when a change introduces one and starts it again once the code compiles. Errors from options like `noUnusedLocals` count too.
+- `viga dev` warns on startup when `tsconfig.json` doesn't turn on `strict` or turns on `experimentalDecorators`, which breaks viga's decorators.
+
+### Changed
+
+- `viga dev` and `viga start` explain an unknown or incomplete option and point to `--help`, instead of Node.js's generic message.
+
 ## [0.3.0] - 2026-11-10
 
 ### Added

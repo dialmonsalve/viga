@@ -1,8 +1,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { parseArgs } from 'node:util';
-import { CliError, envFileFlags, exitCodeOf, relaySignals } from './process.ts';
+import { CliError, envFileFlags, exitCodeOf, parseCommand, relaySignals } from './process.ts';
 
 export const START_USAGE = `Usage: viga start [--entry dist/main.js] [--env-file .env] [-- <node options>]
 
@@ -11,7 +10,7 @@ Node.js options go after --, as in: viga start -- --enable-source-maps
 `;
 
 export function start(argv: string[]) {
-  const { values, positionals } = parseArgs({
+  const { values, positionals } = parseCommand('start', {
     args: argv,
     allowPositionals: true,
     options: {

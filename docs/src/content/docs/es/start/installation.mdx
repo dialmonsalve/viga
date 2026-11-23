@@ -142,6 +142,7 @@ viga es un paquete de módulos ES, así que tu proyecto también debe serlo. En 
 - `--entry` cambia el archivo de entrada, como en `viga dev --entry src/server.ts`.
 - `--env-file` cambia el archivo de variables, como en `viga start --env-file .env.production`.
 - `--no-check` hace que `viga dev` no revise los tipos.
+- `--strict` hace que la app solo se ejecute mientras `tsc` no encuentre errores, incluidos los de opciones como `noUnusedLocals`: espera a que los corrijas antes de arrancar, y la detiene cuando un cambio introduce uno. Ponlo en el script para que todo el equipo trabaje así: `"dev": "viga dev --strict"`.
 - Las opciones de Node.js van después de `--`, como en `viga dev -- --inspect`.
 
 Si la app se cae al arrancar, `viga dev` la vuelve a ejecutar en cuanto guardas el arreglo, aunque el error esté en un archivo importado.
